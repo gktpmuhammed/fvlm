@@ -1,0 +1,487 @@
+/home/muhammedg/miniconda3/envs/fvlm_training/lib/python3.10/site-packages/timm/models/hub.py:4: FutureWarning: Importing from timm.models.hub is deprecated, please import via timm.models
+  warnings.warn(f"Importing from {__name__} is deprecated, please import via timm.models", FutureWarning)
+| distributed init (rank 0, world 1): env://
+2025-08-10 13:00:26,931 [INFO] 
+=====  Running Parameters    =====
+2025-08-10 13:00:26,932 [INFO] {
+    "amp": false,
+    "batch_size_eval": 8,
+    "batch_size_train": 4,
+    "device": "cuda",
+    "dist_backend": "nccl",
+    "dist_url": "env://",
+    "distributed": true,
+    "evaluate": false,
+    "gpu": 0,
+    "init_lr": 0.0001,
+    "log_freq": 1,
+    "lr_sched": "linear_warmup_cosine_lr",
+    "max_epoch": 10,
+    "min_lr": 1e-06,
+    "num_workers": 4,
+    "output_dir": "../multi-modal-results/pretrain_ckpts",
+    "rank": 0,
+    "resume_ckpt_path": null,
+    "seed": 42,
+    "task": "image_text_pretrain",
+    "train_splits": [
+        "train"
+    ],
+    "warmup_lr": 1e-06,
+    "warmup_steps": 377,
+    "weight_decay": 0.05,
+    "world_size": 1
+}
+2025-08-10 13:00:26,932 [INFO] 
+======  Dataset Attributes  ======
+2025-08-10 13:00:26,932 [INFO] 
+======== coco_caption =======
+2025-08-10 13:00:26,932 [INFO] {
+    "build_info": {
+        "annotations": {
+            "train": {
+                "storage": "annotations.json"
+            }
+        },
+        "images": {
+            "storage": "/home/muhammedg/fvlm/data/images/train"
+        }
+    },
+    "data_type": "images",
+    "dataset_card": "dataset_card/coco_caption.md",
+    "text_processor": {
+        "train": {
+            "name": "blip_caption"
+        }
+    },
+    "vis_processor": {
+        "train": {
+            "image_size": 224,
+            "name": "fvlm_image_train"
+        }
+    }
+}
+2025-08-10 13:00:26,932 [INFO] 
+======  Model Attributes  ======
+2025-08-10 13:00:26,932 [INFO] {
+    "alpha": 0.5,
+    "arch": "blip_pretrain_vit",
+    "ckpt_path": null,
+    "embed_dim": 256,
+    "image_size": 224,
+    "load_finetuned": false,
+    "load_pretrained": false,
+    "max_txt_len": 384,
+    "max_txt_len_conc": 200,
+    "max_txt_len_desc": 200,
+    "med_config_path": "BiomedVLP-CXR-BERT-specialized/config.json",
+    "model_type": "fvlp",
+    "pretrained": "https://storage.googleapis.com/sfr-vision-language-research/BLIP/models/model_base_capfilt_large.pth",
+    "prompt": "a picture of ",
+    "queue_size": 0,
+    "vit_ckpt_layer": 0,
+    "vit_grad_ckpt": false,
+    "vit_type": "base"
+}
+2025-08-10 13:00:26,933 [INFO] Building datasets...
+/home/muhammedg/miniconda3/envs/fvlm_training/lib/python3.10/site-packages/monai/utils/deprecate_utils.py:321: FutureWarning: monai.transforms.croppad.dictionary CropForegroundd.__init__:allow_smaller: Current default value of argument `allow_smaller=True` has been deprecated since version 1.2. It will be changed to `allow_smaller=False` in version 1.5.
+  warn_deprecated(argname, msg, warning_category)
+2025-08-10 13:00:37,301 [INFO] Start training
+2025-08-10 13:00:37,495 [INFO] dataset_ratios not specified, datasets will be concatenated (map-style datasets) or chained (webdataset.DataPipeline).
+2025-08-10 13:00:37,495 [INFO] Loaded 24128 records for train split from the dataset.
+2025-08-10 13:00:37,497 [INFO] Start training epoch 0, 6032 iters per inner epoch.
+Train: data epoch: [0]  [   0/6032]  eta: 20:56:44  lr: 0.000000  loss: 0.0000  lung_itc: 0.0000  heart_itc: 0.0000  esophagus_itc: 0.0000  aorta_itc: 0.0000  time: 12.5008  data: 0.0000  max mem: 13032
+Train: data epoch: [0]  [   1/6032]  eta: 10:38:51  lr: 0.000000  loss: 0.0000  lung_itc: 0.0000  heart_itc: 0.0000  esophagus_itc: 0.0000  aorta_itc: 0.0000  time: 6.3558  data: 0.0000  max mem: 13032
+Train: data epoch: [0]  [   2/6032]  eta: 7:32:42  lr: 0.000002  loss: 1.4240  lung_itc: 0.0000  heart_itc: 0.0000  esophagus_itc: 1.4240  aorta_itc: 0.0000  time: 4.5046  data: 0.0000  max mem: 15049
+Train: data epoch: [0]  [   3/6032]  eta: 6:58:05  lr: 0.000002  loss: 1.4240  lung_itc: 0.0000  heart_itc: 0.0000  esophagus_itc: 1.4240  aorta_itc: 0.0000  time: 4.1608  data: 0.0000  max mem: 15049
+Train: data epoch: [0]  [   4/6032]  eta: 5:54:09  lr: 0.000002  loss: 1.4240  lung_itc: 0.0000  heart_itc: 0.0000  esophagus_itc: 1.4240  aorta_itc: 0.0000  time: 3.5252  data: 0.0000  max mem: 15049
+Train: data epoch: [0]  [   5/6032]  eta: 5:44:56  lr: 0.000002  loss: 1.2033  lung_itc: 0.0000  heart_itc: 1.2033  esophagus_itc: 1.4240  aorta_itc: 0.0000  time: 3.4340  data: 0.0000  max mem: 15773
+Train: data epoch: [0]  [   6/6032]  eta: 5:03:04  lr: 0.000003  loss: 1.0907  lung_itc: 0.0000  heart_itc: 1.0907  esophagus_itc: 1.4240  aorta_itc: 0.0000  time: 3.0176  data: 0.0000  max mem: 15776
+Train: data epoch: [0]  [   7/6032]  eta: 5:02:37  lr: 0.000003  loss: 1.0907  lung_itc: 0.0000  heart_itc: 1.0907  esophagus_itc: 1.4240  aorta_itc: 0.0000  time: 3.0138  data: 0.0000  max mem: 15776
+Train: data epoch: [0]  [   8/6032]  eta: 5:24:39  lr: 0.000003  loss: 1.4200  lung_itc: 0.0000  heart_itc: 1.0907  esophagus_itc: 1.4200  aorta_itc: 0.0000  time: 3.2337  data: 0.0000  max mem: 16204
+Train: data epoch: [0]  [   9/6032]  eta: 4:55:43  lr: 0.000003  loss: 1.4200  lung_itc: 0.0000  heart_itc: 1.0907  esophagus_itc: 1.4200  aorta_itc: 0.0000  time: 2.9460  data: 0.0000  max mem: 16204
+Train: data epoch: [0]  [  10/6032]  eta: 4:30:31  lr: 0.000003  loss: 1.4200  lung_itc: 0.0000  heart_itc: 1.0907  esophagus_itc: 1.4200  aorta_itc: 0.0000  time: 2.6954  data: 0.0000  max mem: 16204
+Train: data epoch: [0]  [  11/6032]  eta: 4:44:58  lr: 0.000003  loss: 1.4200  lung_itc: 0.0000  heart_itc: 1.0907  esophagus_itc: 1.4200  aorta_itc: 0.0000  time: 2.8398  data: 0.0000  max mem: 16204
+Train: data epoch: [0]  [  12/6032]  eta: 4:57:00  lr: 0.000004  loss: 2.5641  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3913  aorta_itc: 0.0000  time: 2.9602  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  13/6032]  eta: 4:37:01  lr: 0.000004  loss: 2.5641  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3913  aorta_itc: 0.0000  time: 2.7614  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  14/6032]  eta: 4:19:40  lr: 0.000004  loss: 2.5641  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3913  aorta_itc: 0.0000  time: 2.5891  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  15/6032]  eta: 4:22:33  lr: 0.000004  loss: 2.5641  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3913  aorta_itc: 0.0000  time: 2.6181  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  16/6032]  eta: 4:36:54  lr: 0.000004  loss: 2.5641  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3913  aorta_itc: 0.0000  time: 2.7617  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  17/6032]  eta: 4:22:32  lr: 0.000004  loss: 2.5641  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3913  aorta_itc: 0.0000  time: 2.6188  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  18/6032]  eta: 4:09:36  lr: 0.000004  loss: 2.5641  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3913  aorta_itc: 0.0000  time: 2.4903  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  19/6032]  eta: 4:25:17  lr: 0.000004  loss: 2.5641  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3913  aorta_itc: 0.0000  time: 2.6472  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  20/6032]  eta: 4:28:47  lr: 0.000004  loss: 2.5641  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3913  aorta_itc: 0.0000  time: 2.1916  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  21/6032]  eta: 4:17:20  lr: 0.000004  loss: 2.5641  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3913  aorta_itc: 0.0000  time: 2.1899  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  22/6032]  eta: 4:06:52  lr: 0.000004  loss: 2.5641  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3913  aorta_itc: 0.0000  time: 2.1587  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  23/6032]  eta: 4:17:35  lr: 0.000004  loss: 2.5641  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3913  aorta_itc: 0.0000  time: 2.2542  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  24/6032]  eta: 4:21:46  lr: 0.000004  loss: 2.5641  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3913  aorta_itc: 0.0000  time: 2.3865  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  25/6032]  eta: 4:12:20  lr: 0.000004  loss: 2.5641  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3913  aorta_itc: 0.0000  time: 2.2464  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  26/6032]  eta: 4:03:36  lr: 0.000004  loss: 2.5641  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3913  aorta_itc: 0.0000  time: 2.2292  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  27/6032]  eta: 4:14:56  lr: 0.000004  loss: 2.5641  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3913  aorta_itc: 0.0000  time: 2.3607  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  28/6032]  eta: 4:16:41  lr: 0.000008  loss: 1.4537  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.4537  aorta_itc: 0.0000  time: 2.2643  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  29/6032]  eta: 4:08:41  lr: 0.000008  loss: 1.4537  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.4537  aorta_itc: 0.0000  time: 2.2554  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  30/6032]  eta: 4:01:11  lr: 0.000008  loss: 1.4537  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.4537  aorta_itc: 0.0000  time: 2.2547  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  31/6032]  eta: 4:23:31  lr: 0.000008  loss: 1.4537  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.4537  aorta_itc: 0.0000  time: 2.5119  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  32/6032]  eta: 4:17:06  lr: 0.000009  loss: 1.3106  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3106  aorta_itc: 0.0000  time: 2.3181  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  33/6032]  eta: 4:10:04  lr: 0.000009  loss: 1.3106  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3106  aorta_itc: 0.0000  time: 2.3190  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  34/6032]  eta: 4:03:25  lr: 0.000009  loss: 1.3106  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3106  aorta_itc: 0.0000  time: 2.3197  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  35/6032]  eta: 4:25:15  lr: 0.000010  loss: 1.3899  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3899  aorta_itc: 0.0000  time: 2.6826  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  36/6032]  eta: 4:18:33  lr: 0.000010  loss: 1.3899  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3899  aorta_itc: 0.0000  time: 2.4391  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  37/6032]  eta: 4:12:14  lr: 0.000010  loss: 1.3899  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3899  aorta_itc: 0.0000  time: 2.4396  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  38/6032]  eta: 4:06:15  lr: 0.000010  loss: 1.3899  lung_itc: 0.0000  heart_itc: 1.1728  esophagus_itc: 1.3899  aorta_itc: 0.0000  time: 2.4409  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  39/6032]  eta: 4:19:17  lr: 0.000011  loss: 1.4477  lung_itc: 0.0000  heart_itc: 1.4477  esophagus_itc: 1.3899  aorta_itc: 0.0000  time: 2.5446  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  40/6032]  eta: 4:13:21  lr: 0.000011  loss: 1.4477  lung_itc: 0.0000  heart_itc: 1.4477  esophagus_itc: 1.3899  aorta_itc: 0.0000  time: 2.3840  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  41/6032]  eta: 4:07:41  lr: 0.000011  loss: 1.4477  lung_itc: 0.0000  heart_itc: 1.4477  esophagus_itc: 1.3899  aorta_itc: 0.0000  time: 2.3840  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  42/6032]  eta: 4:03:07  lr: 0.000012  loss: 2.0122  lung_itc: 0.0000  heart_itc: 0.6656  esophagus_itc: 1.3466  aorta_itc: 0.0000  time: 2.4016  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  43/6032]  eta: 4:19:10  lr: 0.000012  loss: 2.0122  lung_itc: 0.0000  heart_itc: 0.6656  esophagus_itc: 1.3466  aorta_itc: 0.0000  time: 2.6260  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  44/6032]  eta: 4:14:25  lr: 0.000013  loss: 1.3754  lung_itc: 0.0000  heart_itc: 0.6656  esophagus_itc: 1.3754  aorta_itc: 0.0000  time: 2.4684  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  45/6032]  eta: 4:09:14  lr: 0.000013  loss: 1.3754  lung_itc: 0.0000  heart_itc: 0.6656  esophagus_itc: 1.3754  aorta_itc: 0.0000  time: 2.4685  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  46/6032]  eta: 4:04:56  lr: 0.000013  loss: 1.3956  lung_itc: 0.0000  heart_itc: 0.6656  esophagus_itc: 1.3956  aorta_itc: 0.0000  time: 2.4840  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  47/6032]  eta: 4:17:45  lr: 0.000013  loss: 1.4083  lung_itc: 0.0000  heart_itc: 0.6656  esophagus_itc: 1.4083  aorta_itc: 0.0000  time: 2.6355  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  48/6032]  eta: 4:12:49  lr: 0.000013  loss: 1.4083  lung_itc: 0.0000  heart_itc: 0.6656  esophagus_itc: 1.4083  aorta_itc: 0.0000  time: 2.4912  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  49/6032]  eta: 4:08:06  lr: 0.000013  loss: 1.4083  lung_itc: 0.0000  heart_itc: 0.6656  esophagus_itc: 1.4083  aorta_itc: 0.0000  time: 2.4917  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  50/6032]  eta: 4:03:32  lr: 0.000013  loss: 1.4083  lung_itc: 0.0000  heart_itc: 0.6656  esophagus_itc: 1.4083  aorta_itc: 0.0000  time: 2.4918  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  51/6032]  eta: 4:13:03  lr: 0.000014  loss: 1.4388  lung_itc: 0.0000  heart_itc: 0.6656  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.3847  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  52/6032]  eta: 4:08:34  lr: 0.000014  loss: 1.4388  lung_itc: 0.0000  heart_itc: 0.6656  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.3672  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  53/6032]  eta: 4:04:15  lr: 0.000014  loss: 1.4388  lung_itc: 0.0000  heart_itc: 0.6656  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.3663  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  54/6032]  eta: 4:00:06  lr: 0.000014  loss: 1.4388  lung_itc: 0.0000  heart_itc: 0.6656  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.3656  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  55/6032]  eta: 4:12:13  lr: 0.000014  loss: 1.4388  lung_itc: 0.0000  heart_itc: 0.6656  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.3122  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  56/6032]  eta: 4:08:03  lr: 0.000014  loss: 1.4388  lung_itc: 0.0000  heart_itc: 0.6656  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.3116  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  57/6032]  eta: 4:04:02  lr: 0.000014  loss: 1.4388  lung_itc: 0.0000  heart_itc: 0.6656  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.3104  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  58/6032]  eta: 4:00:36  lr: 0.000016  loss: 0.7524  lung_itc: 0.0000  heart_itc: 0.7524  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.3223  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  59/6032]  eta: 4:08:01  lr: 0.000016  loss: 0.7524  lung_itc: 0.0000  heart_itc: 0.7524  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.2828  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  60/6032]  eta: 4:04:45  lr: 0.000016  loss: 0.7524  lung_itc: 0.0000  heart_itc: 0.7524  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.2993  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  61/6032]  eta: 4:01:02  lr: 0.000016  loss: 0.7524  lung_itc: 0.0000  heart_itc: 0.7524  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.2993  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  62/6032]  eta: 3:57:27  lr: 0.000016  loss: 0.7524  lung_itc: 0.0000  heart_itc: 0.7524  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.2817  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  63/6032]  eta: 4:04:02  lr: 0.000016  loss: 0.7524  lung_itc: 0.0000  heart_itc: 0.7524  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.1377  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  64/6032]  eta: 4:04:15  lr: 0.000018  loss: 0.6736  lung_itc: 0.0000  heart_itc: 0.6736  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.2447  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  65/6032]  eta: 4:00:46  lr: 0.000018  loss: 0.6736  lung_itc: 0.0000  heart_itc: 0.6736  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.2447  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  66/6032]  eta: 3:57:24  lr: 0.000018  loss: 0.6736  lung_itc: 0.0000  heart_itc: 0.6736  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.2292  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  67/6032]  eta: 4:02:45  lr: 0.000018  loss: 0.6736  lung_itc: 0.0000  heart_itc: 0.6736  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.1007  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  68/6032]  eta: 4:02:04  lr: 0.000018  loss: 0.6736  lung_itc: 0.0000  heart_itc: 0.6736  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.1914  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  69/6032]  eta: 3:58:49  lr: 0.000018  loss: 0.6736  lung_itc: 0.0000  heart_itc: 0.6736  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.1908  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  70/6032]  eta: 3:55:40  lr: 0.000018  loss: 0.6736  lung_itc: 0.0000  heart_itc: 0.6736  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.1908  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  71/6032]  eta: 4:03:24  lr: 0.000018  loss: 0.6736  lung_itc: 0.0000  heart_itc: 0.6736  esophagus_itc: 1.4388  aorta_itc: 0.0000  time: 2.2193  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  72/6032]  eta: 4:01:08  lr: 0.000020  loss: 1.4051  lung_itc: 0.0000  heart_itc: 0.6736  esophagus_itc: 1.4051  aorta_itc: 0.0000  time: 2.2514  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  73/6032]  eta: 3:58:05  lr: 0.000020  loss: 1.4051  lung_itc: 0.0000  heart_itc: 0.6736  esophagus_itc: 1.4051  aorta_itc: 0.0000  time: 2.2515  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  74/6032]  eta: 3:55:06  lr: 0.000020  loss: 1.4051  lung_itc: 0.0000  heart_itc: 0.6736  esophagus_itc: 1.4051  aorta_itc: 0.0000  time: 2.2515  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  75/6032]  eta: 4:03:28  lr: 0.000020  loss: 1.4051  lung_itc: 0.0000  heart_itc: 0.6736  esophagus_itc: 1.4051  aorta_itc: 0.0000  time: 2.2297  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  76/6032]  eta: 4:00:30  lr: 0.000020  loss: 1.4051  lung_itc: 0.0000  heart_itc: 0.6736  esophagus_itc: 1.4051  aorta_itc: 0.0000  time: 2.2297  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  77/6032]  eta: 3:57:36  lr: 0.000020  loss: 1.4051  lung_itc: 0.0000  heart_itc: 0.6736  esophagus_itc: 1.4051  aorta_itc: 0.0000  time: 2.2297  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  78/6032]  eta: 3:54:46  lr: 0.000020  loss: 1.4051  lung_itc: 0.0000  heart_itc: 0.6736  esophagus_itc: 1.4051  aorta_itc: 0.0000  time: 2.2165  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  79/6032]  eta: 4:01:09  lr: 0.000020  loss: 1.4051  lung_itc: 0.0000  heart_itc: 0.6736  esophagus_itc: 1.4051  aorta_itc: 0.0000  time: 2.2482  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  80/6032]  eta: 3:58:21  lr: 0.000020  loss: 1.4051  lung_itc: 0.0000  heart_itc: 0.6736  esophagus_itc: 1.4051  aorta_itc: 0.0000  time: 2.2316  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  81/6032]  eta: 3:55:59  lr: 0.000022  loss: 1.3947  lung_itc: 0.0000  heart_itc: 0.6736  esophagus_itc: 1.3947  aorta_itc: 0.0000  time: 2.2467  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  82/6032]  eta: 3:53:46  lr: 0.000023  loss: 2.5439  lung_itc: 0.0000  heart_itc: 1.1145  esophagus_itc: 1.4294  aorta_itc: 0.0000  time: 2.2654  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  83/6032]  eta: 4:00:27  lr: 0.000023  loss: 2.5439  lung_itc: 0.0000  heart_itc: 1.1145  esophagus_itc: 1.4294  aorta_itc: 0.0000  time: 2.3358  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  84/6032]  eta: 3:57:47  lr: 0.000023  loss: 2.5439  lung_itc: 0.0000  heart_itc: 1.1145  esophagus_itc: 1.4294  aorta_itc: 0.0000  time: 2.2140  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  85/6032]  eta: 3:55:11  lr: 0.000023  loss: 2.5439  lung_itc: 0.0000  heart_itc: 1.1145  esophagus_itc: 1.4294  aorta_itc: 0.0000  time: 2.2139  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  86/6032]  eta: 3:52:39  lr: 0.000023  loss: 2.5439  lung_itc: 0.0000  heart_itc: 1.1145  esophagus_itc: 1.4294  aorta_itc: 0.0000  time: 2.2139  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  87/6032]  eta: 3:58:50  lr: 0.000023  loss: 2.5439  lung_itc: 0.0000  heart_itc: 1.1145  esophagus_itc: 1.4294  aorta_itc: 0.0000  time: 2.3040  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  88/6032]  eta: 3:56:18  lr: 0.000023  loss: 2.5439  lung_itc: 0.0000  heart_itc: 1.1145  esophagus_itc: 1.4294  aorta_itc: 0.0000  time: 2.2131  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  89/6032]  eta: 3:53:50  lr: 0.000023  loss: 2.5439  lung_itc: 0.0000  heart_itc: 1.1145  esophagus_itc: 1.4294  aorta_itc: 0.0000  time: 2.2130  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  90/6032]  eta: 3:51:25  lr: 0.000023  loss: 2.5439  lung_itc: 0.0000  heart_itc: 1.1145  esophagus_itc: 1.4294  aorta_itc: 0.0000  time: 2.2130  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  91/6032]  eta: 3:59:11  lr: 0.000023  loss: 2.5439  lung_itc: 0.0000  heart_itc: 1.1145  esophagus_itc: 1.4294  aorta_itc: 0.0000  time: 2.2923  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  92/6032]  eta: 3:56:45  lr: 0.000023  loss: 2.5439  lung_itc: 0.0000  heart_itc: 1.1145  esophagus_itc: 1.4294  aorta_itc: 0.0000  time: 2.2600  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  93/6032]  eta: 3:54:42  lr: 0.000025  loss: 1.4237  lung_itc: 0.0000  heart_itc: 1.1145  esophagus_itc: 1.4237  aorta_itc: 0.0000  time: 2.2750  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  94/6032]  eta: 3:52:42  lr: 0.000026  loss: 1.4870  lung_itc: 0.0000  heart_itc: 1.1145  esophagus_itc: 1.4870  aorta_itc: 0.0000  time: 2.2905  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  95/6032]  eta: 3:58:42  lr: 0.000026  loss: 1.4129  lung_itc: 0.0000  heart_itc: 1.1145  esophagus_itc: 1.4129  aorta_itc: 0.0000  time: 2.2609  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  96/6032]  eta: 3:56:23  lr: 0.000026  loss: 1.4129  lung_itc: 0.0000  heart_itc: 1.1145  esophagus_itc: 1.4129  aorta_itc: 0.0000  time: 2.2611  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  97/6032]  eta: 3:54:29  lr: 0.000026  loss: 2.4663  lung_itc: 0.0000  heart_itc: 1.0635  esophagus_itc: 1.4027  aorta_itc: 0.0000  time: 2.2795  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  98/6032]  eta: 3:52:16  lr: 0.000026  loss: 2.4663  lung_itc: 0.0000  heart_itc: 1.0635  esophagus_itc: 1.4027  aorta_itc: 0.0000  time: 2.2797  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [  99/6032]  eta: 3:58:46  lr: 0.000026  loss: 2.4663  lung_itc: 0.0000  heart_itc: 1.0635  esophagus_itc: 1.4027  aorta_itc: 0.0000  time: 2.3511  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 100/6032]  eta: 3:56:51  lr: 0.000027  loss: 1.4302  lung_itc: 0.0000  heart_itc: 1.0635  esophagus_itc: 1.4302  aorta_itc: 0.0000  time: 2.3666  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 101/6032]  eta: 3:55:01  lr: 0.000028  loss: 2.5844  lung_itc: 0.0000  heart_itc: 1.1859  esophagus_itc: 1.3985  aorta_itc: 0.0000  time: 2.3699  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 102/6032]  eta: 3:52:52  lr: 0.000028  loss: 2.5844  lung_itc: 0.0000  heart_itc: 1.1859  esophagus_itc: 1.3985  aorta_itc: 0.0000  time: 2.3513  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 103/6032]  eta: 3:57:56  lr: 0.000028  loss: 2.5844  lung_itc: 0.0000  heart_itc: 1.1859  esophagus_itc: 1.3985  aorta_itc: 0.0000  time: 2.3351  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 104/6032]  eta: 3:55:47  lr: 0.000028  loss: 2.5844  lung_itc: 0.0000  heart_itc: 1.1859  esophagus_itc: 1.3985  aorta_itc: 0.0000  time: 2.3349  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 105/6032]  eta: 3:53:42  lr: 0.000028  loss: 2.5844  lung_itc: 0.0000  heart_itc: 1.1859  esophagus_itc: 1.3985  aorta_itc: 0.0000  time: 2.3352  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 106/6032]  eta: 3:51:38  lr: 0.000028  loss: 2.5844  lung_itc: 0.0000  heart_itc: 1.1859  esophagus_itc: 1.3985  aorta_itc: 0.0000  time: 2.3352  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 107/6032]  eta: 3:58:02  lr: 0.000028  loss: 2.5844  lung_itc: 0.0000  heart_itc: 1.1859  esophagus_itc: 1.3985  aorta_itc: 0.0000  time: 2.4105  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 108/6032]  eta: 3:55:58  lr: 0.000028  loss: 2.5844  lung_itc: 0.0000  heart_itc: 1.1859  esophagus_itc: 1.3985  aorta_itc: 0.0000  time: 2.4106  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 109/6032]  eta: 3:54:11  lr: 0.000030  loss: 0.6931  lung_itc: 0.0000  heart_itc: 0.6931  esophagus_itc: 1.3985  aorta_itc: 0.0000  time: 2.4240  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 110/6032]  eta: 3:52:11  lr: 0.000030  loss: 0.6931  lung_itc: 0.0000  heart_itc: 0.6931  esophagus_itc: 1.3985  aorta_itc: 0.0000  time: 2.4241  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 111/6032]  eta: 4:00:19  lr: 0.000030  loss: 1.4226  lung_itc: 0.0000  heart_itc: 0.6931  esophagus_itc: 1.4226  aorta_itc: 0.0000  time: 2.5259  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 112/6032]  eta: 3:58:19  lr: 0.000030  loss: 1.4226  lung_itc: 0.0000  heart_itc: 0.6931  esophagus_itc: 1.4226  aorta_itc: 0.0000  time: 2.5261  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 113/6032]  eta: 3:56:20  lr: 0.000030  loss: 1.4226  lung_itc: 0.0000  heart_itc: 0.6931  esophagus_itc: 1.4226  aorta_itc: 0.0000  time: 2.5110  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 114/6032]  eta: 3:54:38  lr: 0.000031  loss: 1.0961  lung_itc: 0.0000  heart_itc: 1.0961  esophagus_itc: 1.4226  aorta_itc: 0.0000  time: 2.5098  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 115/6032]  eta: 4:00:36  lr: 0.000031  loss: 1.0961  lung_itc: 0.0000  heart_itc: 1.0961  esophagus_itc: 1.4226  aorta_itc: 0.0000  time: 2.5713  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 116/6032]  eta: 3:58:39  lr: 0.000031  loss: 1.0961  lung_itc: 0.0000  heart_itc: 1.0961  esophagus_itc: 1.4226  aorta_itc: 0.0000  time: 2.5711  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 117/6032]  eta: 3:56:44  lr: 0.000031  loss: 1.0961  lung_itc: 0.0000  heart_itc: 1.0961  esophagus_itc: 1.4226  aorta_itc: 0.0000  time: 2.5525  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 118/6032]  eta: 3:54:51  lr: 0.000031  loss: 1.0961  lung_itc: 0.0000  heart_itc: 1.0961  esophagus_itc: 1.4226  aorta_itc: 0.0000  time: 2.5523  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 119/6032]  eta: 4:00:35  lr: 0.000031  loss: 1.0961  lung_itc: 0.0000  heart_itc: 1.0961  esophagus_itc: 1.4226  aorta_itc: 0.0000  time: 2.5741  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 120/6032]  eta: 3:58:57  lr: 0.000033  loss: 1.4016  lung_itc: 0.0000  heart_itc: 1.0961  esophagus_itc: 1.4016  aorta_itc: 0.0000  time: 2.5740  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 121/6032]  eta: 3:57:06  lr: 0.000033  loss: 1.4016  lung_itc: 0.0000  heart_itc: 1.0961  esophagus_itc: 1.4016  aorta_itc: 0.0000  time: 2.5557  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 122/6032]  eta: 3:55:16  lr: 0.000033  loss: 1.4016  lung_itc: 0.0000  heart_itc: 1.0961  esophagus_itc: 1.4016  aorta_itc: 0.0000  time: 2.5556  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 123/6032]  eta: 3:58:46  lr: 0.000033  loss: 1.4016  lung_itc: 0.0000  heart_itc: 1.0961  esophagus_itc: 1.4016  aorta_itc: 0.0000  time: 2.5114  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 124/6032]  eta: 3:56:58  lr: 0.000033  loss: 1.4016  lung_itc: 0.0000  heart_itc: 1.0961  esophagus_itc: 1.4016  aorta_itc: 0.0000  time: 2.5115  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 125/6032]  eta: 3:55:11  lr: 0.000033  loss: 1.4016  lung_itc: 0.0000  heart_itc: 1.0961  esophagus_itc: 1.4016  aorta_itc: 0.0000  time: 2.5113  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 126/6032]  eta: 3:53:26  lr: 0.000033  loss: 1.4016  lung_itc: 0.0000  heart_itc: 1.0961  esophagus_itc: 1.4016  aorta_itc: 0.0000  time: 2.5113  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 127/6032]  eta: 3:58:04  lr: 0.000034  loss: 0.7829  lung_itc: 0.0000  heart_itc: 0.7829  esophagus_itc: 1.4016  aorta_itc: 0.0000  time: 2.4651  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 128/6032]  eta: 3:56:20  lr: 0.000034  loss: 0.7829  lung_itc: 0.0000  heart_itc: 0.7829  esophagus_itc: 1.4016  aorta_itc: 0.0000  time: 2.4660  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 129/6032]  eta: 3:54:37  lr: 0.000034  loss: 0.7829  lung_itc: 0.0000  heart_itc: 0.7829  esophagus_itc: 1.4016  aorta_itc: 0.0000  time: 2.4533  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 130/6032]  eta: 3:52:56  lr: 0.000034  loss: 0.7829  lung_itc: 0.0000  heart_itc: 0.7829  esophagus_itc: 1.4016  aorta_itc: 0.0000  time: 2.4538  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 131/6032]  eta: 3:57:48  lr: 0.000035  loss: 2.4490  lung_itc: 0.0000  heart_itc: 1.0937  esophagus_itc: 1.3553  aorta_itc: 0.0000  time: 2.3202  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 132/6032]  eta: 3:56:06  lr: 0.000035  loss: 2.4490  lung_itc: 0.0000  heart_itc: 1.0937  esophagus_itc: 1.3553  aorta_itc: 0.0000  time: 2.3202  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 133/6032]  eta: 3:54:25  lr: 0.000035  loss: 2.4490  lung_itc: 0.0000  heart_itc: 1.0937  esophagus_itc: 1.3553  aorta_itc: 0.0000  time: 2.3201  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 134/6032]  eta: 3:52:47  lr: 0.000035  loss: 2.4490  lung_itc: 0.0000  heart_itc: 1.0937  esophagus_itc: 1.3553  aorta_itc: 0.0000  time: 2.3058  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 135/6032]  eta: 3:56:52  lr: 0.000035  loss: 2.4490  lung_itc: 0.0000  heart_itc: 1.0937  esophagus_itc: 1.3553  aorta_itc: 0.0000  time: 2.2375  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 136/6032]  eta: 3:55:13  lr: 0.000035  loss: 2.4490  lung_itc: 0.0000  heart_itc: 1.0937  esophagus_itc: 1.3553  aorta_itc: 0.0000  time: 2.2375  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 137/6032]  eta: 3:53:36  lr: 0.000035  loss: 2.4490  lung_itc: 0.0000  heart_itc: 1.0937  esophagus_itc: 1.3553  aorta_itc: 0.0000  time: 2.2375  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 138/6032]  eta: 3:52:00  lr: 0.000035  loss: 2.4490  lung_itc: 0.0000  heart_itc: 1.0937  esophagus_itc: 1.3553  aorta_itc: 0.0000  time: 2.2375  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 139/6032]  eta: 3:56:52  lr: 0.000035  loss: 2.4490  lung_itc: 0.0000  heart_itc: 1.0937  esophagus_itc: 1.3553  aorta_itc: 0.0000  time: 2.2339  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 140/6032]  eta: 3:55:16  lr: 0.000035  loss: 2.4490  lung_itc: 0.0000  heart_itc: 1.0937  esophagus_itc: 1.3553  aorta_itc: 0.0000  time: 2.2191  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 141/6032]  eta: 3:53:42  lr: 0.000035  loss: 2.4490  lung_itc: 0.0000  heart_itc: 1.0937  esophagus_itc: 1.3553  aorta_itc: 0.0000  time: 2.2196  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 142/6032]  eta: 3:52:10  lr: 0.000035  loss: 2.4490  lung_itc: 0.0000  heart_itc: 1.0937  esophagus_itc: 1.3553  aorta_itc: 0.0000  time: 2.2202  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 143/6032]  eta: 3:55:58  lr: 0.000035  loss: 2.4490  lung_itc: 0.0000  heart_itc: 1.0937  esophagus_itc: 1.3553  aorta_itc: 0.0000  time: 2.2782  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 144/6032]  eta: 3:54:26  lr: 0.000035  loss: 2.4490  lung_itc: 0.0000  heart_itc: 1.0937  esophagus_itc: 1.3553  aorta_itc: 0.0000  time: 2.2790  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 145/6032]  eta: 3:53:07  lr: 0.000039  loss: 1.3937  lung_itc: 0.0000  heart_itc: 1.0937  esophagus_itc: 1.3937  aorta_itc: 0.0000  time: 2.2944  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 146/6032]  eta: 3:51:50  lr: 0.000039  loss: 1.3994  lung_itc: 0.0000  heart_itc: 1.0937  esophagus_itc: 1.3994  aorta_itc: 0.0000  time: 2.3119  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 147/6032]  eta: 3:55:46  lr: 0.000039  loss: 1.3994  lung_itc: 0.0000  heart_itc: 1.0937  esophagus_itc: 1.3994  aorta_itc: 0.0000  time: 2.3066  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 148/6032]  eta: 3:54:27  lr: 0.000040  loss: 1.1904  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.3994  aorta_itc: 0.0000  time: 2.3202  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 149/6032]  eta: 3:52:58  lr: 0.000040  loss: 1.1904  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.3994  aorta_itc: 0.0000  time: 2.3200  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 150/6032]  eta: 3:51:30  lr: 0.000040  loss: 1.1904  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.3994  aorta_itc: 0.0000  time: 2.3194  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 151/6032]  eta: 3:55:34  lr: 0.000040  loss: 1.1904  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.3994  aorta_itc: 0.0000  time: 2.3072  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 152/6032]  eta: 3:54:06  lr: 0.000040  loss: 1.1904  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.3994  aorta_itc: 0.0000  time: 2.3071  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 153/6032]  eta: 3:52:39  lr: 0.000040  loss: 1.1904  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.3994  aorta_itc: 0.0000  time: 2.3071  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 154/6032]  eta: 3:51:13  lr: 0.000040  loss: 1.1904  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.3994  aorta_itc: 0.0000  time: 2.3072  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 155/6032]  eta: 3:54:36  lr: 0.000040  loss: 1.1904  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.3994  aorta_itc: 0.0000  time: 2.2934  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 156/6032]  eta: 3:53:11  lr: 0.000040  loss: 1.1904  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.3994  aorta_itc: 0.0000  time: 2.2942  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 157/6032]  eta: 3:51:47  lr: 0.000040  loss: 1.1904  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.3994  aorta_itc: 0.0000  time: 2.2949  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 158/6032]  eta: 3:50:24  lr: 0.000040  loss: 1.1904  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.3994  aorta_itc: 0.0000  time: 2.2956  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 159/6032]  eta: 3:54:10  lr: 0.000043  loss: 1.3985  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.3985  aorta_itc: 0.0000  time: 2.2574  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 160/6032]  eta: 3:52:58  lr: 0.000043  loss: 1.0911  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.0911  aorta_itc: 0.0000  time: 2.2718  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 161/6032]  eta: 3:51:36  lr: 0.000043  loss: 1.0911  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.0911  aorta_itc: 0.0000  time: 2.2713  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 162/6032]  eta: 3:50:25  lr: 0.000044  loss: 1.3978  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.3978  aorta_itc: 0.0000  time: 2.2860  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 163/6032]  eta: 3:53:43  lr: 0.000044  loss: 1.3978  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.3978  aorta_itc: 0.0000  time: 2.2822  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 164/6032]  eta: 3:52:33  lr: 0.000044  loss: 1.4209  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.4209  aorta_itc: 0.0000  time: 2.2968  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 165/6032]  eta: 3:51:12  lr: 0.000044  loss: 1.4209  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.4209  aorta_itc: 0.0000  time: 2.2814  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 166/6032]  eta: 3:50:04  lr: 0.000045  loss: 1.3864  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.3864  aorta_itc: 0.0000  time: 2.2793  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 167/6032]  eta: 3:53:10  lr: 0.000045  loss: 1.4159  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.4159  aorta_itc: 0.0000  time: 2.2485  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 168/6032]  eta: 3:51:51  lr: 0.000045  loss: 1.4159  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.4159  aorta_itc: 0.0000  time: 2.2342  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 169/6032]  eta: 3:50:33  lr: 0.000045  loss: 1.4159  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.4159  aorta_itc: 0.0000  time: 2.2337  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 170/6032]  eta: 3:49:16  lr: 0.000045  loss: 1.4159  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.4159  aorta_itc: 0.0000  time: 2.2343  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 171/6032]  eta: 3:51:02  lr: 0.000045  loss: 1.4159  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.4159  aorta_itc: 0.0000  time: 2.0751  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 172/6032]  eta: 3:49:45  lr: 0.000045  loss: 1.4159  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.4159  aorta_itc: 0.0000  time: 2.0750  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 173/6032]  eta: 3:48:30  lr: 0.000045  loss: 1.4159  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.4159  aorta_itc: 0.0000  time: 2.0750  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 174/6032]  eta: 3:47:15  lr: 0.000045  loss: 1.4159  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.4159  aorta_itc: 0.0000  time: 2.0758  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 175/6032]  eta: 3:50:56  lr: 0.000045  loss: 1.4159  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.4159  aorta_itc: 0.0000  time: 2.1371  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 176/6032]  eta: 3:49:41  lr: 0.000045  loss: 1.4159  lung_itc: 0.0000  heart_itc: 1.1904  esophagus_itc: 1.4159  aorta_itc: 0.0000  time: 2.1364  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 177/6032]  eta: 3:48:36  lr: 0.000047  loss: 0.7024  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.4159  aorta_itc: 0.0000  time: 2.1491  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 178/6032]  eta: 3:47:23  lr: 0.000047  loss: 0.7024  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.4159  aorta_itc: 0.0000  time: 2.1485  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 179/6032]  eta: 3:51:12  lr: 0.000047  loss: 0.7024  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.4159  aorta_itc: 0.0000  time: 2.1920  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 180/6032]  eta: 3:49:59  lr: 0.000047  loss: 0.7024  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.4159  aorta_itc: 0.0000  time: 2.1776  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 181/6032]  eta: 3:48:48  lr: 0.000047  loss: 0.7024  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.4159  aorta_itc: 0.0000  time: 2.1800  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 182/6032]  eta: 3:47:37  lr: 0.000047  loss: 0.7024  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.4159  aorta_itc: 0.0000  time: 2.1653  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 183/6032]  eta: 3:50:42  lr: 0.000047  loss: 0.7024  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.4159  aorta_itc: 0.0000  time: 2.1800  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 184/6032]  eta: 3:50:38  lr: 0.000049  loss: 1.3802  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.3802  aorta_itc: 0.0000  time: 2.2711  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 185/6032]  eta: 3:49:26  lr: 0.000049  loss: 1.3802  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.3802  aorta_itc: 0.0000  time: 2.2711  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 186/6032]  eta: 3:48:26  lr: 0.000050  loss: 1.3807  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.3807  aorta_itc: 0.0000  time: 2.2710  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 187/6032]  eta: 3:49:56  lr: 0.000050  loss: 1.3807  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.3807  aorta_itc: 0.0000  time: 2.1503  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 188/6032]  eta: 3:50:31  lr: 0.000050  loss: 1.3807  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.3807  aorta_itc: 0.0000  time: 2.3202  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 189/6032]  eta: 3:49:21  lr: 0.000050  loss: 1.3807  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.3807  aorta_itc: 0.0000  time: 2.3202  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 190/6032]  eta: 3:48:12  lr: 0.000050  loss: 1.3807  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.3807  aorta_itc: 0.0000  time: 2.3196  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 191/6032]  eta: 3:49:46  lr: 0.000050  loss: 1.3807  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.3807  aorta_itc: 0.0000  time: 2.3185  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 192/6032]  eta: 3:49:06  lr: 0.000050  loss: 1.3807  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.3807  aorta_itc: 0.0000  time: 2.3658  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 193/6032]  eta: 3:47:58  lr: 0.000050  loss: 1.3807  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.3807  aorta_itc: 0.0000  time: 2.3658  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 194/6032]  eta: 3:46:51  lr: 0.000050  loss: 1.3807  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.3807  aorta_itc: 0.0000  time: 2.3650  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 195/6032]  eta: 3:50:05  lr: 0.000050  loss: 1.3807  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.3807  aorta_itc: 0.0000  time: 2.3592  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 196/6032]  eta: 3:49:31  lr: 0.000050  loss: 1.3807  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.3807  aorta_itc: 0.0000  time: 2.4147  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 197/6032]  eta: 3:48:24  lr: 0.000050  loss: 1.3807  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.3807  aorta_itc: 0.0000  time: 2.4013  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 198/6032]  eta: 3:47:18  lr: 0.000050  loss: 1.3807  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.3807  aorta_itc: 0.0000  time: 2.4012  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 199/6032]  eta: 3:50:06  lr: 0.000053  loss: 1.3742  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.3742  aorta_itc: 0.0000  time: 2.3378  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 200/6032]  eta: 3:49:16  lr: 0.000054  loss: 1.4279  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.3656  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 201/6032]  eta: 3:48:11  lr: 0.000054  loss: 1.4279  lung_itc: 0.0000  heart_itc: 0.7024  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.3633  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 202/6032]  eta: 3:47:14  lr: 0.000054  loss: 1.1815  lung_itc: 0.0000  heart_itc: 1.1815  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.3770  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 203/6032]  eta: 3:50:36  lr: 0.000054  loss: 1.1815  lung_itc: 0.0000  heart_itc: 1.1815  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.4398  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 204/6032]  eta: 3:49:32  lr: 0.000054  loss: 1.1815  lung_itc: 0.0000  heart_itc: 1.1815  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.3340  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 205/6032]  eta: 3:48:28  lr: 0.000054  loss: 1.1815  lung_itc: 0.0000  heart_itc: 1.1815  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.3345  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 206/6032]  eta: 3:47:25  lr: 0.000054  loss: 1.1815  lung_itc: 0.0000  heart_itc: 1.1815  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.3199  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 207/6032]  eta: 3:50:50  lr: 0.000054  loss: 1.1815  lung_itc: 0.0000  heart_itc: 1.1815  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.5409  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 208/6032]  eta: 3:49:46  lr: 0.000054  loss: 1.1815  lung_itc: 0.0000  heart_itc: 1.1815  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.3708  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 209/6032]  eta: 3:48:43  lr: 0.000054  loss: 1.1815  lung_itc: 0.0000  heart_itc: 1.1815  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.3709  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 210/6032]  eta: 3:47:40  lr: 0.000054  loss: 1.1815  lung_itc: 0.0000  heart_itc: 1.1815  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.3709  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 211/6032]  eta: 3:49:55  lr: 0.000056  loss: 1.3952  lung_itc: 0.0000  heart_itc: 1.1815  esophagus_itc: 1.3952  aorta_itc: 0.0000  time: 2.4623  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 212/6032]  eta: 3:48:53  lr: 0.000056  loss: 1.3952  lung_itc: 0.0000  heart_itc: 1.1815  esophagus_itc: 1.3952  aorta_itc: 0.0000  time: 2.4153  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 213/6032]  eta: 3:47:51  lr: 0.000056  loss: 1.3952  lung_itc: 0.0000  heart_itc: 1.1815  esophagus_itc: 1.3952  aorta_itc: 0.0000  time: 2.4155  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 214/6032]  eta: 3:46:50  lr: 0.000056  loss: 1.3952  lung_itc: 0.0000  heart_itc: 1.1815  esophagus_itc: 1.3952  aorta_itc: 0.0000  time: 2.4157  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 215/6032]  eta: 3:50:19  lr: 0.000056  loss: 1.3952  lung_itc: 0.0000  heart_itc: 1.1815  esophagus_itc: 1.3952  aorta_itc: 0.0000  time: 2.4794  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 216/6032]  eta: 3:49:27  lr: 0.000058  loss: 1.4392  lung_itc: 0.0000  heart_itc: 1.1815  esophagus_itc: 1.4392  aorta_itc: 0.0000  time: 2.4420  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 217/6032]  eta: 3:48:27  lr: 0.000058  loss: 1.4392  lung_itc: 0.0000  heart_itc: 1.1815  esophagus_itc: 1.4392  aorta_itc: 0.0000  time: 2.4426  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 218/6032]  eta: 3:47:27  lr: 0.000058  loss: 1.4392  lung_itc: 0.0000  heart_itc: 1.1815  esophagus_itc: 1.4392  aorta_itc: 0.0000  time: 2.4435  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 219/6032]  eta: 3:49:23  lr: 0.000059  loss: 0.7026  lung_itc: 0.0000  heart_itc: 0.7026  esophagus_itc: 1.4392  aorta_itc: 0.0000  time: 2.3756  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 220/6032]  eta: 3:48:30  lr: 0.000059  loss: 0.6548  lung_itc: 0.0000  heart_itc: 0.6548  esophagus_itc: 1.4392  aorta_itc: 0.0000  time: 2.3604  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 221/6032]  eta: 3:47:30  lr: 0.000059  loss: 0.6548  lung_itc: 0.0000  heart_itc: 0.6548  esophagus_itc: 1.4392  aorta_itc: 0.0000  time: 2.3603  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 222/6032]  eta: 3:46:31  lr: 0.000059  loss: 0.6548  lung_itc: 0.0000  heart_itc: 0.6548  esophagus_itc: 1.4392  aorta_itc: 0.0000  time: 2.3460  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 223/6032]  eta: 3:48:59  lr: 0.000059  loss: 0.6548  lung_itc: 0.0000  heart_itc: 0.6548  esophagus_itc: 1.4392  aorta_itc: 0.0000  time: 2.2776  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 224/6032]  eta: 3:48:08  lr: 0.000060  loss: 1.4079  lung_itc: 0.0000  heart_itc: 0.6548  esophagus_itc: 1.4079  aorta_itc: 0.0000  time: 2.2921  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 225/6032]  eta: 3:47:10  lr: 0.000060  loss: 1.4079  lung_itc: 0.0000  heart_itc: 0.6548  esophagus_itc: 1.4079  aorta_itc: 0.0000  time: 2.2915  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 226/6032]  eta: 3:46:19  lr: 0.000060  loss: 0.7459  lung_itc: 0.0000  heart_itc: 0.7459  esophagus_itc: 1.4079  aorta_itc: 0.0000  time: 2.3045  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 227/6032]  eta: 3:49:33  lr: 0.000061  loss: 0.6904  lung_itc: 0.0000  heart_itc: 0.6904  esophagus_itc: 1.4079  aorta_itc: 0.0000  time: 2.3210  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 228/6032]  eta: 3:48:42  lr: 0.000061  loss: 0.7242  lung_itc: 0.0000  heart_itc: 0.7242  esophagus_itc: 1.4079  aorta_itc: 0.0000  time: 2.3345  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 229/6032]  eta: 3:47:45  lr: 0.000061  loss: 0.7242  lung_itc: 0.0000  heart_itc: 0.7242  esophagus_itc: 1.4079  aorta_itc: 0.0000  time: 2.3346  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 230/6032]  eta: 3:46:47  lr: 0.000061  loss: 0.7242  lung_itc: 0.0000  heart_itc: 0.7242  esophagus_itc: 1.4079  aorta_itc: 0.0000  time: 2.3346  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 231/6032]  eta: 3:49:04  lr: 0.000061  loss: 0.7242  lung_itc: 0.0000  heart_itc: 0.7242  esophagus_itc: 1.4079  aorta_itc: 0.0000  time: 2.3631  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 232/6032]  eta: 3:48:14  lr: 0.000062  loss: 0.6643  lung_itc: 0.0000  heart_itc: 0.6643  esophagus_itc: 1.4079  aorta_itc: 0.0000  time: 2.3763  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 233/6032]  eta: 3:47:17  lr: 0.000062  loss: 0.6643  lung_itc: 0.0000  heart_itc: 0.6643  esophagus_itc: 1.4079  aorta_itc: 0.0000  time: 2.3762  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 234/6032]  eta: 3:46:21  lr: 0.000062  loss: 0.6643  lung_itc: 0.0000  heart_itc: 0.6643  esophagus_itc: 1.4079  aorta_itc: 0.0000  time: 2.3760  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 235/6032]  eta: 3:49:47  lr: 0.000063  loss: 1.4519  lung_itc: 0.0000  heart_itc: 0.6643  esophagus_itc: 1.4519  aorta_itc: 0.0000  time: 2.4081  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 236/6032]  eta: 3:48:59  lr: 0.000063  loss: 1.4053  lung_itc: 0.0000  heart_itc: 0.6643  esophagus_itc: 1.4053  aorta_itc: 0.0000  time: 2.4053  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 237/6032]  eta: 3:48:03  lr: 0.000063  loss: 1.4053  lung_itc: 0.0000  heart_itc: 0.6643  esophagus_itc: 1.4053  aorta_itc: 0.0000  time: 2.4047  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 238/6032]  eta: 3:47:08  lr: 0.000063  loss: 1.4053  lung_itc: 0.0000  heart_itc: 0.6643  esophagus_itc: 1.4053  aorta_itc: 0.0000  time: 2.4037  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 239/6032]  eta: 3:50:33  lr: 0.000063  loss: 1.4053  lung_itc: 0.0000  heart_itc: 0.6643  esophagus_itc: 1.4053  aorta_itc: 0.0000  time: 2.6109  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 240/6032]  eta: 3:49:44  lr: 0.000064  loss: 0.6785  lung_itc: 0.0000  heart_itc: 0.6785  esophagus_itc: 1.4053  aorta_itc: 0.0000  time: 2.6113  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 241/6032]  eta: 3:48:56  lr: 0.000064  loss: 1.4034  lung_itc: 0.0000  heart_itc: 0.6785  esophagus_itc: 1.4034  aorta_itc: 0.0000  time: 2.6265  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 242/6032]  eta: 3:48:01  lr: 0.000064  loss: 1.4034  lung_itc: 0.0000  heart_itc: 0.6785  esophagus_itc: 1.4034  aorta_itc: 0.0000  time: 2.6265  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 243/6032]  eta: 3:50:04  lr: 0.000065  loss: 1.3995  lung_itc: 0.0000  heart_itc: 0.6785  esophagus_itc: 1.3995  aorta_itc: 0.0000  time: 2.6023  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 244/6032]  eta: 3:49:18  lr: 0.000065  loss: 2.5015  lung_itc: 0.0000  heart_itc: 1.1049  esophagus_itc: 1.3966  aorta_itc: 0.0000  time: 2.6059  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 245/6032]  eta: 3:48:24  lr: 0.000065  loss: 2.5015  lung_itc: 0.0000  heart_itc: 1.1049  esophagus_itc: 1.3966  aorta_itc: 0.0000  time: 2.6060  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 246/6032]  eta: 3:47:31  lr: 0.000065  loss: 2.5015  lung_itc: 0.0000  heart_itc: 1.1049  esophagus_itc: 1.3966  aorta_itc: 0.0000  time: 2.5922  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 247/6032]  eta: 3:50:09  lr: 0.000065  loss: 2.5015  lung_itc: 0.0000  heart_itc: 1.1049  esophagus_itc: 1.3966  aorta_itc: 0.0000  time: 2.5506  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 248/6032]  eta: 3:49:15  lr: 0.000065  loss: 2.5015  lung_itc: 0.0000  heart_itc: 1.1049  esophagus_itc: 1.3966  aorta_itc: 0.0000  time: 2.5371  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 249/6032]  eta: 3:48:22  lr: 0.000065  loss: 2.5015  lung_itc: 0.0000  heart_itc: 1.1049  esophagus_itc: 1.3966  aorta_itc: 0.0000  time: 2.5370  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 250/6032]  eta: 3:47:29  lr: 0.000065  loss: 2.5015  lung_itc: 0.0000  heart_itc: 1.1049  esophagus_itc: 1.3966  aorta_itc: 0.0000  time: 2.5370  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 251/6032]  eta: 3:50:56  lr: 0.000065  loss: 2.5015  lung_itc: 0.0000  heart_itc: 1.1049  esophagus_itc: 1.3966  aorta_itc: 0.0000  time: 2.7177  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 252/6032]  eta: 3:50:03  lr: 0.000065  loss: 2.5015  lung_itc: 0.0000  heart_itc: 1.1049  esophagus_itc: 1.3966  aorta_itc: 0.0000  time: 2.7042  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 253/6032]  eta: 3:49:18  lr: 0.000067  loss: 1.3772  lung_itc: 0.0000  heart_itc: 1.1049  esophagus_itc: 1.3772  aorta_itc: 0.0000  time: 2.7194  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 254/6032]  eta: 3:48:25  lr: 0.000067  loss: 1.3772  lung_itc: 0.0000  heart_itc: 1.1049  esophagus_itc: 1.3772  aorta_itc: 0.0000  time: 2.7194  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 255/6032]  eta: 3:50:33  lr: 0.000067  loss: 1.3772  lung_itc: 0.0000  heart_itc: 1.1049  esophagus_itc: 1.3772  aorta_itc: 0.0000  time: 2.5840  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 256/6032]  eta: 3:49:40  lr: 0.000067  loss: 1.3772  lung_itc: 0.0000  heart_itc: 1.1049  esophagus_itc: 1.3772  aorta_itc: 0.0000  time: 2.5686  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 257/6032]  eta: 3:48:49  lr: 0.000067  loss: 1.3772  lung_itc: 0.0000  heart_itc: 1.1049  esophagus_itc: 1.3772  aorta_itc: 0.0000  time: 2.5687  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 258/6032]  eta: 3:47:57  lr: 0.000067  loss: 1.3772  lung_itc: 0.0000  heart_itc: 1.1049  esophagus_itc: 1.3772  aorta_itc: 0.0000  time: 2.5688  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 259/6032]  eta: 3:50:06  lr: 0.000069  loss: 0.7002  lung_itc: 0.0000  heart_itc: 0.7002  esophagus_itc: 1.3772  aorta_itc: 0.0000  time: 2.4355  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 260/6032]  eta: 3:49:21  lr: 0.000069  loss: 0.7195  lung_itc: 0.0000  heart_itc: 0.7195  esophagus_itc: 1.3772  aorta_itc: 0.0000  time: 2.4353  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 261/6032]  eta: 3:48:36  lr: 0.000070  loss: 1.1260  lung_itc: 0.0000  heart_itc: 1.1260  esophagus_itc: 1.3772  aorta_itc: 0.0000  time: 2.4345  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 262/6032]  eta: 3:47:46  lr: 0.000070  loss: 1.1260  lung_itc: 0.0000  heart_itc: 1.1260  esophagus_itc: 1.3772  aorta_itc: 0.0000  time: 2.4345  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 263/6032]  eta: 3:49:48  lr: 0.000070  loss: 1.1260  lung_itc: 0.0000  heart_itc: 1.1260  esophagus_itc: 1.3772  aorta_itc: 0.0000  time: 2.4566  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 264/6032]  eta: 3:48:57  lr: 0.000070  loss: 1.1260  lung_itc: 0.0000  heart_itc: 1.1260  esophagus_itc: 1.3772  aorta_itc: 0.0000  time: 2.4378  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 265/6032]  eta: 3:48:07  lr: 0.000070  loss: 1.1260  lung_itc: 0.0000  heart_itc: 1.1260  esophagus_itc: 1.3772  aorta_itc: 0.0000  time: 2.4377  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 266/6032]  eta: 3:47:17  lr: 0.000070  loss: 1.1260  lung_itc: 0.0000  heart_itc: 1.1260  esophagus_itc: 1.3772  aorta_itc: 0.0000  time: 2.4378  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 267/6032]  eta: 3:49:31  lr: 0.000070  loss: 1.1260  lung_itc: 0.0000  heart_itc: 1.1260  esophagus_itc: 1.3772  aorta_itc: 0.0000  time: 2.4106  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 268/6032]  eta: 3:48:50  lr: 0.000071  loss: 2.0929  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3906  aorta_itc: 0.0000  time: 2.4318  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 269/6032]  eta: 3:48:01  lr: 0.000071  loss: 2.0929  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3906  aorta_itc: 0.0000  time: 2.4328  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 270/6032]  eta: 3:47:13  lr: 0.000071  loss: 2.0929  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3906  aorta_itc: 0.0000  time: 2.4335  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 271/6032]  eta: 3:49:12  lr: 0.000071  loss: 2.0929  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3906  aorta_itc: 0.0000  time: 2.2624  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 272/6032]  eta: 3:48:23  lr: 0.000071  loss: 2.0929  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3906  aorta_itc: 0.0000  time: 2.2624  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 273/6032]  eta: 3:47:34  lr: 0.000071  loss: 2.0929  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3906  aorta_itc: 0.0000  time: 2.2471  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 274/6032]  eta: 3:46:46  lr: 0.000071  loss: 2.0929  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3906  aorta_itc: 0.0000  time: 2.2470  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 275/6032]  eta: 3:48:36  lr: 0.000071  loss: 2.0929  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3906  aorta_itc: 0.0000  time: 2.2294  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 276/6032]  eta: 3:47:48  lr: 0.000071  loss: 2.0929  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3906  aorta_itc: 0.0000  time: 2.2295  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 277/6032]  eta: 3:47:00  lr: 0.000071  loss: 2.0929  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3906  aorta_itc: 0.0000  time: 2.2294  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 278/6032]  eta: 3:46:18  lr: 0.000074  loss: 1.3803  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3803  aorta_itc: 0.0000  time: 2.2444  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 279/6032]  eta: 3:48:18  lr: 0.000074  loss: 1.3803  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3803  aorta_itc: 0.0000  time: 2.2454  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 280/6032]  eta: 3:47:31  lr: 0.000074  loss: 1.3803  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3803  aorta_itc: 0.0000  time: 2.2326  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 281/6032]  eta: 3:46:53  lr: 0.000074  loss: 1.3803  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3803  aorta_itc: 0.0000  time: 2.2414  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 282/6032]  eta: 3:46:07  lr: 0.000074  loss: 1.3803  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3803  aorta_itc: 0.0000  time: 2.2421  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 283/6032]  eta: 3:47:48  lr: 0.000074  loss: 1.3803  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3803  aorta_itc: 0.0000  time: 2.2108  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 284/6032]  eta: 3:47:01  lr: 0.000074  loss: 1.3803  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3803  aorta_itc: 0.0000  time: 2.2109  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 285/6032]  eta: 3:46:14  lr: 0.000074  loss: 1.3803  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3803  aorta_itc: 0.0000  time: 2.2109  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 286/6032]  eta: 3:45:28  lr: 0.000074  loss: 1.3803  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3803  aorta_itc: 0.0000  time: 2.2109  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 287/6032]  eta: 3:47:32  lr: 0.000074  loss: 1.3803  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3803  aorta_itc: 0.0000  time: 2.2090  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 288/6032]  eta: 3:47:05  lr: 0.000074  loss: 1.3803  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3803  aorta_itc: 0.0000  time: 2.2371  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 289/6032]  eta: 3:46:19  lr: 0.000074  loss: 1.3803  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3803  aorta_itc: 0.0000  time: 2.2362  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 290/6032]  eta: 3:45:34  lr: 0.000074  loss: 1.3803  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3803  aorta_itc: 0.0000  time: 2.2355  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 291/6032]  eta: 3:47:38  lr: 0.000074  loss: 1.3803  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3803  aorta_itc: 0.0000  time: 2.2710  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 292/6032]  eta: 3:46:53  lr: 0.000074  loss: 1.3803  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3803  aorta_itc: 0.0000  time: 2.2710  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 293/6032]  eta: 3:46:07  lr: 0.000074  loss: 1.3803  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3803  aorta_itc: 0.0000  time: 2.2710  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 294/6032]  eta: 3:45:28  lr: 0.000078  loss: 1.3882  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3882  aorta_itc: 0.0000  time: 2.2862  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 295/6032]  eta: 3:47:47  lr: 0.000078  loss: 1.3882  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3882  aorta_itc: 0.0000  time: 2.3789  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 296/6032]  eta: 3:47:02  lr: 0.000078  loss: 1.3882  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3882  aorta_itc: 0.0000  time: 2.3789  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 297/6032]  eta: 3:46:17  lr: 0.000078  loss: 1.3882  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3882  aorta_itc: 0.0000  time: 2.3789  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 298/6032]  eta: 3:45:33  lr: 0.000078  loss: 1.3882  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3882  aorta_itc: 0.0000  time: 2.3639  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 299/6032]  eta: 3:47:47  lr: 0.000078  loss: 1.3882  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3882  aorta_itc: 0.0000  time: 2.4242  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 300/6032]  eta: 3:47:03  lr: 0.000078  loss: 1.3882  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3882  aorta_itc: 0.0000  time: 2.4236  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 301/6032]  eta: 3:46:19  lr: 0.000078  loss: 1.3882  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3882  aorta_itc: 0.0000  time: 2.4003  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 302/6032]  eta: 3:45:35  lr: 0.000078  loss: 1.3882  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.3882  aorta_itc: 0.0000  time: 2.3995  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 303/6032]  eta: 3:47:20  lr: 0.000081  loss: 1.4072  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.4072  aorta_itc: 0.0000  time: 2.4300  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 304/6032]  eta: 3:46:36  lr: 0.000081  loss: 1.4072  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.4072  aorta_itc: 0.0000  time: 2.4305  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 305/6032]  eta: 3:45:53  lr: 0.000081  loss: 1.4072  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.4072  aorta_itc: 0.0000  time: 2.4310  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 306/6032]  eta: 3:45:22  lr: 0.000081  loss: 1.4072  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.4072  aorta_itc: 0.0000  time: 2.4633  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 307/6032]  eta: 3:46:53  lr: 0.000081  loss: 1.4072  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.4072  aorta_itc: 0.0000  time: 2.3994  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 308/6032]  eta: 3:46:10  lr: 0.000081  loss: 1.4072  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.4072  aorta_itc: 0.0000  time: 2.3501  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 309/6032]  eta: 3:45:27  lr: 0.000081  loss: 1.4072  lung_itc: 0.0000  heart_itc: 0.7023  esophagus_itc: 1.4072  aorta_itc: 0.0000  time: 2.3502  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 310/6032]  eta: 3:45:19  lr: 0.000082  loss: 2.1044  lung_itc: 0.0000  heart_itc: 0.7092  esophagus_itc: 1.3952  aorta_itc: 0.0000  time: 2.4453  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 311/6032]  eta: 3:46:17  lr: 0.000082  loss: 2.1044  lung_itc: 0.0000  heart_itc: 0.7092  esophagus_itc: 1.3952  aorta_itc: 0.0000  time: 2.2884  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 312/6032]  eta: 3:45:41  lr: 0.000083  loss: 1.4014  lung_itc: 0.0000  heart_itc: 1.4014  esophagus_itc: 1.3952  aorta_itc: 0.0000  time: 2.3049  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 313/6032]  eta: 3:45:05  lr: 0.000083  loss: 1.1165  lung_itc: 0.0000  heart_itc: 1.1165  esophagus_itc: 1.3952  aorta_itc: 0.0000  time: 2.3220  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 314/6032]  eta: 3:44:49  lr: 0.000083  loss: 1.1165  lung_itc: 0.0000  heart_itc: 1.1165  esophagus_itc: 1.3952  aorta_itc: 0.0000  time: 2.3801  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 315/6032]  eta: 3:46:51  lr: 0.000083  loss: 1.1165  lung_itc: 0.0000  heart_itc: 1.1165  esophagus_itc: 1.3952  aorta_itc: 0.0000  time: 2.3610  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 316/6032]  eta: 3:46:09  lr: 0.000083  loss: 1.1165  lung_itc: 0.0000  heart_itc: 1.1165  esophagus_itc: 1.3952  aorta_itc: 0.0000  time: 2.3610  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 317/6032]  eta: 3:45:27  lr: 0.000083  loss: 1.1165  lung_itc: 0.0000  heart_itc: 1.1165  esophagus_itc: 1.3952  aorta_itc: 0.0000  time: 2.3609  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 318/6032]  eta: 3:44:46  lr: 0.000083  loss: 1.1165  lung_itc: 0.0000  heart_itc: 1.1165  esophagus_itc: 1.3952  aorta_itc: 0.0000  time: 2.3609  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 319/6032]  eta: 3:45:55  lr: 0.000083  loss: 1.1165  lung_itc: 0.0000  heart_itc: 1.1165  esophagus_itc: 1.3952  aorta_itc: 0.0000  time: 2.2036  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 320/6032]  eta: 3:45:14  lr: 0.000083  loss: 1.1165  lung_itc: 0.0000  heart_itc: 1.1165  esophagus_itc: 1.3952  aorta_itc: 0.0000  time: 2.2045  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 321/6032]  eta: 3:44:33  lr: 0.000083  loss: 1.1165  lung_itc: 0.0000  heart_itc: 1.1165  esophagus_itc: 1.3952  aorta_itc: 0.0000  time: 2.2045  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 322/6032]  eta: 3:44:03  lr: 0.000086  loss: 2.1046  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3978  aorta_itc: 0.0000  time: 2.2359  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 323/6032]  eta: 3:45:36  lr: 0.000086  loss: 2.1046  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3978  aorta_itc: 0.0000  time: 2.2227  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 324/6032]  eta: 3:44:56  lr: 0.000086  loss: 2.1046  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3978  aorta_itc: 0.0000  time: 2.2222  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 325/6032]  eta: 3:44:15  lr: 0.000086  loss: 2.1046  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3978  aorta_itc: 0.0000  time: 2.2217  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 326/6032]  eta: 3:43:34  lr: 0.000086  loss: 2.1046  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3978  aorta_itc: 0.0000  time: 2.1893  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 327/6032]  eta: 3:45:38  lr: 0.000086  loss: 2.1046  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3978  aorta_itc: 0.0000  time: 2.3001  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 328/6032]  eta: 3:44:58  lr: 0.000086  loss: 2.1046  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3978  aorta_itc: 0.0000  time: 2.3002  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 329/6032]  eta: 3:44:17  lr: 0.000086  loss: 2.1046  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3978  aorta_itc: 0.0000  time: 2.3002  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 330/6032]  eta: 3:43:38  lr: 0.000086  loss: 2.1046  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3978  aorta_itc: 0.0000  time: 2.2051  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 331/6032]  eta: 3:46:05  lr: 0.000086  loss: 2.1046  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3978  aorta_itc: 0.0000  time: 2.4751  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 332/6032]  eta: 3:45:25  lr: 0.000086  loss: 2.1046  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3978  aorta_itc: 0.0000  time: 2.4586  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 333/6032]  eta: 3:44:45  lr: 0.000086  loss: 2.1046  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3978  aorta_itc: 0.0000  time: 2.4415  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 334/6032]  eta: 3:44:05  lr: 0.000086  loss: 2.1046  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3978  aorta_itc: 0.0000  time: 2.3684  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 335/6032]  eta: 3:46:01  lr: 0.000086  loss: 2.1046  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3978  aorta_itc: 0.0000  time: 2.3733  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 336/6032]  eta: 3:45:22  lr: 0.000086  loss: 2.1046  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3978  aorta_itc: 0.0000  time: 2.3733  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 337/6032]  eta: 3:44:42  lr: 0.000086  loss: 2.1046  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3978  aorta_itc: 0.0000  time: 2.3733  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 338/6032]  eta: 3:44:03  lr: 0.000086  loss: 2.1046  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3978  aorta_itc: 0.0000  time: 2.3734  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 339/6032]  eta: 3:46:15  lr: 0.000086  loss: 2.1046  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3978  aorta_itc: 0.0000  time: 2.5751  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 340/6032]  eta: 3:45:41  lr: 0.000090  loss: 1.3800  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3800  aorta_itc: 0.0000  time: 2.5895  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 341/6032]  eta: 3:45:02  lr: 0.000090  loss: 1.3800  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3800  aorta_itc: 0.0000  time: 2.5895  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 342/6032]  eta: 3:44:23  lr: 0.000090  loss: 1.3800  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3800  aorta_itc: 0.0000  time: 2.5582  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 343/6032]  eta: 3:45:33  lr: 0.000090  loss: 1.3800  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3800  aorta_itc: 0.0000  time: 2.5027  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 344/6032]  eta: 3:44:54  lr: 0.000090  loss: 1.3800  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3800  aorta_itc: 0.0000  time: 2.5026  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 345/6032]  eta: 3:44:15  lr: 0.000090  loss: 1.3800  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3800  aorta_itc: 0.0000  time: 2.5027  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 346/6032]  eta: 3:43:37  lr: 0.000090  loss: 1.3800  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3800  aorta_itc: 0.0000  time: 2.5026  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 347/6032]  eta: 3:45:20  lr: 0.000090  loss: 1.3800  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3800  aorta_itc: 0.0000  time: 2.4626  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 348/6032]  eta: 3:44:42  lr: 0.000090  loss: 1.3800  lung_itc: 0.0000  heart_itc: 0.7068  esophagus_itc: 1.3800  aorta_itc: 0.0000  time: 2.4626  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 349/6032]  eta: 3:44:09  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.4800  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 350/6032]  eta: 3:43:32  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.4801  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 351/6032]  eta: 3:44:54  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.3077  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 352/6032]  eta: 3:44:16  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.3077  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 353/6032]  eta: 3:43:39  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.3077  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 354/6032]  eta: 3:43:01  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.3077  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 355/6032]  eta: 3:44:11  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.1848  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 356/6032]  eta: 3:43:34  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.1848  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 357/6032]  eta: 3:42:57  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.1848  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 358/6032]  eta: 3:42:20  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.1848  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 359/6032]  eta: 3:44:10  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.1386  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 360/6032]  eta: 3:43:33  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.1234  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 361/6032]  eta: 3:42:57  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.1234  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 362/6032]  eta: 3:42:20  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.1234  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 363/6032]  eta: 3:44:13  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.2754  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 364/6032]  eta: 3:43:36  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.2755  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 365/6032]  eta: 3:43:00  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.2754  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 366/6032]  eta: 3:42:24  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.2754  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 367/6032]  eta: 3:43:39  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.2038  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 368/6032]  eta: 3:43:03  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.2038  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 369/6032]  eta: 3:42:27  lr: 0.000093  loss: 2.1123  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4279  aorta_itc: 0.0000  time: 2.1863  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 370/6032]  eta: 3:41:56  lr: 0.000098  loss: 1.3918  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.3918  aorta_itc: 0.0000  time: 2.2014  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 371/6032]  eta: 3:43:28  lr: 0.000098  loss: 1.4368  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4368  aorta_itc: 0.0000  time: 2.2472  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 372/6032]  eta: 3:42:52  lr: 0.000098  loss: 1.4368  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4368  aorta_itc: 0.0000  time: 2.2473  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 373/6032]  eta: 3:42:16  lr: 0.000098  loss: 1.4368  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4368  aorta_itc: 0.0000  time: 2.2472  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 374/6032]  eta: 3:41:41  lr: 0.000098  loss: 1.4368  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4368  aorta_itc: 0.0000  time: 2.2472  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 375/6032]  eta: 3:43:12  lr: 0.000098  loss: 1.4368  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4368  aorta_itc: 0.0000  time: 2.3293  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 376/6032]  eta: 3:42:36  lr: 0.000098  loss: 1.4368  lung_itc: 0.0000  heart_itc: 0.6844  esophagus_itc: 1.4368  aorta_itc: 0.0000  time: 2.3292  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 377/6032]  eta: 3:42:06  lr: 0.000100  loss: 1.1128  lung_itc: 0.0000  heart_itc: 1.1128  esophagus_itc: 1.4368  aorta_itc: 0.0000  time: 2.3448  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 378/6032]  eta: 3:41:31  lr: 0.000100  loss: 1.1128  lung_itc: 0.0000  heart_itc: 1.1128  esophagus_itc: 1.4368  aorta_itc: 0.0000  time: 2.3453  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 379/6032]  eta: 3:43:06  lr: 0.000100  loss: 1.1128  lung_itc: 0.0000  heart_itc: 1.1128  esophagus_itc: 1.4368  aorta_itc: 0.0000  time: 2.3157  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 380/6032]  eta: 3:42:31  lr: 0.000100  loss: 1.1128  lung_itc: 0.0000  heart_itc: 1.1128  esophagus_itc: 1.4368  aorta_itc: 0.0000  time: 2.3156  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 381/6032]  eta: 3:41:57  lr: 0.000100  loss: 1.1128  lung_itc: 0.0000  heart_itc: 1.1128  esophagus_itc: 1.4368  aorta_itc: 0.0000  time: 2.3156  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 382/6032]  eta: 3:41:22  lr: 0.000100  loss: 1.1128  lung_itc: 0.0000  heart_itc: 1.1128  esophagus_itc: 1.4368  aorta_itc: 0.0000  time: 2.3156  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 383/6032]  eta: 3:42:51  lr: 0.000100  loss: 1.1128  lung_itc: 0.0000  heart_itc: 1.1128  esophagus_itc: 1.4368  aorta_itc: 0.0000  time: 2.2567  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 384/6032]  eta: 3:42:21  lr: 0.000100  loss: 1.4431  lung_itc: 0.0000  heart_itc: 1.1128  esophagus_itc: 1.4431  aorta_itc: 0.0000  time: 2.2721  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 385/6032]  eta: 3:41:47  lr: 0.000100  loss: 1.4431  lung_itc: 0.0000  heart_itc: 1.1128  esophagus_itc: 1.4431  aorta_itc: 0.0000  time: 2.2723  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 386/6032]  eta: 3:41:17  lr: 0.000100  loss: 1.3843  lung_itc: 0.0000  heart_itc: 1.1128  esophagus_itc: 1.3843  aorta_itc: 0.0000  time: 2.2876  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 387/6032]  eta: 3:42:08  lr: 0.000100  loss: 1.3843  lung_itc: 0.0000  heart_itc: 1.1128  esophagus_itc: 1.3843  aorta_itc: 0.0000  time: 2.2206  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 388/6032]  eta: 3:41:38  lr: 0.000100  loss: 0.6918  lung_itc: 0.0000  heart_itc: 0.6918  esophagus_itc: 1.3843  aorta_itc: 0.0000  time: 2.2341  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 389/6032]  eta: 3:41:04  lr: 0.000100  loss: 0.6918  lung_itc: 0.0000  heart_itc: 0.6918  esophagus_itc: 1.3843  aorta_itc: 0.0000  time: 2.2342  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 390/6032]  eta: 3:40:30  lr: 0.000100  loss: 0.6918  lung_itc: 0.0000  heart_itc: 0.6918  esophagus_itc: 1.3843  aorta_itc: 0.0000  time: 2.2190  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 391/6032]  eta: 3:41:34  lr: 0.000100  loss: 1.4113  lung_itc: 0.0000  heart_itc: 0.6918  esophagus_itc: 1.4113  aorta_itc: 0.0000  time: 2.1400  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 392/6032]  eta: 3:41:01  lr: 0.000100  loss: 1.4113  lung_itc: 0.0000  heart_itc: 0.6918  esophagus_itc: 1.4113  aorta_itc: 0.0000  time: 2.1401  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 393/6032]  eta: 3:40:27  lr: 0.000100  loss: 1.4113  lung_itc: 0.0000  heart_itc: 0.6918  esophagus_itc: 1.4113  aorta_itc: 0.0000  time: 2.1402  data: 0.0000  max mem: 17433
+Train: data epoch: [0]  [ 394/6032]  eta: 3:39:54  lr: 0.000100  loss: 1.4113  lung_itc: 0.0000  heart_itc: 0.6918  esophagus_itc: 1.4113  aorta_itc: 0.0000  time: 2.1402  data: 0.0000  max mem: 17433
