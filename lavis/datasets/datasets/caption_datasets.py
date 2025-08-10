@@ -38,7 +38,7 @@ class CaptionDataset(BaseDataset, __DisplMixin):
             if any(f.endswith('.nii.gz') for f in files):
                 patient_paths.add(root)
         
-        self.patient_paths = sorted(list(patient_paths))
+        self.patient_paths = sorted(list(patient_paths))[:100]
 
         self.organs = [
             'lung', 'heart', 'esophagus', 'aorta'

@@ -214,7 +214,13 @@ class BaseDatasetBuilder:
             ann_paths = abs_ann_paths
 
             # visual data storage path
-            vis_path = vis_info.storage
+            # Determine visual data storage path per split if provided
+            if split == "val" and hasattr(build_info, "val_images"):
+                vis_path = build_info.val_images.storage
+            elif split == "test" and hasattr(build_info, "test_images"):
+                vis_path = build_info.test_images.storage
+            else:
+                vis_path = vis_info.storage
 
             if not os.path.isabs(vis_path):
                 # vis_path = os.path.join(utils.get_cache_path(), vis_path)

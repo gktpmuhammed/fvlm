@@ -1,6 +1,7 @@
 *.nii.gz
 data/images
 data/masks
+data/valid
 BiomedVLP-CXR-BERT-specialized
 mae_pretrain_vit_base
 

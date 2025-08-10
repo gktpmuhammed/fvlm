@@ -16,6 +16,7 @@ from lavis.common.registry import registry
 @registry.register_builder("coco_caption")
 class COCOCapBuilder(BaseDatasetBuilder):
     train_dataset_cls = CaptionDataset
+    eval_dataset_cls = CaptionDataset
 
     DATASET_CONFIG_DICT = {
         "default": "configs/datasets/coco/defaults_cap.yaml",

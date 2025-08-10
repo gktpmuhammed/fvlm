@@ -24,14 +24,23 @@ datasets:
       annotations:
         train:
           storage: annotations.json
+        val:
+          storage: annotations.json
       images:
         storage: /home/muhammedg/fvlm/data/images/train
+      val_images:
+        storage: /home/muhammedg/fvlm/data/valid/images
     vis_processor:
         train:
           name: "fvlm_image_train"
           image_size: 224
+        eval:
+          name: "fvlm_image_train"
+          image_size: 224
     text_processor:
         train:
+          name: "blip_caption"
+        eval:
           name: "blip_caption"
 
 run:
@@ -45,7 +54,7 @@ run:
   warmup_lr: 1e-6
 
   weight_decay: 0.05
-  max_epoch: 10
+  max_epoch: 50
   batch_size_train: 4
   batch_size_eval: 8
   num_workers: 4
@@ -60,6 +69,7 @@ run:
 
   evaluate: False
   train_splits: ["train"]
+  valid_splits: ["val"]
 
   device: "cuda"
   world_size: 1
