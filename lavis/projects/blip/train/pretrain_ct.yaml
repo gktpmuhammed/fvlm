@@ -20,9 +20,15 @@ model:
 
 datasets:
   coco_caption:
+    build_info:
+      annotations:
+        train:
+          storage: annotations.json
+      images:
+        storage: /home/muhammedg/fvlm/data/images/train
     vis_processor:
         train:
-          name: "blip_image_train"
+          name: "fvlm_image_train"
           image_size: 224
     text_processor:
         train:
@@ -39,10 +45,10 @@ run:
   warmup_lr: 1e-6
 
   weight_decay: 0.05
-  max_epoch: 20
-  batch_size_train: 14
+  max_epoch: 10
+  batch_size_train: 4
   batch_size_eval: 8
-  num_workers: 16
+  num_workers: 4
   warmup_steps: 377
   log_freq: 1
 

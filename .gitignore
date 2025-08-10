@@ -1,0 +1,17 @@
+*.nii.gz
+data/images
+data/masks
+BiomedVLP-CXR-BERT-specialized
+mae_pretrain_vit_base
+
+__pycache__/
+*.cpython-310.pyc
+*.pyc
+
+*.pyo
+*.pyd
+# Add these kinds of files here
+lavis/datasets/datasets/__pycache__/
+lavis/datasets/datasets/__pycache__/*.pyc
+
+*.pth

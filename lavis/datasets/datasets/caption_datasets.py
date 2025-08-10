@@ -13,6 +13,7 @@ import numpy as np
 import random
 import torch
 import json
+from pathlib import Path
 
 class __DisplMixin:
     def displ_item(self, index):
@@ -32,28 +33,19 @@ class CaptionDataset(BaseDataset, __DisplMixin):
 
         self.vis_root = vis_root
 
-        # vis_root = 'data/processed_train_images'
-
-        # self.patient_paths = [
-        #     os.path.join(vis_root, f1, f2)
-        #     for f1 in os.listdir(vis_root)
-        #     for f2 in os.listdir(os.path.join(vis_root, f1))
-        # ]
-
-        patient_paths = np.load('/storage/guoruizhe/cache/hub/datasets--ibrahimhamamci--CT-RATE/ct_rate/patient_paths.npy')
+        patient_paths = set()
+        for root, _, files in os.walk(self.vis_root):
+            if any(f.endswith('.nii.gz') for f in files):
+                patient_paths.add(root)
         
-        new_patient_paths = []
-        for patient_path in patient_paths:
-            new_patient_paths.append(patient_path.replace('resized_train_images', 'processed_train_images'))
-        self.patient_paths = new_patient_paths
+        self.patient_paths = sorted(list(patient_paths))
 
         self.organs = [
             'lung', 'heart', 'esophagus', 'aorta'
         ]
 
-        self.loader = transforms.Compose([
-            transforms.LoadImaged(keys=["image", "label"], image_only=True, ensure_channel_first=True),
-        ])
+        # Loading is handled in the visual processor (e.g., `fvlm_image_train`).
+        # Avoid double applying LoadImaged here to prevent repeated I/O and logs.
 
         self.organ_ratios = {k: 1 for k in self.organs}
 
@@ -94,43 +86,73 @@ class CaptionDataset(BaseDataset, __DisplMixin):
         self.crop_size = (112, 256, 352)
 
     def __getitem__(self, index):
-        exit = False
-        while not exit:
+        max_retries = 10
+        last_exception = None
+
+        for _ in range(max_retries):
             try:
                 patient_path = self.patient_paths[index]
-                choices = [file for file in os.listdir(patient_path)]
-                img_path = os.path.join(patient_path, random.choice(choices))
-                
+
+                # Collect actual image files within this patient directory
+                candidate_images = []
+                for root, _, files in os.walk(patient_path):
+                    for f in files:
+                        if f.endswith('.nii.gz'):
+                            candidate_images.append(os.path.join(root, f))
+
+                if len(candidate_images) == 0:
+                    raise FileNotFoundError(f"No .nii.gz files found under {patient_path}")
+
+                img_path = random.choice(candidate_images)
                 patient_id = patient_path.split('/')[-1]
 
+                # Derive mask path from image path
                 mask_path = img_path.replace('images', 'masks')
 
-                data = self.loader({'image': img_path, 'label': mask_path})
+                # Let the visual processor handle initial MONAI transforms including LoadImaged
+                data = self.vis_processor({'image': img_path, 'label': mask_path})
 
-                data = self.vis_processor(data)
-                image = data['image'].as_tensor()
-                pul_seg = data['label'][0].as_tensor()
-                assert image[0].shape == self.crop_size and pul_seg.shape == self.crop_size
+                # Enforce exact spatial size
+                normalizer = transforms.Compose([
+                    transforms.SpatialPadd(
+                        keys=["image", "label"],
+                        spatial_size=self.crop_size,
+                        method='end',
+                        mode="constant",
+                        constant_values=0
+                    ),
+                    transforms.CenterSpatialCropd(
+                        keys=["image", "label"],
+                        roi_size=self.crop_size
+                    )
+                ])
+                data = normalizer(data)
+
+                image = data['image']
+                pul_seg = data['label'][0]
 
                 text_input = self.annotation[patient_id]
                 organ_abnormal_flags = torch.zeros(len(self.organs), dtype=bool)
                 for i, organ in enumerate(self.organs):
                     if organ in text_input and not text_input[organ].startswith(f'{organ} shows no significant abnormalities.'):
                         organ_abnormal_flags[i] = True
-                    
+
                     if organ not in text_input:
                         text_input[organ] = f'{organ} shows no significant abnormalities.'
 
-                exit = True
+                return {
+                    "image": image,
+                    "seg": pul_seg,
+                    "text_input": text_input,
+                    "organ_abnormal_flags": organ_abnormal_flags
+                }
 
             except Exception as e:
+                last_exception = e
                 print(e, patient_path)
+                # Try a different patient on failure
                 index = random.randint(0, len(self.patient_paths) - 1)
                 continue
-        
-        return {
-            "image": image,
-            "seg": pul_seg,
-            "text_input": text_input,
-            "organ_abnormal_flags": organ_abnormal_flags
-        }
+
+        # If all retries failed, raise the last exception for visibility
+        raise RuntimeError(f"Failed to load sample after {max_retries} retries. Last error: {last_exception}")
