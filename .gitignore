@@ -16,3 +16,5 @@ lavis/datasets/datasets/__pycache__/
 lavis/datasets/datasets/__pycache__/*.pyc
 
 *.pth
+log.txt
+*.log
