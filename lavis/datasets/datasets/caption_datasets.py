@@ -41,7 +41,10 @@ class CaptionDataset(BaseDataset, __DisplMixin):
         self.patient_paths = sorted(list(patient_paths))[:100]
 
         self.organs = [
-            'lung', 'heart', 'esophagus', 'aorta'
+            'face', 'brain', 'esophagus', 'trachea', 'lung', 'heart', 
+            'kidney', 'stomach', 'liver', 'gallbladder', 'pancreas', 'spleen', 
+            'colon', 'aorta', 'rib', 'humerus', 'scapula', 'clavicula', 
+            'femur', 'hip', 'sacrum', 'gluteus', 'iliopsoas', 'autochthon'
         ]
 
         # Loading is handled in the visual processor (e.g., `fvlm_image_train`).
@@ -70,10 +73,11 @@ class CaptionDataset(BaseDataset, __DisplMixin):
                     if not conc.endswith('.'):
                         conc += '.'
                 
-                if not len(conc):
-                    conc = f'{organ} shows no significant abnormalities.'
-                
-                input_text = conc + desc
+                # Combine actual findings first, use default only if no real data
+                if desc or conc:
+                    input_text = conc + desc
+                else:
+                    input_text = f'{organ} shows no significant abnormalities.'
 
                 input_text = input_text.replace('"', '')  
                 input_text = input_text.replace('\'', '')  
