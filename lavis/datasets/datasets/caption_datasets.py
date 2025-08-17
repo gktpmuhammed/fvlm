@@ -113,24 +113,10 @@ class CaptionDataset(BaseDataset, __DisplMixin):
                 # Derive mask path from image path
                 mask_path = img_path.replace('images', 'masks')
 
-                # Let the visual processor handle initial MONAI transforms including LoadImaged
+                # Let the visual processor handle all preprocessing including spatial operations
                 data = self.vis_processor({'image': img_path, 'label': mask_path})
 
-                # Enforce exact spatial size
-                normalizer = transforms.Compose([
-                    transforms.SpatialPadd(
-                        keys=["image", "label"],
-                        spatial_size=self.crop_size,
-                        method='end',
-                        mode="constant",
-                        constant_values=0
-                    ),
-                    transforms.CenterSpatialCropd(
-                        keys=["image", "label"],
-                        roi_size=self.crop_size
-                    )
-                ])
-                data = normalizer(data)
+                # No additional spatial operations needed - processor handles everything
 
                 image = data['image']
                 pul_seg = data['label'][0]
@@ -160,3 +146,61 @@ class CaptionDataset(BaseDataset, __DisplMixin):
 
         # If all retries failed, raise the last exception for visibility
         raise RuntimeError(f"Failed to load sample after {max_retries} retries. Last error: {last_exception}")
+    
+    # def collater(self, samples):
+    #     """Custom collate function to handle variable image dimensions."""
+    #     import torch
+    #     import torch.nn.functional as F
+        
+    #     # Handle text and flags normally
+    #     text_inputs = [s["text_input"] for s in samples]
+    #     organ_flags = [s["organ_abnormal_flags"] for s in samples]
+        
+    #     # Handle variable image dimensions
+    #     images = [s["image"] for s in samples]
+    #     segs = [s["seg"] for s in samples]
+        
+    #     # Find maximum dimensions in batch
+    #     max_dims = [0, 0, 0]  # D, H, W
+    #     for img in images:
+    #         shape = img.shape[1:] if len(img.shape) == 4 else img.shape  # Remove channel if present
+    #         for i in range(3):
+    #             max_dims[i] = max(max_dims[i], shape[i])
+        
+    #     # Pad all images and segs to max dimensions
+    #     padded_images = []
+    #     padded_segs = []
+        
+    #     for img, seg in zip(images, segs):
+    #         img_shape = img.shape[1:] if len(img.shape) == 4 else img.shape
+    #         seg_shape = seg.shape
+            
+    #         # Calculate padding needed (pad at the end)
+    #         img_pad = []
+    #         seg_pad = []
+    #         for i in range(3):
+    #             pad_needed = max_dims[i] - img_shape[i]
+    #             img_pad.extend([0, pad_needed])  # F.pad expects (left, right, top, bottom, front, back)
+    #             seg_pad.extend([0, pad_needed])
+            
+    #         # Reverse padding order for F.pad (it expects last dimension first)
+    #         img_pad = img_pad[::-1]
+    #         seg_pad = seg_pad[::-1]
+            
+    #         # Apply padding
+    #         padded_img = F.pad(img, img_pad, mode='constant', value=0)
+    #         padded_seg = F.pad(seg, seg_pad, mode='constant', value=0)
+            
+    #         padded_images.append(padded_img)
+    #         padded_segs.append(padded_seg)
+        
+    #     # Stack into batches
+    #     batch_images = torch.stack(padded_images)
+    #     batch_segs = torch.stack(padded_segs)
+        
+    #     return {
+    #         "image": batch_images,
+    #         "seg": batch_segs,
+    #         "text_input": text_inputs,  # Keep as list
+    #         "organ_abnormal_flags": torch.stack(organ_flags)
+    #     }

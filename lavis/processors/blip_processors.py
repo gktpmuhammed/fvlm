@@ -174,10 +174,27 @@ class FVLMImageTrainProcessor(BlipImageBaseProcessor):
         self, image_size=384, mean=None, std=None, min_scale=0.5, max_scale=1.0
     ):
         super().__init__(mean=mean, std=std)
+        
+        # Load metadata for spacing correction
+        import pandas as pd
+        import os
+        try:
+            train_metadata = pd.read_csv('/home/muhammedg/fvlm/data/metadata/metadata/train_metadata.csv')
+            try:
+                val_metadata = pd.read_csv('/home/muhammedg/fvlm/data/metadata/metadata/validation_metadata.csv')
+                self.metadata_df = pd.concat([train_metadata, val_metadata], ignore_index=True)
+                print("✅ Loaded train + validation metadata for spacing correction")
+            except:
+                self.metadata_df = train_metadata  
+                print("✅ Loaded train metadata for spacing correction (validation not found)")
+        except Exception as e:
+            print(f"⚠️ Could not load metadata: {e}")
+            self.metadata_df = None
 
         self.transform = transforms.Compose([
             transforms.LoadImaged(keys=["image", "label"], image_only=True, ensure_channel_first=True),
-            transforms.Lambdad(keys="label", func=self.merge_labels),
+            transforms.Lambdad(keys=["image"], func=self.fix_spacing_from_metadata),
+            transforms.Lambdad(keys=["label"], func=self.merge_labels),
             transforms.Spacingd(keys=["image"], pixdim=(1.0, 1.0, 3.0), mode="trilinear"),
             transforms.Spacingd(keys=["label"], pixdim=(1.0, 1.0, 3.0), mode="nearest"),
             transforms.ScaleIntensityRanged(
@@ -192,11 +209,114 @@ class FVLMImageTrainProcessor(BlipImageBaseProcessor):
                 mode="constant",
                 constant_values=0
             ),
+            transforms.CenterSpatialCropd(
+                keys=["image", "label"],
+                roi_size=(112, 256, 352)
+            ),
             transforms.RandFlipd(keys=["image", "label"], prob=0.2, spatial_axis=0),
             transforms.RandFlipd(keys=["image", "label"], prob=0.2, spatial_axis=1),
             transforms.RandFlipd(keys=["image", "label"], prob=0.2, spatial_axis=2),
-            transforms.ToTensord(keys=["image", "label"])
+            self.ToRegularTensor(keys=["image", "label"])
         ])
+
+    class ToRegularTensor:
+        """Custom transform to convert MetaTensor to regular PyTorch tensor."""
+        def __init__(self, keys):
+            self.keys = keys
+            
+        def __call__(self, data):
+            import torch
+            import numpy as np
+            
+            for key in self.keys:
+                if key in data:
+                    item = data[key]
+                    # Force conversion to regular PyTorch tensor with proper storage
+                    try:
+                        if hasattr(item, 'array'):
+                            # MetaTensor case - create completely new tensor
+                            array_data = np.array(item.array, copy=True)
+                            data[key] = torch.from_numpy(array_data).clone()
+                        elif hasattr(item, 'data'):
+                            # Other MONAI tensor types
+                            array_data = np.array(item.data, copy=True) 
+                            data[key] = torch.from_numpy(array_data).clone()
+                        elif hasattr(item, 'detach'):
+                            # Already a tensor but might be MetaTensor
+                            data[key] = torch.tensor(item.detach().cpu().numpy(), dtype=item.dtype)
+                        else:
+                            # Convert any other format
+                            array_data = np.array(item, copy=True)
+                            data[key] = torch.from_numpy(array_data).clone()
+                    except Exception as e:
+                        # Fallback: force numpy conversion
+                        array_data = np.array(item, copy=True)
+                        data[key] = torch.from_numpy(array_data).contiguous()
+            return data
+
+    def fix_spacing_from_metadata(self, image):
+        """Fix spacing information from metadata before resampling."""
+        import ast
+        import os
+        import numpy as np
+        import torch
+        
+        if self.metadata_df is None:
+            return image
+            
+        try:
+            # Extract volume name from image path
+            image_path = image.meta.get('filename_or_obj', '')
+            if isinstance(image_path, str):
+                volume_name = os.path.basename(image_path)
+                
+                # Find matching metadata row
+                metadata_row = self.metadata_df[self.metadata_df['VolumeName'] == volume_name]
+                
+                if len(metadata_row) > 0:
+                    metadata_row = metadata_row.iloc[0]
+                    
+                    # Get correct spacing from metadata
+                    xy_spacing = ast.literal_eval(metadata_row['XYSpacing'])
+                    z_spacing = metadata_row['ZSpacing']
+                    correct_spacing = (xy_spacing[0], xy_spacing[1], z_spacing)
+                    
+                    # Update the affine matrix to use correct spacing
+                    current_affine = image.affine
+                    if isinstance(current_affine, torch.Tensor):
+                        corrected_affine = current_affine.clone()
+                    else:
+                        corrected_affine = np.array(current_affine)
+                    
+                    # Set diagonal elements to correct spacing (with sign preservation)
+                    corrected_affine[0, 0] = correct_spacing[0] * np.sign(float(current_affine[0, 0]))
+                    corrected_affine[1, 1] = correct_spacing[1] * np.sign(float(current_affine[1, 1]))  
+                    corrected_affine[2, 2] = correct_spacing[2] * np.sign(float(current_affine[2, 2]))
+                    
+                    # Simply update the metadata affine - let MONAI handle the rest
+                    image.affine = corrected_affine
+                    return image
+                    
+        except Exception as e:
+            print(f"⚠️ Could not fix spacing for {volume_name if 'volume_name' in locals() else image_path}: {e}")
+            
+        return image
+
+    def convert_to_tensor(self, data):
+        """Convert MetaTensor to regular PyTorch tensor for DataLoader compatibility."""
+        import torch
+        import numpy as np
+        
+        # Force conversion to regular PyTorch tensor, stripping all MONAI metadata
+        if hasattr(data, 'array'):
+            # MetaTensor case
+            return torch.tensor(np.array(data.array), dtype=data.dtype)
+        elif hasattr(data, 'data'):
+            # Other MONAI tensor types
+            return torch.tensor(np.array(data.data), dtype=data.dtype)
+        else:
+            # Convert any tensor-like to pure PyTorch tensor
+            return torch.tensor(np.array(data))
 
     def merge_labels(self, label):
         class_map = {
