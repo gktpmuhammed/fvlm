@@ -105,50 +105,7 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
             'colon', 'aorta', 'rib', 'humerus', 'scapula', 'clavicula', 
             'femur', 'hip', 'sacrum', 'gluteus', 'iliopsoas', 'autochthon'
         ]
-        
-        # TotalSegmentator ID to model organ index mapping (optimized for 24 organs)
-        self.totalseg_to_organ_idx = {
-            # Face/Head
-            91: 0,  # skull -> face
-            90: 1,  # brain -> brain
-            
-            # Thoracic
-            15: 2,  # esophagus -> esophagus  
-            16: 3,  # trachea -> trachea
-            10: 4, 11: 4, 12: 4, 13: 4, 14: 4,  # lung parts -> lung
-            51: 5,  # heart -> heart
-            61: 5,  # atrial_appendage_left -> heart
-            
-            # Abdominal
-            2: 6, 3: 6,   # kidneys -> kidney
-            6: 7,         # stomach -> stomach  
-            5: 8,         # liver -> liver
-            4: 9,         # gallbladder -> gallbladder
-            7: 10,        # pancreas -> pancreas
-            1: 11,        # spleen -> spleen
-            20: 12,       # colon -> colon
-            
-            # Vascular
-            52: 13,       # aorta -> aorta
-            
-            # Ribs
-            92: 14, 93: 14, 94: 14, 95: 14, 96: 14, 97: 14, 98: 14, 99: 14, 100: 14, 101: 14, 102: 14, 103: 14,  # left ribs
-            104: 14, 105: 14, 106: 14, 107: 14, 108: 14, 109: 14, 110: 14, 111: 14, 112: 14, 113: 14, 114: 14, 115: 14,  # right ribs
-            
-            # Bones
-            69: 15, 70: 15,  # humerus -> humerus
-            71: 16, 72: 16,  # scapula -> scapula  
-            73: 17, 74: 17,  # clavicula -> clavicula
-            75: 18, 76: 18,  # femur -> femur
-            77: 19, 78: 19,  # hip -> hip
-            25: 20, 26: 20,  # sacrum, S1 -> sacrum
-            
-            # Muscles
-            80: 21, 81: 21, 82: 21, 83: 21, 84: 21, 85: 21,  # gluteus muscles -> gluteus
-            88: 22, 89: 22,  # iliopsoas -> iliopsoas  
-            86: 23, 87: 23,  # autochthon -> autochthon
-        }
-        
+
         self.attention = nn.MultiheadAttention(
             embed_dim=vision_width,
             num_heads=4,
@@ -185,14 +142,9 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
                 # remove incomplete organs caused by random crop.
                 intact_organ_ids = [organ_id for organ_id in organ_ids if organ_id not in boundary_organs]
                 
-                # Map TotalSegmentator IDs to model organ indices
-                mapped_organ_indices = []
-                for organ_id in intact_organ_ids:
-                    if int(organ_id) in self.totalseg_to_organ_idx:
-                        mapped_organ_indices.append(self.totalseg_to_organ_idx[int(organ_id)])
-                if mapped_organ_indices:
-                    mapped_organ_indices = torch.tensor(mapped_organ_indices).long()
-                    organ_mask_flags[i][mapped_organ_indices] = True
+                if intact_organ_ids:
+                    intact_organ_ids = torch.tensor(intact_organ_ids).long()
+                    organ_mask_flags[i][intact_organ_ids - 1] = True
 
         organ_captions = samples["text_input"]
         organ_abnormal_flags = samples["organ_abnormal_flags"]
@@ -209,45 +161,9 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
                 if not len(inds):
                     continue
                 
-                # Get the actual TotalSegmentator IDs for these organ indices
-                totalseg_ids = []
-                for organ_idx in inds:
-                    # Find TotalSegmentator IDs that map to this organ index
-                    matching_ids = [tseg_id for tseg_id, model_idx in self.totalseg_to_organ_idx.items() 
-                                  if model_idx == organ_idx]
-                    totalseg_ids.extend(matching_ids)
-                
-                # Create combined masks for each organ index
-                organ_masks = {}
-                for organ_idx in inds:
-                    # Find TotalSegmentator IDs for this organ
-                    matching_ids = [tseg_id for tseg_id, model_idx in self.totalseg_to_organ_idx.items() 
-                                  if model_idx == organ_idx]
-                    
-                    # Combine masks from all TotalSegmentator IDs for this organ
-                    combined_mask = torch.zeros_like(seg[i]).float()
-                    for tseg_id in matching_ids:
-                        combined_mask = torch.max(combined_mask, torch.eq(seg[i], tseg_id).float())
-                    
-                    if combined_mask.sum() > 0:  # Only include if this organ is present
-                        organ_masks[organ_idx.item()] = combined_mask
-                
-                if not organ_masks:
-                    continue
-                
-                # Create tensor of masks in the same order as inds
-                mask_list = []
-                valid_inds = []
-                for organ_idx in inds:
-                    if organ_idx.item() in organ_masks:
-                        mask_list.append(organ_masks[organ_idx.item()])
-                        valid_inds.append(organ_idx)
-                
-                if not mask_list:
-                    continue
-                    
-                masks = torch.stack(mask_list, dim=0)
-                valid_inds = torch.stack(valid_inds)
+                # Since preprocessing merges labels to 1-24 range, create masks directly
+                masks = torch.stack(
+                    [torch.eq(seg[i], organ_id + 1) for organ_id in inds], dim=0).float()
 
                 downsampled_masks = F.max_pool3d(
                     masks.unsqueeze(1),
@@ -255,7 +171,7 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
                     stride=(16, 16, 32)
                 )
                 
-                organ_token_flags[i][valid_inds] = downsampled_masks.flatten(1) > 0
+                organ_token_flags[i][inds] = downsampled_masks.flatten(1) > 0
 
                 assert all((downsampled_masks.flatten(1) > 0).sum(1) > 0)
         
