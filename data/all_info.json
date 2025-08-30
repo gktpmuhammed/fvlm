@@ -1,0 +1,602 @@
+{
+    "train_1_a": {
+        "lung": "Thickening of the bronchial wall in both lungs. Peribronchial reticulonodular densities in the lower lobes, minimal consolidations infection process?. Atelectasis in both lungs.Linear atelectasis is present in both lung parenchyma. Subsegmental atelectasis is observed in the right middle lobe. Thickening of the bronchial wall and peribronchial budding tree-like reticulonodular densities are observed in the bilateral lower lobes. Peribronchial minimal consolidation is seen in the lower lobes in places. The findings were evaluated primarily in favor of the infectious process.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size are normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities.Calcific plaques are observed in the aortic arch. Thoracic aorta diameter is normal."
+    },
+    "train_10_a": {
+        "lung": "Findings compatible with Covid pneumonia.Widespread ground glass densities are observed in both lung parenchyma showing a tendency to central and peripheral fusion. A 5 mm calcific nodule was observed in the posterobasal region of the lower lobe of the right lung.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size are normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant pathological wall thickening was detected.",
+        "aorta": "Aortic and coronary artery atherosclerosis.Calcific plaques are present in the coronary arteries."
+    },
+    "train_100_a": {
+        "lung": "Right pleural effusion, area of increased density in the adjacent lung parenchyma evaluated in favor of compressive atelectasis. Density increase area in the lower lobe of the left lung consistent with the consolidation observed in air bronchograms; Pneumonic infiltration, which may be related to atelectasis, cannot be excluded. A few millimetric nodules in the left lung.There is an area of increased density in the lung parenchyma adjacent to the effusion, which is considered secondary to compressive atelectasis. In the lower lobe of the left lung, there is an area of increase in density consistent with the consolidation observed in the air bronchograms. Although the appearance may be secondary to atelectasis, underlying pneumonic infiltration cannot be excluded. No mass lesion was observed in both lungs. There are a few millimetric nodules in the left lung, the largest of which is 5.5x3.5 mm in the upper lobe inferior lingular segment. Emphysematous changes were observed in both lungs.",
+        "heart": "heart shows no significant abnormalities.Heart contour, the size is natural. There is minimal pericardial effusion. The effusion measuring approximately 80 mm in size is observed on the right.",
+        "esophagus": "esophagus shows no significant abnormalities.No pathological increase in wall thickness was observed in the thoracic esophagus.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_1000_a": {
+        "lung": "lung shows no significant abnormalities.No pneumonic infiltration or consolidation area was detected in the lung parenchyma. No suspicious mass or nodular space-occupying lesion was observed in the lung parenchyma. There are a few nonspecific nodules less than 5 mm in diameter.",
+        "heart": "heart shows no significant abnormalities.Heart dimensions and compartments appear natural. Pericardial effusion was not detected.",
+        "esophagus": "esophagus shows no significant abnormalities.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10000_a": {
+        "lung": "Millimetric nodules in both lungs.There are millimetric nonspecific nodules in both lungs. No mass or infiltrative lesion was detected in both lungs.",
+        "heart": "heart shows no significant abnormalities.Heart contour and size are normal. No pleural or pericardial effusion was detected.",
+        "esophagus": "esophagus shows no significant abnormalities.No pathological wall thickness increase was observed in the esophagus within the sections.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10001_a": {
+        "lung": "Findings consistent with covid pneumonia in bilateral lungs. Millimetric nonspecific nodule in the right lung.In both lung parenchyma, there are ground-glass densities in all lobes with a tendency to merge with posterior and subpleural weights. A 2 mm nonspecific nodule is observed in the anterior upper lobe of the right lung.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size are normal.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophageal calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10002_a": {
+        "lung": "Findings consistent with aspiration pneumonia.Mild areas of consolidation are observed in the lower lobe of the left lung, including air bronchogram signs in the lower lobe of the right lung. It was evaluated in favor of aspiration pneumonia.",
+        "heart": "heart shows no significant abnormalities.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant pathological wall thickening was detected.",
+        "aorta": "Atherosclerotic changes.Calcific atheroma plaques are present in the aortic arch and coronary arteries."
+    },
+    "train_10003_a": {
+        "lung": "lung shows no significant abnormalities.A small amount of newly developing pleural effusion is observed in the posterobasal sections of both lungs. The thickness of these pleural effusions reaches 1.5 cm on the right and 2 cm on the left.",
+        "heart": "heart shows no significant abnormalities.",
+        "esophagus": "esophagus shows no significant abnormalities.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10004_a": {
+        "lung": "Emphysema, mosaic density differences, sequela fibrotic changes and millimetric nonspecific nodules in both lungs.Emphysematous appearance, sequela fibrotic changes, mosaic density differences, nonspecific millimetric nodules are observed in both lungs.",
+        "heart": "Coronary atherosclerosis.Heart contour, size are normal.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophageal calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10005_a": {
+        "lung": "A few subpleural millimetric nonspecific nodules in both lungs. Paraseptal and minor centrilobular emphysematous changes in both lungs.Subpleural millimetric nonspecific nodules are observed at the apical level of the left lung upper lobe and the right lung lower lobe superior. Paraseptal emphysematous changes are observed in both lungs, more prominently at the apical levels. No nodular lesions were detected in both lung parenchyma.",
+        "heart": "heart shows no significant abnormalities.Mediastinal main vascular structures, heart contour, size are normal.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophageal calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities.Thoracic aorta diameter is normal."
+    },
+    "train_10006_a": {
+        "lung": "Emphysematous changes in both lungs.No active infiltration or mass lesion was detected in both lungs. There are minimal emphysematous changes.",
+        "heart": "heart shows no significant abnormalities.No pericardial or pleural effusion was detected. Calibration of other mediastinal vascular structures, heart contour, size are normal.",
+        "esophagus": "esophagus shows no significant abnormalities.No pathological increase in wall thickness was observed in the thoracic esophagus.",
+        "aorta": "Calcified atheromatous plaques in the wall of the aorta and left coronary vascular structures.There are calcific atheromatous plaques in the aorta and left coronary artery."
+    },
+    "train_10006_b": {
+        "lung": "Stable millimetric nonspecific parenchymal nodule.No mass-infiltration was detected in both lungs. Minimal emphysematous changes were observed in both lungs. A millimetric sized nonspecific calcified parenchymal nodule was observed in the upper lobe of the right lung.",
+        "heart": "heart shows no significant abnormalities.Heart contour size is natural. Pericardial-pleural effusion was not detected.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant pathological wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities.Calcified atherosclerotic changes were observed in the wall of the thoracic aorta and coronary artery."
+    },
+    "train_10007_a": {
+        "lung": "Peribronchial thickenings in both lungs.Minimal peribronchial thickening was observed in both lungs. There is no mass or infiltrative lesion in both lungs.",
+        "heart": "heart shows no significant abnormalities.Heart contour and size are normal.",
+        "esophagus": "esophagus shows no significant abnormalities.No pathological increase in wall thickness was detected in the esophagus within the sections.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10008_a": {
+        "lung": "The findings described in the lung parenchyma were initially evaluated in favor of Covid-19 viral pneumonia.There are findings in the upper lobe of the left lung at the level of the superior lingula, in which air signs are observed around it in a patchy manner, and vascular enlargement is also observed. Evaluated in favor of Covid-19. Ventilation of both lung parenchyma is normal, and no nodular lesion is detected in the lung parenchyma.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size are normal.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities.Thoracic aorta diameter is normal."
+    },
+    "train_10009_a": {
+        "lung": "In the anterior segment of the lobe, centroacinar nodular density increases are observed in the appearance of a tree with buds.There are sequela fibrotic structures accompanied by structural distortion and volume loss in the apex of the right lung upper lobe. In the axial sections of the apex, a soft tissue density appearance with an irregular border, measuring 18 mm in size at its widest point, is observed, and it was evaluated primarily in favor of fibrotic nodular formation. In the neighborhood of the described findings, there are nodular density increases in centroacinar millimetric dimensions, which look like a tree with buds in the lung parenchyma. No significant change was detected in the described findings. No active infiltration or mass lesion was detected in the left lung parenchyma.",
+        "heart": "heart shows no significant abnormalities.Calibration of vascular structures, heart contour, size are natural.",
+        "esophagus": "esophagus shows no significant abnormalities.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_1001_a": {
+        "lung": "Consolidation areas in both lung lower lobes prominent on the left; is regressed. Atelectasis in the lingular segment of the left lung.There is an area of atelectasis accompanied by volume loss in the lingular segment of the left lung upper lobe. There are significant increases in interlobular septal thickness in the lower lobes of both lungs on the left. No mass was detected in both lungs.",
+        "heart": "Cardiomegaly.Cardiothoracic ratio increased in favor of the heart.",
+        "esophagus": "esophagus shows no significant abnormalities.No pathological wall thickness increase was observed in the esophagus within the sections.",
+        "aorta": "aorta shows no significant abnormalities.Millimetric calcific plaques follow in the aorta."
+    },
+    "train_1001_b": {
+        "lung": "lung shows no significant abnormalities.A mosaic attenuation pattern is observed in both lungs small vessel disease?, small airway disease?. There is a smear-like pleural effusion at the base of both lungs.",
+        "heart": "heart shows no significant abnormalities.Pericardial effusion is present.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant pathological wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10010_a": {
+        "lung": "lung shows no significant abnormalities.Aeration of both lung parenchyma is normal and no nodular or infiltrative lesion is detected in the lung parenchyma.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size are normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities.Thoracic aorta diameter is normal."
+    },
+    "train_10011_a": {
+        "lung": "lung shows no significant abnormalities.When examined in the lung parenchyma window; no mass nodule-infiltration was detected in both lung parenchyma.",
+        "heart": "heart shows no significant abnormalities.Heart contour size is natural. Pericardial thickening-effusion was not detected.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant pathological wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10012_a": {
+        "lung": "The findings described in the lung parenchyma were initially evaluated in favor of Covid-19 viral pneumonia due to the current pandemic. Clinical and laboratory correlation is recommended for differential diagnosis of other infectious processes.There are ground glass densities in both lungs, especially in the lower lobe, in peripherally located vascular enlargement with a halo sign around it in a patchy manner.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size are normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities.Thoracic aorta diameter is normal."
+    },
+    "train_10013_a": {
+        "lung": "Findings consistent with diffuse viral pneumonia in both lungs.Density increases were observed in multilobar, consolidation and ground glass density. Viral pneumonias Covid-19 pneumonia are considered in the etiology of the findings.",
+        "heart": "heart shows no significant abnormalities.Calibration of the vascular structures, the heart contour and size are natural. Minimal effusion in the pericardial and pleural space.",
+        "esophagus": "esophagus shows no significant abnormalities.No pathological increase in thoracic esophagus wall thickness is observed.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10013_b": {
+        "lung": "lung shows no significant abnormalities.Areas of increased density consistent with consolidation and ground-glass covering almost the entire lung parenchyma are observed in all segments.",
+        "heart": "heart shows no significant abnormalities.",
+        "esophagus": "esophagus shows no significant abnormalities.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10014_a": {
+        "lung": "Emphysematous appearance with panlobular appearance in the right apex of both lungs, millimetric nonspecific nodules. Segmentary tubular bronchiectasis in both lungs.Widespread centriacinar-paraseptal emphysematous changes are observed in the right apical segment with a panlobular appearance. Segmentary tubular bronchiectasis are present in both lungs. A few nonspecific nodules less than 5 mm in diameter are observed in both lungs. Apart from this, no infiltrative mass with distinguishable borders was detected in both lungs.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size are normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophageal calibration was normal and no significant tumoral wall thickening was detected. Sliding type hiatal hernia is observed in the distal esophagus.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10015_a": {
+        "lung": "Changes in lung parenchyma consistent with Covid-19 viral pneumonia.There are diffuse patchy ground-glass densities, atelectatic changes, and prominent bronchovascular structures in both lungs. Findings are consistent with Covid-19 viral pneumonia.",
+        "heart": "Increase in heart size.Heart contour, increased in size.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10016_a": {
+        "lung": "lung shows no significant abnormalities.In the examination made in the lung parenchyma window; In the upper lobes of both lungs, in the neighborhood of the bronchovascular structures, indistinctly limited ground glass densities, which have the appearance of a tree with buds, are observed. Infectious pathologies are considered in the etiology and control is recommended after treatment.",
+        "heart": "heart shows no significant abnormalities.mediastinal vascular structures and heart could not be evaluated optimally.",
+        "esophagus": "esophagus shows no significant abnormalities.An increase in pathological wall thickness is observed in the thoracic esophagus, and there is a mild hiatal hernia at the level of the esophagogastric junction.",
+        "aorta": "aorta shows no significant abnormalities.AP diameter of the ascending aorta was 43mm, and the AP diameter of the pulmonary conus was 33mm, and it was wider than normal. Calcified atheroma plaques are observed in the walls of the ascending aorta, descending aorta, aortic arch and coronary vascular structures."
+    },
+    "train_10016_b": {
+        "lung": "Consolidated areas in both lung lower lobes and right lung upper lobe posterior segment and budding tree appearances in right lung lower lobe superior segment. Stable nodules in both lungs. When evaluated together with the patients previous examination, regression was observed in the described appearances. It was evaluated in favor of infective pathology.There is consolidation in the lower lobes of both lungs, adjacent to the effusion, in which air bronchograms are observed. In addition, there is another consolidation area with an air bronchogram in the peripheral subpleural area in the posterior segment of the right lung upper lobe. In addition, budding tree appearances in the lower lobe of the right lung, especially in the superior segment, accompany the consolidations. There are nodules in both lungs, the largest of which is in the apical subsegment of the left lung upper lobe. No mass was observed in both lungs.",
+        "heart": "heart shows no significant abnormalities.Heart is minimally larger than normal. Pericardial effusion and thickening were not detected.",
+        "esophagus": "esophagus shows no significant abnormalities.No pathological increase in wall thickness was detected in the esophagus within the sections.",
+        "aorta": "Atherosclerotic changes in the aorta and coronary arteries. Minimal fusiform aneurysmatic dilation in the ascending aorta.Calcific atheromatous plaques are present in the aorta and coronary arteries. The ascending aorta is measured 40 mm in anterior-posterior diameter and is minimally wider than normal. The diameters of the aortic arch and descending aorta are normal."
+    },
+    "train_10016_c": {
+        "lung": "lung shows no significant abnormalities.There are patchy consolidations in both lungs, areas of ground glass, and centriacinar nodules, some of which have the appearance of budding trees. The findings were evaluated in favor of infective pathology. No mass was detected in both lungs. There are millimetric nonspecific nodules in both lungs.",
+        "heart": "heart shows no significant abnormalities.",
+        "esophagus": "esophagus shows no significant abnormalities.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10016_d": {
+        "lung": "Findings evaluated primarily in favor of infective pathology in both lungs. Bilateral pleural effusion.Ventilation of both lower lobes of the lungs is completely lost. In these localizations, there are consolidations in which air bronchograms are observed. Ground glass areas and centriacinar nodules, some of which have the appearance of budding trees, and consolidations are observed in both aerated lungs. When the described appearances were evaluated together with the findings in the lower lobe, they were evaluated in favor of infective pathology. No mass was detected in both lungs.",
+        "heart": "heart shows no significant abnormalities.Heart contour and size are normal.",
+        "esophagus": "esophagus shows no significant abnormalities.No pathological wall thickness increase was observed in the esophagus within the sections.",
+        "aorta": "aorta shows no significant abnormalities.There are calcific atheroma plaques in the aorta and coronary arteries. The anterior-posterior diameter of the ascending aorta is 40 mm and wider than normal. The diameters of the pulmonary arteries are also larger than normal."
+    },
+    "train_10017_a": {
+        "lung": "Non-specific nodules measuring 7 mm in series 2 image 216 in both lungs, the largest in the lower lobe on the right.There is a non-specific nodule measuring 7 mm in series 2 image 216 in both lungs, the largest in the lower lobe on the right. Aeration of both lung parenchyma is normal and no infiltrative lesion is detected in the lung parenchyma.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size are normal.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10018_a": {
+        "lung": "Minimal tubular bronchiectasis and accompanying minimal peribronchial thickness increase in both lungs. Linear areas of atelectasis in both lungs. Several millimetric nonspecific nodules in both lungs.There are areas of linear atelectasis in both lungs. A few millimetric nonspecific nodules are observed in both lungs. Minimal tubular bronchiectasis and peribronchial thickness increase are observed. An azygos fissure is observed in the right lobe.",
+        "heart": "Minimal pericardial effusion.Heart contour and size are normal. Minimal pericardial effusion is observed.",
+        "esophagus": "esophagus shows no significant abnormalities.No pathological increase in wall thickness was observed in the esophagus.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10019_a": {
+        "lung": "Signs of progressive pneumonic infiltration.Widespread consolidation and frosted glass-like density increases are observed in all segments of both lungs, and the findings show progression. Bilateral diffuse peribronchial thickenings were observed.",
+        "heart": "heart shows no significant abnormalities.Cardiac chambers are of normal width.",
+        "esophagus": "esophagus shows no significant abnormalities.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_1002_a": {
+        "lung": "lung shows no significant abnormalities.Aeration of both lung parenchyma is normal and no nodular or infiltrative lesion is detected in the lung parenchyma.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size are normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant pathological wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_1002_b": {
+        "lung": "lung shows no significant abnormalities.Aeration of both lung parenchyma is normal and no nodular or infiltrative lesion is detected in the lung parenchyma. Pleural effusion-thickening was not detected.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size are normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant pathological wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10020_a": {
+        "lung": "Mild emphysematous changes in both lungs, sequelae changes in the left lung, millimeter-sized calcified nonspecific pulmonary nodules in both lungs.Mild emphysematous changes are present in both lungs. Pleuroparenchymal sequelae density increases were observed in the left lung inferior lingular segment and upper lobe anterior segment. Several calcified nonspecific pulmonary nodules, 3 mm in diameter, were observed in both lungs. No mass-infiltration was detected in both lung parenchyma. No pleural effusion was detected.",
+        "heart": "heart shows no significant abnormalities.Heart contour size is natural. Pericardial thickening-effusion was not detected.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant pathological wall thickening was detected in the non-contrast examination limits.",
+        "aorta": "Fusiform dilatation of the ascending aorta, mild dilatation of the pulmonary artery. Calcified atherosclerotic changes in the wall of the thoracic aorta-coronary artery.Calcified atherosclerotic changes were observed in the wall of the thoracic aorta and coronary artery. The diameter of the ascending aorta was 42 mm and showed fusiform dilatation. The diameter of the main pulmonary artery was 29 mm and it shows mild dilatation. Calcified atherosclerotic changes were observed in the wall of the abdominal aorta."
+    },
+    "train_10021_a": {
+        "lung": "Mosaic attenuation pattern in both lungs small airway, small vessel disease?. Sequelae more prominent in the lower lobes of both lungs, fibrotic band formations and linear densities of subsegmental atelectasis.A mosaic attenuation pattern is observed in the upper lobes of both lungs small airway, small vessel disease?. Pleuraparenchymal band formations and subsegmental atelectasis areas are observed especially in the lower lobes of bilateral lungs. There is minimal sequelae thickness increase in the lower lobe pleura of both lungs.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size are normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "Coarse calcifications in the aortic walls.Calcific atheroma plaques are observed in the aortic walls. Thoracic aorta diameter is normal."
+    },
+    "train_10022_a": {
+        "lung": "Findings consistent with mild emphysema in both lungs, formation of a few millimetric non-septic nodules.There are emphysematous findings in both lungs. Mild thickening of the peribronchial sheath is observed. A subpleural non-specific millimetric nodule with a diameter of approximately 4 mm is observed in the middle lobe of the right lung. There is a subpleural 4 mm diameter nodule in the superior segment of the lower lobe. Subpleural interlobular septal thickening is observed in the anterior segment of the upper lobes of both lungs. There are several non-specific nodules with a diameter of 2 mm in the anterior segment of the left lung upper lobe. Sequelae changes are observed in the inferior lingular segment.",
+        "heart": "heart shows no significant abnormalities.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "Dense calcification at the aortic valve level.Aortic arch calibration is greater than normal at 31 mm. Calcific atheroma plaques are observed in the aortic arch, descending aorta, and abdominal aorta."
+    },
+    "train_10023_a": {
+        "lung": "lung shows no significant abnormalities.",
+        "heart": "heart shows no significant abnormalities.Heart contour and size are normal. No pleural or pericardial effusion was detected.",
+        "esophagus": "esophagus shows no significant abnormalities.No pathological wall thickness increase was observed in the esophagus within the sections.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10024_a": {
+        "lung": "A few millimeter-sized nonspecific nodules in the left lung, the largest of which is in the lower lobe anterobasal segment.Several nonspecific intrapulmonary nodules are observed in the left lung, the largest of which is 3.5 mm in the anterobasal segment of the lower lobe. Ventilation of both lung parenchyma is normal and no active infiltration or mass lesion is detected in the lung parenchyma.",
+        "heart": "heart shows no significant abnormalities.Calibrations of vascular structures, heart contour, and size are normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophageal calibration was normal and no significant pathological wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities.Thoracic aorta diameter is normal."
+    },
+    "train_10025_a": {
+        "lung": "Findings evaluated primarily in favor of viral pneumonia in both lungs.Widespread focal consolidations and ground glass areas are observed in both lungs, especially in the upper lobes. Some of the consolidations are round in shape. The findings described are of the type frequently encountered in Covid-19 pneumonia. No mass was detected in both lungs.",
+        "heart": "heart shows no significant abnormalities.Heart contour and size are normal. No pleural or pericardial effusion was detected.",
+        "esophagus": "esophagus shows no significant abnormalities.There is a sliding type hiatal hernia at the lower end of the esophagus.",
+        "aorta": "Atherosclerotic changes in the aorta.There are atheromatous plaques in the aorta."
+    },
+    "train_10026_a": {
+        "lung": "Areas of atelectasis with bronchiectasis and nonspecific ground-glass areas in the lower lobes of both lungs.There are linear atelectasis areas accompanied by bronchiectasis and ground glass areas in the right lung upper lobe anterior segment, both lung lower lobes medial segment and left lung lower lobe posterior segment, especially in the lower lobe medial segment.",
+        "heart": "heart shows no significant abnormalities.Heart contour and size are normal.",
+        "esophagus": "esophagus shows no significant abnormalities.No mention.",
+        "aorta": "aorta shows no significant abnormalities.No mention."
+    },
+    "train_10027_a": {
+        "lung": "Pneumonic infiltration was not observed in the lung parenchyma.No pneumonic infiltration or consolidation area was detected in the lung parenchyma. The increase in focal fissure thickness in the right lung major fissure was thought to be related to focal fissure edema. Mild bronchial wall thickness increases and linear linear atelectasis areas are observed in the lower lobe basal segments. No suspicious mass-occupying lesion was detected in the lung parenchyma.",
+        "heart": "heart shows no significant abnormalities.Heart size increased.",
+        "esophagus": "esophagus shows no significant abnormalities.",
+        "aorta": "Calcific atherosclerotic plaques in the coronary arteries, fusiform mild aneurysmatic enlargement of the ascending aorta and aortic arch, diffuse calcific plaques in the aorta.Calcific atherosclerotic plaques are present in the coronary arteries. The diameter of the ascending aorta was 41 mm, the diameter of the aortic arch was 39 mm in the distal section, and there was fusiform mild aneurysmatic dilation. Diffuse calcific atherosclerotic plaques are observed in the ascending aorta, aortic arch and thoracic aorta."
+    },
+    "train_10027_b": {
+        "lung": "Segment bronchial wall thickness increases and parenchymal atelectasis in bronchial tubes.There is a pleural effusion reaching a diameter of 2 cm between the leaves of the right pleura and 1 cm between the leaves of the left pleura. In both lungs, increased bronchial wall thickness in the lower lobe basal segments and segmental bronchi and occasionally intraluminal secretions are observed. There are areas of dependent atelectasis adjacent to the pleura in the lower lobes of both lungs. There are linear atelectasis in the posterobasal segments of both lung lower lobes. No pneumonic infiltration or consolidation area was detected in the lung parenchyma. No suspicious mass or nodular space-occupying lesion was detected.",
+        "heart": "Increased heart size.Heart sizes are slightly increased. Left ventricular diameter is prominent.",
+        "esophagus": "esophagus shows no significant abnormalities.Pathological diameter increase in the esophagus was not detected in this trigger.",
+        "aorta": "Calcified atherosclerotic plaques in the coronary arteries, atherosclerotic plaques in the ascending aorta and aortic arch and associated slight aneurysmatic fusiform diameter increase. Widespread calcific atherosclerotic plaques in the ascending aorta, aortic arch, thoracic aorta and abdominal aorta and its branches.The diameter of the ascending aorta was 41 mm, and the diameter at the distal part of the aortic arch was 39 mm and slightly increased. Diffuse calcified atherosclerotic plaques are observed in the ascending aorta, aortic arch and thoracic aorta."
+    },
+    "train_10028_a": {
+        "lung": "Several millimetric nonspecific pulmonary nodules in both lungs. There was no finding in favor of pneumonia-mass in the lung parenchyma.Several nonspecific parenchymal nodules with a diameter of 4.4 mm were observed in both lungs, the largest of which was in the left lung lower lobe laterobasal segment. No mass lesion-active infiltration with distinguishable borders was detected in both lungs.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size is normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10029_a": {
+        "lung": "Calcified millimetric nonspecific parenchymal nodules observed in the left lung apical, stable according to previous examination in both lungs. Sequelae changes in both lungs.2 nonspecific parenchymal nodules, the largest of which was 3 mm in diameter, were observed in the right lung middle lobe lateral and left lung lower lobe laterobasal segment. There are 2.5 mm diameter calcified nonspecific parenchymal nodules in the apical left lung and pleuroparenchymal sequelae density increases in the left lung inferior lingular segment and right lung middle lobe.",
+        "heart": "heart shows no significant abnormalities.Heart contour size is natural.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant pathological wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities.No dilatation was detected in the thoracic aorta."
+    },
+    "train_1003_a": {
+        "lung": "Nonspecific millimetric nodules smaller than 5 mm in both lungs. Millimetric centrinodular appearances in both lungs, slightly more prominent but faintly appearing in the upper-middle zones. It is recommended to evaluate the case with clinical and laboratory findings in terms of infective processes.Nodules with a diameter of 3 mm in the anterior segment of the right lung upper lobe, 3.5x3 mm in the caudal of the upper lobe posterior segment, 2 mm in diameter in the middle lobe, and 5x3 mm in the middle lobe more caudally, 6x4 mm in size in the lower lobe laterobasal segment of the left lung, and 4 mm in diameter in the laterobasal segment are observed. In both lungs, faint and fine centronodular nodularities are observed, being slightly more prominent in the upper zones. No apparent bronchiectasis was detected in both lungs. Pleural effusion is not observed.",
+        "heart": "heart shows no significant abnormalities.",
+        "esophagus": "esophagus shows no significant abnormalities.",
+        "aorta": "aorta shows no significant abnormalities.Aortic arch calibration was measured as 35 mm. It is wider than normal. A millimetric-sized calcific atheroma plaque is observed in the aortic arch."
+    },
+    "train_10030_a": {
+        "lung": "Minimal bronchiectasis and peribronchial thickening in both lungs. Findings evaluated primarily in favor of infective pathology in both lungs, more prominently on the right. Emphysematous changes in both lungs. Stable millimetric nodules in both lungs.The right upper lobe of the lung is not observed. It is understood that lobectomy was performed. Bronchiectasis and peribronchial thickenings are observed in both lungs, more prominently in the right and central regions. Peribronchial thickening in the anterobasal segment of the right lung middle lobe and lower lobe is accompanied by budding tree appearance, centriacinar nodular and ground glass appearances. The described manifestations were primarily evaluated in favor of infective pathology. There are also similar findings in a smaller area in the lower lobe of the left lung. Both lungs have millimetric nonspecific nodules, some of which are calcific. No mass was detected in both lungs.",
+        "heart": "heart shows no significant abnormalities.Heart contour and size are normal. No pleural or pericardial effusion was detected.",
+        "esophagus": "esophagus shows no significant abnormalities.No pathological wall thickness increase was detected in the esophagus within the sections.",
+        "aorta": "Atheroma plaques in the aorta and coronary arteries.Atheroma plaques are observed in the aorta and coronary arteries. The widths of the mediastinal main vascular structures are normal."
+    },
+    "train_10030_b": {
+        "lung": "Operated lung Ca, right lung upper lobectomy, bronchopneumonic infiltration areas in right lung lower lobe and middle lobe. The nodule observed in the upper lobe of the left lung in the previous examination was almost completely resorbed.Right lung upper lobectomy was performed. No space-occupying lesion in favor of local recurrence was observed in the lobectomy site. Bronchopneumonic infiltration areas in the form of acinar ground glass nodules and nodular consolidation areas were observed in the lower lobe and middle lobe of the right lung. There is a subsegmental atelectasis area in the left lung upper lobe lingula inferior segment. No pleural effusion was observed.",
+        "heart": "heart shows no significant abnormalities.Heart dimensions and compartments are of normal width. Pericardial effusion was not detected.",
+        "esophagus": "esophagus shows no significant abnormalities.",
+        "aorta": "Focal calcific atherosclerotic plaque proximal to the LAD.Focal calcific atherosclerotic plaque is observed proximal to the LAD. Calibration of mediastinal major vascular structures is normal."
+    },
+    "train_10031_a": {
+        "lung": "Widespread ground-glass-like densities in both lungs with a tendency to merge from place to place.Common ground-glass-like densities in both lungs that tend to coalesce from place to place. A nonspecific nodule with a diameter of 3 mm is observed in the upper lobe anterior segment caudal to the lung.",
+        "heart": "heart shows no significant abnormalities.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities.Aortic arch calibration is 34 mm. It is wider than normal. Ascending aorta calibration is 41 mm. It is wider than normal. Thoracic aorta diameter is normal."
+    },
+    "train_10032_a": {
+        "lung": "lung shows no significant abnormalities.Aeration of both lung parenchyma is normal and no nodular or infiltrative lesion is detected in the lung parenchyma.",
+        "heart": "heart shows no significant abnormalities.Heart contour and size are normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected. A large mixed type hiatal hernia was observed at the lower end of the esophagus.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10033_a": {
+        "lung": "Imaging features described in the basal segment of the left lung lower lobe can be seen in Covid-19 pneumonia, but it is not specific because it is unilateral. It can also be seen in other infectious diseases.A small paraseptal emphysematous change is observed at the apical level of the upper lobe of the right lung. In the basal segment of the lower lobe of the left lung, patchy ground glass densities are observed with a halo sign around it.",
+        "heart": "heart shows no significant abnormalities.Mediastinal main vascular structures, heart contour, size are normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities.Thoracic aorta diameter is normal."
+    },
+    "train_10034_a": {
+        "lung": "Millimetric sized nonpsessive parenchymal nodule in the left lung lower lobe laterobasal segment.A millimetric-sized nonpsessive parenchymal nodule was observed in the laterobasal segment of the lower lobe of the left lung. No mass lesion-active infiltration was detected in the lung parenchyma.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size are normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant pathological wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10035_a": {
+        "lung": "lung shows no significant abnormalities.Pneumonic infiltration or consolidation area is not observed in the lung parenchyma. No suspicious nodular or mass-occupying lesion was detected in the lung parenchyma.",
+        "heart": "heart shows no significant abnormalities.Heart dimensions and compartments appear natural. Pericardial effusion was not detected.",
+        "esophagus": "esophagus shows no significant abnormalities.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10036_a": {
+        "lung": "Atelectasis changes in both lungs.Compressive ground glass density secondary to osteophyte compression was observed in the right lung lower lobe mediobasal segment. Subsegmental atelectatic changes were observed in the left lung upper lobe inferior lingular and right lung middle lobe. No mass lesion-active infiltration with distinguishable borders was detected in both lungs.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size is normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Sliding type hiatal hernia was observed at the lower end of the esophagus.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10037_a": {
+        "lung": "Pulmonary nodule in the right lung. Pulmonary secretion causing an aeration defect in the right lung bronchus.No mass or infiltrative lesion was detected in both lungs. A 3mm sized pulmonary nodule is observed in the superior lower lobe of the right lung.",
+        "heart": "Cardiomegaly.Heart sizes have increased. No pleural or pericardial effusion was detected.",
+        "esophagus": "esophagus shows no significant abnormalities.No pathological wall thickness increase was observed in the esophagus within the sections.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10038_a": {
+        "lung": "lung shows no significant abnormalities.",
+        "heart": "heart shows no significant abnormalities.",
+        "esophagus": "esophagus shows no significant abnormalities.",
+        "aorta": "Aortic atherosclerosis."
+    },
+    "train_10039_a": {
+        "lung": "lung shows no significant abnormalities.Aeration of both lung parenchyma is normal and no nodular or infiltrative lesion is detected in the lung parenchyma.",
+        "heart": "heart shows no significant abnormalities.Mediastinal main vascular structures, heart contour, size are normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities.Thoracic aorta diameter is normal."
+    },
+    "train_1004_a": {
+        "lung": "In the evaluation of both lung parenchyma; active infiltration or mass lesion is detected and there are millimetric nonspecific nodules.Active infiltration or mass lesion is detected and there are millimetric nonspecific nodules.",
+        "heart": "heart shows no significant abnormalities.Could not be evaluated optimally due to the lack of contrast, and they have a natural appearance.",
+        "esophagus": "esophagus shows no significant abnormalities.No pathological increase in wall thickness was observed.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_1004_b": {
+        "lung": "Ground-glass appearance in a small area in the posterobasal segment of the lower lobe of the right lung.A ground-glass appearance is observed in the posterobasal segment of the right lung lower lobe and in the peripheral area. Vascular structures in the ground glass appearance are minimally enlarged. Since it is a single lesion, differential diagnosis could not be made. However, the appearance is one of the findings observed in Covid-19 pneumonia. It is recommended that the patient be evaluated together with clinical and laboratory findings in terms of viral pneumonia. No mass was detected in both lungs.",
+        "heart": "heart shows no significant abnormalities.Heart contour and size are normal. No pleural or pericardial effusion was detected.",
+        "esophagus": "esophagus shows no significant abnormalities.No pathological wall thickness increase was observed in the esophagus within the sections.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10040_a": {
+        "lung": "Mosaic attenuation pattern in both lungs small airway disease?, small vessel disease?. Focal consolidative density was observed in the left lung inferior lingular segment.Mosaic attenuation pattern is observed in both lungs small vessel disease?, small airway disease?. Sequelae changes are observed in the middle lobe on the right. Focal consolidative density is observed in the inferior lingular segment of the left lung.",
+        "heart": "heart shows no significant abnormalities.",
+        "esophagus": "esophagus shows no significant abnormalities.",
+        "aorta": "aorta shows no significant abnormalities.Aortic arch calibration is 31 mm. It is slightly larger than normal."
+    },
+    "train_10041_a": {
+        "lung": "lung shows no significant abnormalities.No mass or infiltrative lesion was observed in both lungs.",
+        "heart": "heart shows no significant abnormalities.Heart contour and size are normal.",
+        "esophagus": "esophagus shows no significant abnormalities.No pathological wall thickness increase was observed in the esophagus within the sections.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10042_a": {
+        "lung": "Typical-probable Covid-19 pneumonia.Diffuse and patchy ground-glass opacities are observed in both lungs. Localization is generally observed in the right lung and upper lobes.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size are normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant pathological wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10043_a": {
+        "lung": "Atelectasis in both lungs. Consolidation in the lateral segment of the right lung middle lobe atelectasis? infective pathology??. Subpleural nodule in the upper lobe of the right lung. Emphysematous changes in both lungs.Atelectasis is present in both lungs adjacent to the pleural effusion. At the level of atelectasis, it is most prominently observed in the lower lobe of the right lung. The lower lobe of the right lung is observed almost completely atelectatically, except for the superior segment. Emphysematous changes are present in both lungs. There is a nodular lesion measuring approximately 9mm in diameter in the peripheral subpleural area in the lateral part of the right lung upper lobe apical segment. The appearance of the described lesion is not specific. It is recommended to follow. There is consolidation in the lateral segment of the middle lobe of the right lung, in which air bronchograms are observed. The described appearance may belong to atelectasis or infective pathology. This distinction was not made in this study. It is recommended to evaluate the patient with physical examination and clinical findings. No mass was detected in both lungs.",
+        "heart": "heart shows no significant abnormalities.Heart contour and size are normal. Pericardial effusion was not detected.",
+        "esophagus": "esophagus shows no significant abnormalities.There is no pathological wall thickness increase in the esophagus within the sections. There is a sliding type hiatal hernia at the lower end of the esophagus.",
+        "aorta": "Atherosclerotic changes in the aorta and coronary arteries.Calcific atheroma plaques are observed in the aorta and coronary arteries."
+    },
+    "train_10043_b": {
+        "lung": "lung shows no significant abnormalities....",
+        "heart": "heart shows no significant abnormalities....",
+        "esophagus": "esophagus shows no significant abnormalities....",
+        "aorta": "aorta shows no significant abnormalities...."
+    },
+    "train_10044_a": {
+        "lung": "lung shows no significant abnormalities.There is a subsegmental linear atelectasis area in the medial segment of the right lung middle lobe. No pneumonic infiltration or consolidation area was detected in the lung parenchyma.",
+        "heart": "heart shows no significant abnormalities.Heart dimensions and compartments appear natural. Pericardial effusion was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10045_a": {
+        "lung": "lung shows no significant abnormalities.Mild sequela changes are observed in the medial segment of the middle lobe of the right lung. A subpleural nodule with a diameter of 3 mm is observed in the lower lobe laterobasal segment and cannot be evaluated clearly in the previous examination due to the difference in section thickness. A few millimetric nonspecific nodule formations in both lungs that did not differ significantly from previous examination.",
+        "heart": "heart shows no significant abnormalities.",
+        "esophagus": "esophagus shows no significant abnormalities.",
+        "aorta": "aorta shows no significant abnormalities.Millimetric sized calcific atheroma plaque is observed at the level of the brachiocephalic trunk."
+    },
+    "train_10046_a": {
+        "lung": "A millimetric nonspecific calcific nodule in the apicoposterior segment of the left lung upper lobe.A millimetric subpleural calcific nodule was observed in the apicoposterior segment of the left lung upper lobe. Apart from this, no active infiltration was detected in a mass lesion with distinguishable borders in both lungs.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size are normal as far as can be seen in the non-contrast examination.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities.A calcified atheroma plaque was observed in the aortic arch."
+    },
+    "train_10047_a": {
+        "lung": "Emphysematous changes in both lungs, mosaic attenuation pattern small airway disease?, small vessel disease?.Mosaic attenuation pattern is observed in both lungs. small airway disease?, small vessel disease?. Emphysematous changes are present in both lungs. Ground glass density increases were observed in the posterior segment of the right lung upper lobe. A similar appearance is also found in the apicoposterior segment of the left lung upper lobe. Appearance is nonspecific.",
+        "heart": "heart shows no significant abnormalities.Heart contour size is natural.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant pathological wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities.Mild calcified atherosclerotic changes were observed in the wall of the thoracic aorta."
+    },
+    "train_10047_b": {
+        "lung": "Widespread ground-glass appearances involving all segments and increases in interlobar and interlobar septal thickness are observed in both lung parenchyma.Widespread ground-glass opacities, interlobular septal thickness increases are observed in both lungs that involve all lung segments. In both lungs, areas of pleural effusion secondary to compression in the parenchyma accompanied by pleural effusion are observed, which are more prominent on the right and reach approximately 2 cm in the thickest part on the right and approximately 1 cm on the left, which were not observed in the previous examination. The findings observed in the lung are not specific. It is also observed in Covid-19 pneumonias. It causes similar appearances in other viral pneumonias.",
+        "heart": "heart shows no significant abnormalities.Heart contour size is natural. Pericardial thickening-effusion was not detected.",
+        "esophagus": "esophagus shows no significant abnormalities.The calibration of the thoracic esophagus is normal.",
+        "aorta": "aorta shows no significant abnormalities.Millimetric calcific atheroma is observed in the aorta."
+    },
+    "train_10048_a": {
+        "lung": "Mosaic densities and subpleural lines in the lungs minimal pulmonary edema?, airway disease?, perfusion defect?.There are mosaic density differences in the lung, more prominent in the lower lobes. Occasionally, subpleural lines are observed.",
+        "heart": "Minimal cardiomegaly.Heart size slightly increased.",
+        "esophagus": "esophagus shows no significant abnormalities.",
+        "aorta": "Sternotomy and appearance compatible with aortic root stent at the level of the aortic valve.Calcific atheroma plaques are observed in the aorta and coronary arteries. A stent was observed in the aortic root."
+    },
+    "train_10049_a": {
+        "lung": "No signs of infection were detected in the lungs.",
+        "heart": "heart shows no significant abnormalities.Heart and mediastinal vascular structures have a natural appearance.",
+        "esophagus": "esophagus shows no significant abnormalities.Esophagus is within normal limits.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_1005_a": {
+        "lung": "Minimal emphysematous changes in both lungs, a few millimetric nonspecific nodules.Minimal emphysematous changes are observed in both lungs. Several nodules of 4x8 mm are observed in both lungs, the largest of which is in the superior segment of the lower lobe of the right lung. No mass, infiltrative lesion or posttraumatic finding was detected in both lungs.",
+        "heart": "heart shows no significant abnormalities.Heart contour and size are normal. No pleural-pericardial effusion or thickening was detected. The widths of the mediastinal main vascular structures are normal.",
+        "esophagus": "esophagus shows no significant abnormalities.Sliding type minimal hiatal hernia is observed at the esophagogastric junction. No pathological increase in wall thickness was detected in the esophagus.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10050_a": {
+        "lung": "A newly emerged parenchymal nodular mass lesion was observed in the current examination in the lower lobe of the left lung.Fibroatelectatic changes were observed in both lungs. There is bilateral minimal pleural effusion. In the posterobasal segment of the lower lobe of the left lung, a 23x14 mm sized pleural-based nodule with irregular borders was observed in the current examination. It just appeared in the current review. However, nodules observed in both lungs in the previous examination are not detected in the current examination.",
+        "heart": "heart shows no significant abnormalities.Other mediastinal major vascular structures, heart contour, size are normal.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant pathological wall thickness increase was detected in the non-contrast examination limits.",
+        "aorta": "Atherosclerotic changes, mild fusiform dilatation of the ascending aorta.The diameter of the aortic arch measures 41 mm and shows slight dilatation. Calcified atherosclerotic changes were observed in the wall of the thoracic aorta and coronary artery. Calcified atherosclerotic changes were observed in the wall of the abdominal aorta."
+    },
+    "train_10051_a": {
+        "lung": "Mild sequelae changes at the apical level. Sequelae changes in the inferior lingular segment. Thickening or mild irregularity in the peribronchial sheath, especially in the central part of both lungs.Mild sequelae changes are observed at the apical level. Sequelae changes are observed in the inferior lingular segment. In both lungs, thickening or mild irregularity is observed in the peribronchial sheath, especially in the center.",
+        "heart": "heart shows no significant abnormalities.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant pathological wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10052_a": {
+        "lung": "Ground glass densities consistent with Covid pneumonia in both lungs and consolidations on the right.Peripheral weighted ground glass densities are present in both lung parenchyma.",
+        "heart": "heart shows no significant abnormalities.Other mediastinal main vascular structures, heart contour, size are normal. Minimal thickening is observed in the pericardium.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophageal calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "Ectasia in the ascending aorta.The ascending aorta is slightly ectatic 37 mm. Calcific atheroma plaques are observed in the coronary arteries."
+    },
+    "train_10053_a": {
+        "lung": "Lobular contoured nodule in the superior segment of the lower lobe of the left lung.In the subpleural area of the left lung lower lobe superior segment, a 22x16 mm sized nodule with lobulated contours and irregular borders containing air bronchograms is observed.",
+        "heart": "heart shows no significant abnormalities.Mediastinal main vascular structures, heart contour, size are normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities.Thoracic aorta diameter is normal."
+    },
+    "train_10054_a": {
+        "lung": "Parenchymal involvement areas compatible with Covid pneumonia. Coarse pleural calcifications.Bilateral asymmetrical patchy ground-glass opacity areas are observed in both lungs. Intralobular septal thickenings in the upper lobe of the right lung are also accompanied. Radiological findings are compatible with Covid pneumonia. No mass-occupying lesion was detected in the lung parenchyma.",
+        "heart": "heart shows no significant abnormalities.Heart dimensions and compartments appear natural.",
+        "esophagus": "esophagus shows no significant abnormalities.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10055_a": {
+        "lung": "lung shows no significant abnormalities.No pneumonic infiltration or consolidation area was observed in the lung parenchyma. No suspicious mass or nodular space-occupying lesion was detected in the lung parenchyma. There is a 2 mm diameter non-specific nodule in the lower lobe of the right lung.",
+        "heart": "heart shows no significant abnormalities.Heart dimensions and compartments appear natural.",
+        "esophagus": "esophagus shows no significant abnormalities.Esophagus is in normal calibration.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10056_a": {
+        "lung": "lung shows no significant abnormalities.Aeration of both lung parenchyma is normal and no nodular or infiltrative lesion is detected in the lung parenchyma.",
+        "heart": "heart shows no significant abnormalities.Mediastinal main vascular structures, heart contour, size are normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophageal calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10057_a": {
+        "lung": "Slightly increased aeration areas in the upper lobes of both lungs were present. Slight bronchial wall thickness increases in the basal segment bronchi of the lower lobes of both lungs were present. Both lungs Millimetric-sized <5mm parenchymal nonspecific nodules in the lung were also present. There is a ground glass opacity in the posteromediobasal segment of the left lung lower lobe, adjacent to the diaphragmatic crus, and it was thought that it may belong to the parenchymal atelectasis caused by the left diaphragmatic crus due to its localization.There are nonspecific nodular lesions with a diameter of less than 5 mm, located subpleural in the right lung lower lobe posterobasal segment, subpleural localized in the left lung lower lobe posterobasal and laterobasal segments, parenchymal localized in the left lung upper lobe lingula superior segment. There is a linear subsegmental atelectasis area in the left lung upper lobe lingula inferior segment. Areas of increased aeration are observed in the upper lobes of both lungs case with a history of asthma. Focal fissural thickness increases that cause retraction in the minor and major fissures in the right lung were evaluated as compatible with the sequelae lesion. Slight bronchial wall thickness increases are observed in the lower lobe basal segment bronchi in both lungs. An area of ground glass opacity is observed in the posteromediobasal segment of the lower lobe of the left lung, adjacent to the diaphragmatic crus. It measures approximately 11mm in diameter. It was thought that it may belong to parenchymal atelectasis caused by the diaphragmatic crus due to its close neighborhood and localization with the left diaphragmatic crus.",
+        "heart": "heart shows no significant abnormalities.Heart dimensions and compartments appear natural.",
+        "esophagus": "esophagus shows no significant abnormalities.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10058_a": {
+        "lung": "No signs of infection were detected in the lungs. However, it should be known that CT may be false negative in the first few days.Fibroatelectasis, paraseptal emphysema appearances and traction bronchiectasis were observed in bilateral lung apex, especially on the left. There are millimetric non-specific nodules in the bilateral lung.",
+        "heart": "heart shows no significant abnormalities.Heart and mediastinal vascular structures have a natural appearance.",
+        "esophagus": "esophagus shows no significant abnormalities.Esophagus is within normal limits.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10059_a": {
+        "lung": "No findings compatible with pneumonia were detected.4 mm diameter nodule is observed in the anterior segment of the right lung upper lobe. An air cyst is observed at the posterobasal level of the lower lobe. Air cyst is observed in the middle lobe. A subpleural nodule with a diameter of 3 mm is observed in the apicoposterior segment of the upper lobe of the left lung. There is a parenchymal band in the laterobasal segment. There was no finding compatible with pneumonia. Pleural effusion or pneumothorax is not observed.",
+        "heart": "heart shows no significant abnormalities.",
+        "esophagus": "Hiatal hernia.Thoracic esophageal calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities.Aortic arch calibration is 35 mm. Thoracic aorta diameter is normal."
+    },
+    "train_1006_a": {
+        "lung": "A total of several millimeter-sized nonspecific ground glass nodules in both lungs.A few millimeter-sized <5mm ground-glass nodular lesions are observed in the upper lobe of the right lung and the lower lobe of the left lung. It is nonspecific and few in number. Clinical follow-up is recommended. No pneumonic infiltration or consolidation area was detected in the lung parenchyma. No space-occupying lesion was observed in a suspicious mass.",
+        "heart": "heart shows no significant abnormalities.Heart dimensions and compartments appear natural. Pericardial effusion was not detected.",
+        "esophagus": "esophagus shows no significant abnormalities.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10060_a": {
+        "lung": "Consolidation areas with air bronchograms in the upper and middle lobes of the right lung, near-total atelectasis in the right lung. Mass-atelectasis cannot be made clearly.The volume of the right hemithorax is decreased. The right lung has a near-total atelectasis appearance. Right lung upper lobe and middle lobe bronchus are clearly observed. There is a massive consolidation area in which air bronchograms are observed, covering the upper and middle lobes. Lower lobe bronchus is not observed. The lower lobe has a total atelectasis appearance. It is not possible to differentiate between mass and atelectasis. In the right hemithorax, in the upper, middle and lower lobes, loculated collection areas with thin rim calcifications are observed on the walls of the pleural distance. Interlobular septal thickenings are observed in the left lung parenchima areas.",
+        "heart": "heart shows no significant abnormalities.The cardiothoracic index increased in favor of the heart.",
+        "esophagus": "esophagus shows no significant abnormalities.",
+        "aorta": "aorta shows no significant abnormalities.Calcific atherosclerotic plaques are observed in the walls of the descending aorta and the abdominal aorta."
+    },
+    "train_10061_a": {
+        "lung": "Extensive ground-glass areas in both lungs.Central and peripheral ground-glass areas are observed in the upper and lower lobes of both lungs and the middle lobe of the right lung. In addition, locally enlarged vascular structures and minimal interlobular septal thickening are observed in ground glass. There is no mass in both lungs.",
+        "heart": "heart shows no significant abnormalities.Heart contour and size are normal. No pleural or pericardial effusion was detected.",
+        "esophagus": "esophagus shows no significant abnormalities.No pathological wall thickness increase was observed in the esophagus within the sections.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10062_a": {
+        "lung": "Emphysematous changes in the upper lobes of both lungs, areas of linear atelectasis, A few millimetric nonspecific nodules in both lungs.There are emphysematous changes and bulla-bleb formations in both upper lobe apical segments of both lungs prominent on the right. In both lungs, there are areas of linear atelectasis accompanied by pleural retractions in the lower lobe lateral segment of the left lung. No mass or infiltrative lesion was detected in both lungs. Several nodules with a diameter of 1.5 mm are observed in both lungs, the largest of which is in the superior segment of the lower lobe of the right lung.",
+        "heart": "heart shows no significant abnormalities.Heart contour and size are normal. No pleural-pericardial effusion or thickening was detected.",
+        "esophagus": "esophagus shows no significant abnormalities.Sliding type minimal hiatal hernia was observed at the esophagogastric junction.",
+        "aorta": "aorta shows no significant abnormalities.Calcific atheroma plaques are observed in the anterior descending coronary artery. The diameters of the aortic arch and descending aorta were 30 mm and were within the physiological upper limits."
+    },
+    "train_10063_a": {
+        "lung": "Millimetric sized nonspecific parenchymal nodules in both lung parenchyma.Several nonspecific parenchymal nodules were observed in different localizations in both lungs. No mass-infiltration was detected in both lung parenchyma.",
+        "heart": "heart shows no significant abnormalities.Heart contour size is natural.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant pathological wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10064_a": {
+        "lung": "Active infiltration, no mass lesions were detected in both lungs.There is diffuse mild ectasia in the bronchial structures of both lungs, which is prominent in the center. No active infiltration or mass lesion was detected in both lungs. There are areas of increase in density consistent with linear atelectasis in the left lung upper lobe inferior lingular segment and right lung middle lobe medial segment.",
+        "heart": "heart shows no significant abnormalities.Calibration of vascular structures, heart contour and size are natural. No pericardial, pleural effusion or increased thickness was detected.",
+        "esophagus": "esophagus shows no significant abnormalities.No pathological increase in wall thickness was observed in the thoracic esophagus.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10065_a": {
+        "lung": "lung shows no significant abnormalities.Aeration of both lung parenchyma is normal and no nodular or infiltrative lesion is detected in the lung parenchyma.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size is normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected. Sliding type hiatal hernia was observed at the lower end of the esophagus.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10066_a": {
+        "lung": "Findings consistent with early-stage Covid-19 pneumonia in the lung parenchyma.In all lobes of both lungs, peripherally located crazy paving pattern and sparsely distributed, nodular, faintly circumscribed ground glass densities with signs of vascular enlargement are observed. The outlook is compatible with early Covid-19 pneumonia. No mass lesion with discernible borders was detected in both lungs.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size are normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Sliding type hiatal hernia is observed at the lower end of the esophagus.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10067_a": {
+        "lung": "Findings consistent with Covid pneumonia. Mucus plugs and bronchial wall thickness increases in left lung lower lobe basal segment bronchi.Bilateral asymmetric peribronchial and subpleural ground-glass nodules are observed in the lung parenchyma. Some have a halo sign. Bronchial wall thickness increases are observed in segmental bronchi. Increased mucosal thickness and filling defects due to secretions are observed in the left lung lower lobe segment bronchi. Radiological findings are in favor of atypical pneumonic infiltration and covid infection was evaluated as compatible with lung parenchymal involvement. There is mild parenchymal involvement.",
+        "heart": "Increase in heart size.Heart size increased. Pericardial effusion was not detected.",
+        "esophagus": "esophagus shows no significant abnormalities.Esophageal calibration was followed naturally.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10068_a": {
+        "lung": "Mosaic perfusion in both lungs small airway or small vessel disease. Dependent increases in density in the lower lobes of both lungs, mild interlobular septal thickening and mild prominence in the interstitial pattern. Linear atelectasis in the lingular segment of the left lung.Mosaic perfusion is observed in both lungs small airway or small vessel disease. Dependent increases in density are observed in the lower lobes of both lungs, mild interlobular septal thickening and mild prominence in the interstitial pattern are observed. Linear atelectasis is observed in the lingular segment of the left lung.",
+        "heart": "heart shows no significant abnormalities.",
+        "esophagus": "esophagus shows no significant abnormalities.",
+        "aorta": "aorta shows no significant abnormalities.Millimetric-sized calcific atherosclerotic plaques are observed in the posterior arch and the descending abdominal aorta."
+    },
+    "train_10069_a": {
+        "lung": "Diaphragmatic-subpleural face fibrotic sequelae densities in the anterior lower lobe of the left lung.There are fibrotic sequelae densities on the diaphragmatic-subpleural face in the anterior lower lobe of the left lung. Both lung parenchyma aeration is normal and no nodular or infiltrative lesion is detected in the lung parenchyma.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size are normal.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities.Thoracic aorta diameter is normal."
+    },
+    "train_1007_a": {
+        "lung": "Emphysematous changes and mosaic attenuation pattern in both lungs. Multiple nodule formation in both lungs, more prominent in the upper-middle zones. Nonspecific centrilobular nodule formations in the upper zones, more prominent in the right lung.Emphysematous findings are present in both lungs and a mosaic attenuation pattern is observed in the mid-lower zones. Superposed multiple parenchymal, subpleural nodules are observed on both interlobar fissures in the upper-middle zones of both lungs. Sequelae changes are observed in the middle lobe. Sequelae changes are observed in the inferior lingular segment. It can be observed in bronchiolitis, endobronchial spread of infections, bronchioalveolar carcinoma, and hypersensitivity pneumonia.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size are normal. Pericardial effusion-thickening is not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant pathological wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10070_a": {
+        "lung": "The findings described in the lung parenchyma were primarily evaluated in favor of Small airway disease? Small vessel disease?, and clinical and laboratory correlation is recommended for the differential diagnosis of an early infectious process due to the current pandemic.Diffuse centriacinar millimetric nodular ground glass densities are observed in both lungs. There are paraseptal and centrilobular emphysematous changes, more prominent at the apical levels, in the upper lobes of both lungs. Findings small airway disease? Small vessel disease? evaluated in its favour. Clinical and laboratory correlation and follow-up are recommended for the differential diagnosis of an infectious process.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size are normal. Pericardial effusion-thickening was not observed.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities.There are millimetric calcific foci in the aorta and coronary arteries."
+    },
+    "train_10071_a": {
+        "lung": "Preseptal emphysematous changes in the apex of both lungs.There are paraseptal emphysematous changes in the apex of both lungs. No active infiltration or mass lesion was detected in both lungs.",
+        "heart": "heart shows no significant abnormalities.Calibration of vascular structures, heart contour and size are normal as far as can be observed.",
+        "esophagus": "esophagus shows no significant abnormalities.No pathological increase in wall thickness was observed in the thoracic esophagus.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10072_a": {
+        "lung": "Findings consistent with viral pneumonia in both lungs.In both lungs, multilobar, mostly peripheral subpleural localized, indistinct ground glass and density increases consistent with consolidation were observed. No mass lesions were detected in both lungs. Findings are one of the most common findings of Covid-19 pneumonia and it is recommended to be evaluated together with clinical and laboratory findings.",
+        "heart": "calcified atheroma plaques in the wall of coronary vascular structures.Heart contour, size are natural.",
+        "esophagus": "esophagus shows no significant abnormalities.No pathological increase in thoracic esophagus wall thickness is observed.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10073_a": {
+        "lung": "No finding compatible with pneumonia was observed.Azygos fissure variation is observed. A 3 mm diameter nodule superposed on the minor fissure is observed in the right lung. There is a 2 mm diameter subpleural nodule in the middle lobe. Another nodule with a diameter of 2 vmm is observed. Sequelae changes are observed in the parenchyma at the anterobasal level. No pleural effusion, pneumothorax or pneumonia was detected.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size are normal.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophageal calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10073_b": {
+        "lung": "Sequelae calcified lymph nodes in the subcarinal area and right lung hilum. Nonspecific millimetric pulmonary nodules in both lungs with calcification in some.Nonspecific millimetric pulmonary nodules with calcification are observed in both lungs.",
+        "heart": "heart shows no significant abnormalities.Heart contour, size are normal.",
+        "esophagus": "esophagus shows no significant abnormalities.Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10074_a": {
+        "lung": "No active infiltration or mass lesion was observed in both lungs.No active infiltration or mass lesion was detected in both lung parenchyma. Ventilation of both lungs is natural.",
+        "heart": "heart shows no significant abnormalities.Calibration of vascular structures, heart contour and size are natural. Pericardial, pleural effusion was not detected.",
+        "esophagus": "esophagus shows no significant abnormalities.No pathological increase in wall thickness was observed in the thoracic esophagus.",
+        "aorta": "aorta shows no significant abnormalities."
+    },
+    "train_10075_a": {
+        "lung": "Pleuroparenchymal sequelae changes in both lung apex. Atelectasis in both lungs. Emphysematous changes in both lungs. Nodules in both lungs.There are linear atelectasis in the upper lobe of the right lung and the lower lobe of the left lung. There are minimal emphysematous changes in both lungs. Pleuroparenchymal sequelae changes were observed in both lung apex. There are nonspecific nodules, some of which are calcific, in both lungs. No mass or infiltrative lesion was detected in both lungs.",
+        "heart": "heart shows no significant abnormalities.Heart contour and size are normal. No pleural or pericardial effusion was detected.",
+        "esophagus": "esophagus shows no significant abnormalities.There is no pathological wall thickness increase in the esophagus within the sections.",
+        "aorta": "Atherosclerotic changes in the aorta and coronary arteries."
+    }
+}

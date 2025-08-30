@@ -126,21 +126,21 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
         with torch.no_grad():
             organ_mask_flags = torch.zeros(len(seg), len(self.organs), dtype=bool, device=seg.device)
             for i, pul_seg in enumerate(seg):
-                boundaries = [
-                    pul_seg[0], pul_seg[-1],
-                    pul_seg[:, 0], pul_seg[:, -1],
-                    pul_seg[:, :, 0], pul_seg[:, :, -1]
-                ]
-                
-                non_zero_boundaries = [b[b != 0].flatten() for b in boundaries]
-                boundary_values = torch.cat(non_zero_boundaries)
-                boundary_organs = torch.unique(boundary_values)
-
                 organ_ids, organ_counts = torch.unique(pul_seg, return_counts=True)
-                organ_ids = organ_ids[organ_ids > 0]
                 
-                # remove incomplete organs caused by random crop.
-                intact_organ_ids = [organ_id for organ_id in organ_ids if organ_id not in boundary_organs]
+                # Filter out background (id=0) from both arrays simultaneously
+                valid_mask = organ_ids > 0
+                organ_ids = organ_ids[valid_mask]
+                organ_counts = organ_counts[valid_mask]
+                
+                # Use voxel count threshold instead of boundary detection
+                # Only exclude organs with very few voxels (mostly cropped out)
+                intact_organ_ids = []
+                for idx, organ_id in enumerate(organ_ids):
+                    organ_voxel_count = organ_counts[idx].item()
+                    # Keep organs with at least 100 voxels (meaningful presence)
+                    if organ_voxel_count >= 100:
+                        intact_organ_ids.append(organ_id)
                 
                 if intact_organ_ids:
                     intact_organ_ids = torch.tensor(intact_organ_ids).long()
