@@ -99,20 +99,127 @@ def merge_labels(label):
 
 
 def create_preprocessing_pipeline():
-    """Create preprocessing pipeline similar to FVLMImageTrainProcessor but without random augmentations"""
+    """Create preprocessing pipeline with spacing normalization to ~(1.0, 1.0, 3.0)"""
+    
+    class SpacingNormalization:
+        """Custom transform to normalize spacing to reference spacing"""
+        def __init__(self, ref_spacing=(1.0, 1.0, 3.0), debug=False):
+            self.ref_spacing = ref_spacing
+            self.debug = debug
+        
+        def __call__(self, data):
+            # Get original spacing from affine matrix
+            affine = data["image_meta_dict"]["affine"]
+            spacing = (abs(affine[0, 0].item()), abs(affine[1, 1].item()), abs(affine[2, 2].item()))
+            
+            # Calculate scale and target size
+            _, h, w, d = data["image"].shape
+            scale = [spacing[i] / self.ref_spacing[i] for i in range(3)]
+            target_size = [int(h * scale[1]), int(w * scale[0]), int(d * scale[2])]
+            
+            if self.debug:
+                print(f"  [SpacingNorm] Original spacing: {spacing}")
+                print(f"  [SpacingNorm] Target spacing: {self.ref_spacing}")
+                print(f"  [SpacingNorm] Original size: ({h}, {w}, {d})")
+                print(f"  [SpacingNorm] Scale factors: {scale}")
+                print(f"  [SpacingNorm] Target size: {target_size}")
+            
+            # Apply resizing if needed
+            if target_size != [h, w, d]:
+                if self.debug:
+                    print(f"  [SpacingNorm] Applying resize from {[h, w, d]} to {target_size}")
+                
+                resize_transform = transforms.Compose([
+                    transforms.Resized(spatial_size=target_size, keys=["image"], mode="trilinear"),
+                    transforms.Resized(spatial_size=target_size, keys=["label"], mode="nearest"),
+                ])
+                result = resize_transform(data)
+                
+                # Manually update spacing metadata after resize
+                for key in ["image", "label"]:
+                    if key in result and hasattr(result[key], 'meta') and result[key].meta:
+                        # Update pixdim with new spacing
+                        if 'pixdim' in result[key].meta:
+                            result[key].meta['pixdim'][1:4] = self.ref_spacing
+                        
+                        # Update affine matrix diagonal with new spacing  
+                        if 'affine' in result[key].meta:
+                            for i in range(3):
+                                result[key].meta['affine'][i, i] = self.ref_spacing[i] * (1 if result[key].meta['affine'][i, i] > 0 else -1)
+                
+                if self.debug:
+                    # Check final spacing after resize and metadata update
+                    if hasattr(result["image"], 'meta') and result["image"].meta and 'pixdim' in result["image"].meta:
+                        final_pixdim = result["image"].meta['pixdim']
+                        final_spacing = (final_pixdim[1], final_pixdim[2], final_pixdim[3])
+                        print(f"  [SpacingNorm] Final spacing after resize: {final_spacing}")
+                    print(f"  [SpacingNorm] Final shape after resize: {result['image'].shape}")
+                
+                return result
+            else:
+                if self.debug:
+                    print(f"  [SpacingNorm] No resize needed - spacing already matches target")
+                return data
+
+    class Original_ROI_Crop_d:
+        """
+        Custom dictionary-based transform to replicate the original pipeline's
+        manual ROI cropping with fixed extensions.
+        """
+        def __init__(self, keys, extend_d=5, extend_hw=20):
+            self.keys = keys
+            self.extend_d = extend_d
+            self.extend_hw = extend_hw
+
+        def __call__(self, data):
+            d = data.copy()
+            image = d["image"]
+            label = d["label"]
+
+            # Ensure label is integer type for nonzero operation
+            if not isinstance(label, torch.Tensor):
+                label = torch.as_tensor(label)
+            
+            if label.dtype not in (torch.int, torch.long, torch.int8, torch.int16):
+                 label = label.long()
+
+            if torch.sum(label) > 0:
+                # Use torch.nonzero to find bounding box
+                roi_coords_tuple = torch.nonzero(label[0], as_tuple=True)
+                
+                min_dhw = torch.tensor([torch.min(coords) for coords in roi_coords_tuple])
+                max_dhw = torch.tensor([torch.max(coords) for coords in roi_coords_tuple])
+
+                min_dhw = torch.maximum(
+                    min_dhw - torch.tensor([self.extend_d, self.extend_hw, self.extend_hw]),
+                    torch.tensor([0, 0, 0]),
+                )
+                max_dhw = torch.minimum(
+                    max_dhw + torch.tensor([self.extend_d, self.extend_hw, self.extend_hw]),
+                    torch.tensor([image.shape[1], image.shape[2], image.shape[3]]),
+                )
+
+                for key in self.keys:
+                    d[key] = d[key][
+                        :, min_dhw[0] : max_dhw[0], min_dhw[1] : max_dhw[1], min_dhw[2] : max_dhw[2]
+                    ]
+            
+            return d
+
     return transforms.Compose([
-        transforms.LoadImaged(keys=["image", "label"], image_only=True, ensure_channel_first=True),
+        transforms.LoadImaged(keys=["image", "label"], image_only=False, ensure_channel_first=True),  # Keep metadata
+        SpacingNormalization(ref_spacing=(1.0, 1.0, 3.0)),  # Normalize spacing first
+        transforms.Transposed(keys=["image", "label"], indices=(0, 3, 2, 1)),  # Add transpose like official pipeline
         transforms.Lambdad(keys=["label"], func=merge_labels),
         # Convert HU values to [0, 1] range
         transforms.ScaleIntensityRanged(
             keys=["image"], a_min=-1150, a_max=350,
             b_min=0.0, b_max=1.0, clip=True
         ),
-        transforms.CropForegroundd(keys=["image", "label"], source_key="label"),
+        Original_ROI_Crop_d(keys=["image", "label"]),
         transforms.SpatialPadd(
             keys=["image", "label"],
             spatial_size=(112, 256, 352),
-            method='end',
             mode="constant",
             constant_values=0
         ),
@@ -126,26 +233,41 @@ def create_preprocessing_pipeline():
 
 
 def convert_to_regular_tensor(data):
-    """Convert MetaTensor to regular PyTorch tensor"""
+    """Convert MetaTensor to regular PyTorch tensor while preserving metadata"""
     for key in ["image", "label"]:
         if key in data:
             item = data[key]
+            
+            # Store metadata before conversion
+            original_meta = None
+            if hasattr(item, 'meta') and item.meta is not None:
+                original_meta = dict(item.meta)  # Make a copy
+            
             try:
                 if hasattr(item, 'array'):
                     # MetaTensor case - create completely new tensor
                     array_data = np.array(item.array, copy=True)
-                    data[key] = torch.from_numpy(array_data).clone()
+                    new_tensor = torch.from_numpy(array_data).clone()
                 elif hasattr(item, 'data'):
                     # Other MONAI tensor types
                     array_data = np.array(item.data, copy=True) 
-                    data[key] = torch.from_numpy(array_data).clone()
+                    new_tensor = torch.from_numpy(array_data).clone()
                 elif hasattr(item, 'detach'):
                     # Already a tensor but might be MetaTensor
-                    data[key] = torch.tensor(item.detach().cpu().numpy(), dtype=item.dtype)
+                    new_tensor = torch.tensor(item.detach().cpu().numpy(), dtype=item.dtype)
                 else:
                     # Convert any other format
                     array_data = np.array(item, copy=True)
-                    data[key] = torch.from_numpy(array_data).clone()
+                    new_tensor = torch.from_numpy(array_data).clone()
+                    
+                # Restore metadata if it existed
+                if original_meta is not None:
+                    # Create a new MetaTensor with preserved metadata
+                    from monai.data import MetaTensor
+                    data[key] = MetaTensor(new_tensor, meta=original_meta)
+                else:
+                    data[key] = new_tensor
+                    
             except Exception as e:
                 # Fallback: force numpy conversion
                 array_data = np.array(item, copy=True)
@@ -158,7 +280,7 @@ def main():
     data_dir = "/home/muhammedg/fvlm/data"
     image_dir = os.path.join(data_dir, "images", "train")
     mask_dir = os.path.join(data_dir, "masks", "train")
-    output_dir = os.path.join(data_dir, "preprocessed_samples")
+    output_dir = os.path.join(data_dir, "preprocessed_samples_transpose")
     
     # Create output directory
     os.makedirs(output_dir, exist_ok=True)
@@ -221,16 +343,26 @@ def main():
                 resample=False
             )
             
-            # Save with proper sample naming
-            temp_data = {
-                "image": processed_data["image"],
-                "label": processed_data["label"],
-                "image_meta_dict": {"filename_or_obj": f"{sample_name}_image"},
-                "label_meta_dict": {"filename_or_obj": f"{sample_name}_mask"}
-            }
+            # Attach filename metadata directly to tensors
+            # For image
+            if hasattr(processed_data["image"], 'meta'):
+                processed_data["image"].meta["filename_or_obj"] = f"{sample_name}_image"
+            else:
+                # Create metadata if it doesn't exist
+                from monai.data import MetaTensor
+                processed_data["image"] = MetaTensor(processed_data["image"], meta={"filename_or_obj": f"{sample_name}_image"})
             
-            image_saver(processed_data["image"], {"filename_or_obj": f"{sample_name}_image"})
-            mask_saver(processed_data["label"], {"filename_or_obj": f"{sample_name}_mask"})
+            # For label/mask  
+            if hasattr(processed_data["label"], 'meta'):
+                processed_data["label"].meta["filename_or_obj"] = f"{sample_name}_mask"
+            else:
+                # Create metadata if it doesn't exist
+                from monai.data import MetaTensor
+                processed_data["label"] = MetaTensor(processed_data["label"], meta={"filename_or_obj": f"{sample_name}_mask"})
+            
+            # Save with attached metadata
+            image_saver(processed_data["image"])
+            mask_saver(processed_data["label"])
             
             # Print stats
             image_shape = processed_data["image"].shape

@@ -1,8 +1,8 @@
 import SimpleITK as sitk
 import os
 
-image_path = '/mnt/nas/Data_WholeBody/CT-Rate/dataset/train_process/train_10_a_1.nii.gz'
-mask_path = '/mnt/nas/Data_WholeBody/CT-Rate/dataset/train_TS/train_10_a_1_seg.nii.gz'
+image_path = '/home/muhammedg/fvlm/data/preprocessed_samples_transpose/images/train_1_a_1_image.nii.gz'
+mask_path = '/home/muhammedg/fvlm/data/preprocessed_samples_transpose/masks/train_1_a_1_mask.nii.gz'
 
 if not os.path.exists(image_path):
     print(f"Image file not found: {image_path}")
