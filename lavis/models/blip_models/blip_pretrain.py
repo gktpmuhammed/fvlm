@@ -99,11 +99,14 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
         self.alpha = alpha
         self.max_txt_len = max_txt_len
 
+        # self.organs = [
+        #     'face', 'brain', 'esophagus', 'trachea', 'lung', 'heart', 
+        #     'kidney', 'stomach', 'liver', 'gallbladder', 'pancreas', 'spleen', 
+        #     'colon', 'aorta', 'rib', 'humerus', 'scapula', 'clavicula', 
+        #     'femur', 'hip', 'sacrum', 'gluteus', 'iliopsoas', 'autochthon'
+        # ]
         self.organs = [
-            'face', 'brain', 'esophagus', 'trachea', 'lung', 'heart', 
-            'kidney', 'stomach', 'liver', 'gallbladder', 'pancreas', 'spleen', 
-            'colon', 'aorta', 'rib', 'humerus', 'scapula', 'clavicula', 
-            'femur', 'hip', 'sacrum', 'gluteus', 'iliopsoas', 'autochthon'
+            'lung', 'heart', 'esophagus', 'aorta'
         ]
 
         self.attention = nn.MultiheadAttention(

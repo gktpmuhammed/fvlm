@@ -27,9 +27,9 @@ datasets:
         val:
           storage: annotations.json
       images:
-        storage: /home/muhammedg/fvlm/data/test_overfit
+        storage: /home/muhammedg/fvlm/data/test_overfit/images
       val_images:
-        storage: /home/muhammedg/fvlm/data/test_overfit
+        storage: /home/muhammedg/fvlm/data/test_overfit/images
     vis_processor:
         train:
           name: "fvlm_image_train"
@@ -46,9 +46,9 @@ datasets:
 run:
   task: image_text_pretrain
   # optimizer
-  lr_sched: "linear_warmup_step_lr"
-  lr_decay_rate: 0.99
-  # lr_sched: "linear_warmup_cosine_lr"
+  # lr_sched: "linear_warmup_step_lr"
+  # lr_decay_rate: 0.9
+  lr_sched: "linear_warmup_cosine_lr"
   init_lr: 1e-4
   min_lr: 1e-6
   warmup_lr: 1e-6
@@ -58,7 +58,7 @@ run:
   batch_size_train: 2
   batch_size_eval: 2
   num_workers: 1
-  warmup_steps: 200
+  warmup_steps: 1
   log_freq: 1
 
   seed: 42

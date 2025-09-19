@@ -65,10 +65,9 @@ class BertEmbeddings(nn.Module):
             config.max_position_embeddings, config.hidden_size
         )
 
-        if getattr(config, "add_type_embeddings", False):
-            self.token_type_embeddings = nn.Embedding(
-                config.type_vocab_size, config.hidden_size
-            )
+        self.token_type_embeddings = nn.Embedding(
+            config.type_vocab_size, config.hidden_size
+        )
 
         # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
         # any TensorFlow checkpoint file

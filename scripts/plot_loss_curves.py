@@ -202,8 +202,8 @@ def save_data_summary(overall_avg, organ_avg, epochs, active_organs, output_dir)
 
 def main():
     # File paths
-    log_file = "/home/muhammedg/fvlm/training_20250826_125919.log"
-    output_dir = "/home/muhammedg/fvlm/loss_analysis"
+    log_file = "/home/muhammedg/fvlm/training_without_augmentation_113_overfit_4_samples.log"
+    output_dir = "/home/muhammedg/fvlm/training_without_augmentation_113_overfit_4_samples"
     
     # Parse the log file
     epoch_data, overall_loss_data, organs = parse_training_log(log_file)

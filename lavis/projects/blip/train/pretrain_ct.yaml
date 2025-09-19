@@ -54,11 +54,12 @@ run:
   warmup_lr: 1e-6
 
   weight_decay: 0.05
-  max_epoch: 100
+  max_epoch: 500
   batch_size_train: 2
   batch_size_eval: 8
   num_workers: 4
-  warmup_steps: 377
+  # warmup_steps: 377
+  warmup_steps: 50
   log_freq: 1
 
   seed: 42
