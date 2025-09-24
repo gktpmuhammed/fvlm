@@ -15,6 +15,7 @@ from lavis.common.utils import is_url
 from lavis.models.base_model import BaseModel
 from transformers import BertTokenizer
 import transformers
+from lavis.models.blip_models.vit import interpolate_pos_embed
 
 class BlipBase(BaseModel):
     def __init__(self):

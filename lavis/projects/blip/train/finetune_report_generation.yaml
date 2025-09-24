@@ -1,0 +1,62 @@
+model:
+  arch: blip_pretrain_vit
+  model_type: 'fvlp'
+  vit_model: 'base'
+  vit_rand_patches: True
+  vit_drop_path_rate: 0.1
+  load_finetuned: False
+  load_pretrained: True
+  pretrained: "/home/muhammedg/fvlm/checkpoints/model.pth" 
+
+datasets:
+  report_generation:
+    vis_processor:
+      train:
+        name: "blip_image_train"
+        image_size: 224
+      eval:
+        name: "blip_image_eval"
+        image_size: 224
+    text_processor:
+      train:
+        name: "blip_caption"
+      eval:
+        name: "blip_caption"
+
+run:
+  task: report_generation
+  
+  # generation parameters
+  num_beams: 3
+  max_length: 500
+  min_length: 10
+
+  batch_size_train: 8
+  batch_size_eval: 16
+  num_epochs: 5
+
+  lr_sched: "linear_warmup_cosine_lr"
+  init_lr: 1e-5
+  min_lr: 0
+  warmup_lr: 1e-8
+  warmup_steps: 1000
+
+  optimizer:
+    opt: adamW
+    lr: 1e-5
+    weight_decay: 0.05
+
+  seed: 42
+  output_dir: "output/BLIP/Report_Generation_Finetune"
+
+  amp: True
+  resume_ckpt_path: null
+
+  evaluate: False
+  train_splits: ["train"]
+  valid_splits: ["val"]
+
+  device: "cuda"
+  world_size: 1
+  dist_url: "env://"
+  distributed: True

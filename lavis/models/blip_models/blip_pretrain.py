@@ -22,7 +22,7 @@ from lavis.models.base_model import (
     all_gather_with_grad,
     concat_all_gather
 )
-from lavis.models.med import XBertEncoder
+from lavis.models.med import XBertEncoder, XBertLMHeadDecoder
 from torch import nn
 import random
 import os
@@ -87,6 +87,7 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
         self.visual_encoder = image_encoder
 
         self.text_encoder = text_encoder
+        self.text_decoder = text_decoder
 
         # creating projection layers for ITC
         text_width = text_encoder.config.hidden_size
@@ -123,207 +124,292 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
         return min(1, (epoch * num_iters_per_epoch + iters) / (2 * num_iters_per_epoch))
 
     def forward(self, samples):
+        if "text_input" not in samples:
+            return self.generate(samples)
+            
         image = samples["image"]
-        seg = samples["seg"]
+        seg = samples.get("seg")
 
-        with torch.no_grad():
-            organ_mask_flags = torch.zeros(len(seg), len(self.organs), dtype=bool, device=seg.device)
-            for i, pul_seg in enumerate(seg):
-                organ_ids, organ_counts = torch.unique(pul_seg, return_counts=True)
-                
-                # Filter out background (id=0) from both arrays simultaneously
-                valid_mask = organ_ids > 0
-                organ_ids = organ_ids[valid_mask]
-                organ_counts = organ_counts[valid_mask]
-                
-                # Use voxel count threshold instead of boundary detection
-                # Only exclude organs with very few voxels (mostly cropped out)
-                intact_organ_ids = []
-                for idx, organ_id in enumerate(organ_ids):
-                    organ_voxel_count = organ_counts[idx].item()
-                    # Keep organs with at least 100 voxels (meaningful presence)
-                    if organ_voxel_count >= 100:
-                        intact_organ_ids.append(organ_id)
-                
-                if intact_organ_ids:
-                    intact_organ_ids = torch.tensor(intact_organ_ids).long()
-                    organ_mask_flags[i][intact_organ_ids - 1] = True
+        # If segmentation mask is provided, use the contrastive loss
+        if seg is not None:
+            with torch.no_grad():
+                organ_mask_flags = torch.zeros(len(seg), len(self.organs), dtype=bool, device=seg.device)
+                for i, pul_seg in enumerate(seg):
+                    organ_ids, organ_counts = torch.unique(pul_seg, return_counts=True)
+                    
+                    # Filter out background (id=0) from both arrays simultaneously
+                    valid_mask = organ_ids > 0
+                    organ_ids = organ_ids[valid_mask]
+                    organ_counts = organ_counts[valid_mask]
+                    
+                    # Use voxel count threshold instead of boundary detection
+                    # Only exclude organs with very few voxels (mostly cropped out)
+                    intact_organ_ids = []
+                    for idx, organ_id in enumerate(organ_ids):
+                        organ_voxel_count = organ_counts[idx].item()
+                        # Keep organs with at least 100 voxels (meaningful presence)
+                        if organ_voxel_count >= 100:
+                            intact_organ_ids.append(organ_id)
+                    
+                    if intact_organ_ids:
+                        intact_organ_ids = torch.tensor(intact_organ_ids).long()
+                        organ_mask_flags[i][intact_organ_ids - 1] = True
 
-        organ_captions = samples["text_input"]
-        organ_abnormal_flags = samples["organ_abnormal_flags"]
-        
-        # image embeddings and features
-        image_embeds, hidden_image_embeds = self.visual_encoder(image)
-
-        B, L, C = image_embeds.size()
-        
-        with torch.no_grad():
-            organ_token_flags = torch.zeros(B, len(self.organs), L, dtype=bool).to(image.device)
-            for i in range(B):
-                inds = torch.where(organ_mask_flags[i])[0]
-                if not len(inds):
-                    continue
-                
-                # Since preprocessing merges labels to 1-24 range, create masks directly
-                masks = torch.stack(
-                    [torch.eq(seg[i], organ_id + 1) for organ_id in inds], dim=0).float()
-
-                downsampled_masks = F.max_pool3d(
-                    masks.unsqueeze(1),
-                    kernel_size=(16, 16, 32),
-                    stride=(16, 16, 32)
-                )
-                
-                organ_token_flags[i][inds] = downsampled_masks.flatten(1) > 0
-
-                assert all((downsampled_masks.flatten(1) > 0).sum(1) > 0)
-        
-        with torch.no_grad():
-            self.temp.clamp_(0.001, 0.5)
-
-        # criteria to calculate loss
-        with torch.no_grad():
-            organ_status_world = (organ_abnormal_flags & organ_mask_flags).sum(0)
-            if is_dist_avail_and_initialized():
-                dist.all_reduce(organ_status_world, op=dist.ReduceOp.SUM)
-        
-        cl_organ_ids = torch.where(organ_status_world)[0]
-        
-        # DEBUG: Detailed organ status logging
-        abnormal_organ_ids = torch.where(organ_abnormal_flags.any(0))[0]
-        detected_organ_ids = torch.where(organ_mask_flags.any(0))[0]
-        
-        if len(abnormal_organ_ids) > 0:
-            abnormal_organ_names = [self.organs[i] for i in abnormal_organ_ids.tolist()]
-            detected_organ_names = [self.organs[i] for i in detected_organ_ids.tolist()]
+            organ_captions = samples["text_input"]
+            organ_abnormal_flags = samples["organ_abnormal_flags"]
             
-            # Find organs that are abnormal but NOT detected (touching boundaries)
-            boundary_organ_ids = []
-            detected_abnormal_ids = []
-            
-            for organ_id in abnormal_organ_ids:
-                if organ_id in detected_organ_ids:
-                    detected_abnormal_ids.append(organ_id)
-                else:
-                    boundary_organ_ids.append(organ_id)
-            
-            boundary_organ_names = [self.organs[i] for i in boundary_organ_ids]
-            detected_abnormal_names = [self.organs[i] for i in detected_abnormal_ids]
-            
-            print(f"\n=== BATCH ORGAN ANALYSIS ===")
-            print(f"Abnormal organs ({len(abnormal_organ_names)}): {abnormal_organ_names}")
-            print(f"Detected organs ({len(detected_organ_names)}): {detected_organ_names}")
-            print(f"✅ Abnormal + Detected = LOSS ({len(detected_abnormal_names)}): {detected_abnormal_names}")
-            print(f"❌ Abnormal + Boundary = NO LOSS ({len(boundary_organ_names)}): {boundary_organ_names}")
-        
-        organ_wise_loss_itm = {}
-        for cl_organ_id in cl_organ_ids:
-            organ_name = self.organs[cl_organ_id]
+            # image embeddings and features
+            image_embeds, hidden_image_embeds = self.visual_encoder(image)
 
-            template = f'{organ_name} shows no significant abnormalities.'
-
-            cl_patient_ids = torch.where(organ_mask_flags[:, cl_organ_id])[0]
-
-            if not len(cl_patient_ids):
-                image_feat = torch.empty(0, 256, dtype=torch.float).to(image.device)
-                text_feat = torch.empty(0, 256, dtype=torch.float).to(image.device)
-                cl_text_input = []
-
-            else:
-                # image_feat = self.get_roi_features(image_embeds, organ_token_flags, cl_patient_ids, cl_organ_id)
-                image_feat = self.get_roi_features(hidden_image_embeds, organ_token_flags, cl_patient_ids, cl_organ_id)
-                image_feat = self.vision_projs[cl_organ_id](image_feat)
-                image_feat = F.normalize(image_feat, dim=-1)
-
-                cl_text_input = [organ_captions[organ_name][cl_patient_id] for cl_patient_id in cl_patient_ids]
-                cl_text_input1 = [
-                    text.replace(template, '') if text.startswith(template) and text != template else text for text in cl_text_input
-                ]
-
-                text = self.tokenizer(
-                    cl_text_input1,
-                    padding="max_length",
-                    truncation=True,
-                    max_length=self.max_txt_len,
-                    return_tensors="pt",
-                ).to(image.device)
-
-                text_output = self.text_encoder.forward_text(text)
-                text_embeds = text_output.last_hidden_state
-                text_feat = F.normalize(self.text_proj(text_embeds[:, 0, :]), dim=-1)
-
-            # NOTE: gather image and text feats
-            if is_dist_avail_and_initialized():
-                image_feat_all = [feat.to(image_feat.device) for feat in all_gather(image_feat)]
-                text_feat_all = [feat.to(text_feat.device) for feat in all_gather(text_feat)]
-
-                image_feat_all[dist.get_rank()] = image_feat
-                text_feat_all[dist.get_rank()] = text_feat
-
-                image_feat_all = torch.cat(image_feat_all, dim=0)
-                text_feat_all = torch.cat(text_feat_all, dim=0)
-
-            else:
-                image_feat_all = image_feat
-                text_feat_all = text_feat
-
-            cl_text_input = np.array(cl_text_input)
-            if is_dist_avail_and_initialized():
-                gathered_cl_text_input = all_gather(cl_text_input)
-                cl_text_input_all = np.concatenate(gathered_cl_text_input)
-            else:
-                cl_text_input_all = cl_text_input
-
-            sim_i2t = image_feat_all @ text_feat_all.t() / self.temp
-            sim_t2i = text_feat_all @ image_feat_all.t() / self.temp
+            B, L, C = image_embeds.size()
             
             with torch.no_grad():
-                sim_targets = torch.zeros(sim_i2t.size()).to(image.device)
-                sim_targets.fill_diagonal_(1)
-                
-                normal_flag = [text_input.startswith(template) for text_input in cl_text_input_all]
-                normal_flag = np.array(normal_flag)
+                organ_token_flags = torch.zeros(B, len(self.organs), L, dtype=bool).to(image.device)
+                for i in range(B):
+                    inds = torch.where(organ_mask_flags[i])[0]
+                    if not len(inds):
+                        continue
+                    
+                    # Since preprocessing merges labels to 1-24 range, create masks directly
+                    masks = torch.stack(
+                        [torch.eq(seg[i], organ_id + 1) for organ_id in inds], dim=0).float()
 
-                semantic_matrix_batch = normal_flag[:, None] * normal_flag[None, :]
-                semantic_matrix_batch = semantic_matrix_batch.astype(float)
-                
-                semantic_matrix_batch1 = cl_text_input_all[:, None] == cl_text_input_all[None, :]
-                semantic_matrix_batch1 = semantic_matrix_batch1.astype(float)
+                    downsampled_masks = F.max_pool3d(
+                        masks.unsqueeze(1),
+                        kernel_size=(16, 16, 32),
+                        stride=(16, 16, 32)
+                    )
+                    
+                    organ_token_flags[i][inds] = downsampled_masks.flatten(1) > 0
 
-                semantic_matrix_batch = semantic_matrix_batch + semantic_matrix_batch1
-                semantic_matrix_batch = semantic_matrix_batch.astype(bool)
-                
-                semantic_matrix_batch = torch.from_numpy(semantic_matrix_batch).to(image.device)
-                semantic_matrix_batch.fill_diagonal_(0)
-
-                sim_targets += semantic_matrix_batch
-                sim_targets /= sim_targets.sum(1, keepdim=True)
-
-            if len(torch.unique(sim_targets)) == 1 or not len(cl_text_input):
-                continue
+                    assert all((downsampled_masks.flatten(1) > 0).sum(1) > 0)
             
-            sim_i2t_targets = sim_targets
-            sim_t2i_targets = sim_targets
+            with torch.no_grad():
+                self.temp.clamp_(0.001, 0.5)
 
-            loss_i2t = - torch.sum(
-                F.log_softmax(sim_i2t, dim=1) * sim_i2t_targets, dim=1
-            ).mean()
+            # criteria to calculate loss
+            with torch.no_grad():
+                organ_status_world = (organ_abnormal_flags & organ_mask_flags).sum(0)
+                if is_dist_avail_and_initialized():
+                    dist.all_reduce(organ_status_world, op=dist.ReduceOp.SUM)
             
-            loss_t2i = - torch.sum(
-                F.log_softmax(sim_t2i, dim=1) * sim_t2i_targets, dim=1
-            ).mean()
+            cl_organ_ids = torch.where(organ_status_world)[0]
             
-            loss_itc = (loss_i2t + loss_t2i) / 2
+            # DEBUG: Detailed organ status logging
+            abnormal_organ_ids = torch.where(organ_abnormal_flags.any(0))[0]
+            detected_organ_ids = torch.where(organ_mask_flags.any(0))[0]
+            
+            if len(abnormal_organ_ids) > 0:
+                abnormal_organ_names = [self.organs[i] for i in abnormal_organ_ids.tolist()]
+                detected_organ_names = [self.organs[i] for i in detected_organ_ids.tolist()]
+                
+                # Find organs that are abnormal but NOT detected (touching boundaries)
+                boundary_organ_ids = []
+                detected_abnormal_ids = []
+                
+                for organ_id in abnormal_organ_ids:
+                    if organ_id in detected_organ_ids:
+                        detected_abnormal_ids.append(organ_id)
+                    else:
+                        boundary_organ_ids.append(organ_id)
+                
+                boundary_organ_names = [self.organs[i] for i in boundary_organ_ids]
+                detected_abnormal_names = [self.organs[i] for i in detected_abnormal_ids]
+                
+                print(f"\n=== BATCH ORGAN ANALYSIS ===")
+                print(f"Abnormal organs ({len(abnormal_organ_names)}): {abnormal_organ_names}")
+                print(f"Detected organs ({len(detected_organ_names)}): {detected_organ_names}")
+                print(f"✅ Abnormal + Detected = LOSS ({len(detected_abnormal_names)}): {detected_abnormal_names}")
+                print(f"❌ Abnormal + Boundary = NO LOSS ({len(boundary_organ_names)}): {boundary_organ_names}")
+            
+            organ_wise_loss_itm = {}
+            for cl_organ_id in cl_organ_ids:
+                organ_name = self.organs[cl_organ_id]
 
-            organ_wise_loss_itm.update({f'{organ_name}_itc': loss_itc})
+                template = f'{organ_name} shows no significant abnormalities.'
 
-        loss_itc = sum(organ_wise_loss_itm.values())
- 
-        return BlipOutput(
-            loss=loss_itc,
-            organ_wise_loss_itm=organ_wise_loss_itm
-        )
+                cl_patient_ids = torch.where(organ_mask_flags[:, cl_organ_id])[0]
+
+                if not len(cl_patient_ids):
+                    image_feat = torch.empty(0, 256, dtype=torch.float).to(image.device)
+                    text_feat = torch.empty(0, 256, dtype=torch.float).to(image.device)
+                    cl_text_input = []
+
+                else:
+                    # image_feat = self.get_roi_features(image_embeds, organ_token_flags, cl_patient_ids, cl_organ_id)
+                    image_feat = self.get_roi_features(hidden_image_embeds, organ_token_flags, cl_patient_ids, cl_organ_id)
+                    image_feat = self.vision_projs[cl_organ_id](image_feat)
+                    image_feat = F.normalize(image_feat, dim=-1)
+
+                    cl_text_input = [organ_captions[organ_name][cl_patient_id] for cl_patient_id in cl_patient_ids]
+                    cl_text_input1 = [
+                        text.replace(template, '') if text.startswith(template) and text != template else text for text in cl_text_input
+                    ]
+
+                    text = self.tokenizer(
+                        cl_text_input1,
+                        padding="max_length",
+                        truncation=True,
+                        max_length=self.max_txt_len,
+                        return_tensors="pt",
+                    ).to(image.device)
+
+                    text_output = self.text_encoder.forward_text(text)
+                    text_embeds = text_output.last_hidden_state
+                    text_feat = F.normalize(self.text_proj(text_embeds[:, 0, :]), dim=-1)
+
+                # NOTE: gather image and text feats
+                if is_dist_avail_and_initialized():
+                    image_feat_all = [feat.to(image_feat.device) for feat in all_gather(image_feat)]
+                    text_feat_all = [feat.to(text_feat.device) for feat in all_gather(text_feat)]
+
+                    image_feat_all[dist.get_rank()] = image_feat
+                    text_feat_all[dist.get_rank()] = text_feat
+
+                    image_feat_all = torch.cat(image_feat_all, dim=0)
+                    text_feat_all = torch.cat(text_feat_all, dim=0)
+
+                else:
+                    image_feat_all = image_feat
+                    text_feat_all = text_feat
+
+                cl_text_input = np.array(cl_text_input)
+                if is_dist_avail_and_initialized():
+                    gathered_cl_text_input = all_gather(cl_text_input)
+                    cl_text_input_all = np.concatenate(gathered_cl_text_input)
+                else:
+                    cl_text_input_all = cl_text_input
+
+                sim_i2t = image_feat_all @ text_feat_all.t() / self.temp
+                sim_t2i = text_feat_all @ image_feat_all.t() / self.temp
+                
+                with torch.no_grad():
+                    sim_targets = torch.zeros(sim_i2t.size()).to(image.device)
+                    sim_targets.fill_diagonal_(1)
+                    
+                    normal_flag = [text_input.startswith(template) for text_input in cl_text_input_all]
+                    normal_flag = np.array(normal_flag)
+
+                    semantic_matrix_batch = normal_flag[:, None] * normal_flag[None, :]
+                    semantic_matrix_batch = semantic_matrix_batch.astype(float)
+                    
+                    semantic_matrix_batch1 = cl_text_input_all[:, None] == cl_text_input_all[None, :]
+                    semantic_matrix_batch1 = semantic_matrix_batch1.astype(float)
+
+                    semantic_matrix_batch = semantic_matrix_batch + semantic_matrix_batch1
+                    semantic_matrix_batch = semantic_matrix_batch.astype(bool)
+                    
+                    semantic_matrix_batch = torch.from_numpy(semantic_matrix_batch).to(image.device)
+                    semantic_matrix_batch.fill_diagonal_(0)
+
+                    sim_targets += semantic_matrix_batch
+                    sim_targets /= sim_targets.sum(1, keepdim=True)
+
+                if len(torch.unique(sim_targets)) == 1 or not len(cl_text_input):
+                    continue
+                
+                sim_i2t_targets = sim_targets
+                sim_t2i_targets = sim_targets
+
+                loss_i2t = - torch.sum(
+                    F.log_softmax(sim_i2t, dim=1) * sim_i2t_targets, dim=1
+                ).mean()
+                
+                loss_t2i = - torch.sum(
+                    F.log_softmax(sim_t2i, dim=1) * sim_t2i_targets, dim=1
+                ).mean()
+                
+                loss_itc = (loss_i2t + loss_t2i) / 2
+
+                organ_wise_loss_itm.update({f'{organ_name}_itc': loss_itc})
+
+            loss_itc = sum(organ_wise_loss_itm.values())
+        
+            return BlipOutput(
+                loss=loss_itc,
+                organ_wise_loss_itm=organ_wise_loss_itm
+            )
+        
+        # Otherwise, use the language modeling loss for fine-tuning
+        else:
+            text = self.tokenizer(
+                samples["text_input"],
+                padding="longest",
+                truncation=True,
+                max_length=self.max_txt_len,
+                return_tensors="pt",
+            ).to(image.device)
+            
+            image_embeds, _ = self.visual_encoder(image)
+            image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(
+                image.device
+            )
+
+            decoder_targets = text.input_ids.masked_fill(
+                text.input_ids == self.tokenizer.pad_token_id, -100
+            )
+
+            decoder_output = self.text_decoder(
+                text.input_ids,
+                attention_mask=text.attention_mask,
+                encoder_hidden_states=image_embeds,
+                encoder_attention_mask=image_atts,
+                labels=decoder_targets,
+                return_dict=True,
+            )
+
+            loss_lm = decoder_output.loss
+            return {"loss": loss_lm}
     
+    @torch.no_grad()
+    def generate(
+        self,
+        samples,
+        use_nucleus_sampling=False,
+        num_beams=3,
+        max_length=30,
+        min_length=10,
+        top_p=0.9,
+        repetition_penalty=1.0,
+    ):
+        """
+        Args:
+            samples (dict): A dictionary containing the following keys:
+                - image (torch.Tensor): A tensor of shape (batch_size, 3, H, W)
+            use_nucleus_sampling (bool): Whether to use nucleus sampling. If False, use beam search.
+            num_beams (int): Number of beams for beam search. 1 means no beam search.
+            max_length (int): The maximum length of the sequence to be generated.
+            min_length (int): The minimum length of the sequence to be generated.
+            top_p (float): The cumulative probability for nucleus sampling.
+            repetition_penalty (float): The parameter for repetition penalty. 1.0 means no penalty.
+
+        Returns:
+            output_text (list of str): A list of generated captions.
+        """
+        image = samples["image"]
+        image_embeds, _ = self.visual_encoder(image)
+
+        prompt = [self.tokenizer.cls_token] * image.size(0)
+        prompt = self.tokenizer(prompt, return_tensors="pt").to(image.device)
+        prompt.input_ids[:, 0] = self.tokenizer.cls_token_id
+        prompt.input_ids = prompt.input_ids[:, :-1]
+        
+        outputs = self.text_decoder.generate_from_encoder(
+            tokenized_prompt=prompt,
+            visual_embeds=image_embeds,
+            sep_token_id=self.tokenizer.sep_token_id,
+            pad_token_id=self.tokenizer.pad_token_id,
+            use_nucleus_sampling=use_nucleus_sampling,
+            num_beams=num_beams,
+            max_length=max_length,
+            min_length=min_length,
+            top_p=top_p,
+            repetition_penalty=repetition_penalty,
+        )
+
+        output_text = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
+        return output_text
+
     # def get_roi_features(self, image_embeds, organ_token_flags, cl_patient_ids, cl_organ_id):
     #     query = self.query_tokens[cl_organ_id].unsqueeze(0).unsqueeze(0)
 
@@ -398,7 +484,7 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
         image_encoder = model
 
         text_encoder = XBertEncoder.from_config(cfg, from_pretrained=True)
-        text_decoder = None
+        text_decoder = XBertLMHeadDecoder.from_config(cfg, from_pretrained=True)
 
         alpha = cfg.get("alpha", 0.4)
         max_txt_len = cfg.get("max_txt_len", 250)

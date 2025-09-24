@@ -5,15 +5,17 @@
  For full license text, see the LICENSE file in the repo root or https://opensource.org/licenses/BSD-3-Clause
 """
 
+from lavis.common.registry import registry
+
 from lavis.datasets.builders.base_dataset_builder import load_dataset_config
 from lavis.datasets.builders.caption_builder import (
     COCOCapBuilder,
 )
-
-from lavis.common.registry import registry
+from lavis.datasets.builders.report_generation_builder import ReportGenerationBuilder
 
 __all__ = [
     "COCOCapBuilder",
+    "ReportGenerationBuilder",
 ]
 
 
