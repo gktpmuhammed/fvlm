@@ -4,12 +4,13 @@ from lavis.datasets.data_utils import prepare_sample
 
 @registry.register_task("report_generation")
 class ReportGenerationTask(BaseTask):
-    def __init__(self, num_beams, max_len, min_len, evaluate=False):
+    def __init__(self, num_beams, max_len, min_len, evaluate=False, cuda_enabled=True):
         super().__init__()
         self.num_beams = num_beams
         self.max_len = max_len
         self.min_len = min_len
         self.evaluate = evaluate
+        self.cuda_enabled = cuda_enabled
 
     @classmethod
     def setup_task(cls, cfg):
@@ -19,6 +20,7 @@ class ReportGenerationTask(BaseTask):
             max_len=run_cfg.max_length,
             min_len=run_cfg.min_length,
             evaluate=run_cfg.evaluate,
+            cuda_enabled=run_cfg.get('device', 'cuda') == 'cuda',
         )
 
     def build_model(self, cfg):

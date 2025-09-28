@@ -358,8 +358,15 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
                 return_dict=True,
             )
 
+            # Handle case where decoder returns a list [output, hidden_states] for sequence length 200
+            if isinstance(decoder_output, list):
+                decoder_output = decoder_output[0]
+            
             loss_lm = decoder_output.loss
-            return {"loss": loss_lm}
+            return {
+                "loss": loss_lm,
+                "organ_wise_loss_itm": {"chest": loss_lm.item()}  # For compatibility with base task
+            }
     
     @torch.no_grad()
     def generate(

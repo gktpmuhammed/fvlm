@@ -41,6 +41,13 @@ class BlipBase(BaseModel):
 
         state_dict = checkpoint["model"]
 
+        if "visual_encoder.patch_embedding.position_embeddings" in state_dict:
+            state_dict["visual_encoder.pos_embed"] = state_dict.pop("visual_encoder.patch_embedding.position_embeddings")
+
+        # interpolate positional embedding
+        if "visual_encoder.pos_embed" in state_dict:
+            pos_embed_checkpoint = state_dict["visual_encoder.pos_embed"]
+
         state_dict["visual_encoder.pos_embed"] = interpolate_pos_embed(
             state_dict["visual_encoder.pos_embed"], self.visual_encoder
         )

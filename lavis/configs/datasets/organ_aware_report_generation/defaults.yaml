@@ -1,0 +1,18 @@
+datasets:
+  organ_aware_report_generation:
+    data_type: images
+    
+    build_info:
+      annotations:
+        train:
+          storage: /home/muhammedg/fvlm/data/dataset/radiology_text_reports/train_reports.csv
+        val:
+          storage: /home/muhammedg/fvlm/data/dataset/radiology_text_reports/validation_reports.csv
+      images:
+        storage: /home/muhammedg/fvlm/data/
+    
+    text_processor:
+      train:
+        name: "blip_caption"
+      eval:
+        name: "blip_caption"
