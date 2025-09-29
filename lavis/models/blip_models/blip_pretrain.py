@@ -170,17 +170,47 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
         if "text_input" not in samples:
             return self.generate(samples)
         
-        # Determine the mode: generation or contrastive learning
-        mode = samples.get("mode", "contrastive")
+        # SIMPLIFIED: Always use basic image-to-text generation
+        # Target: findings + impressions combined text
+        return self.simple_generation_forward(samples)
+    
+    def simple_generation_forward(self, samples):
+        """Simplified image-to-text generation: image → vision encoder → text decoder"""
+        image = samples["image"]
         
-        # Handle mode as list (from batch processing)
-        if isinstance(mode, list):
-            mode = mode[0] if mode else "contrastive"
+        # Encode image with vision encoder
+        image_embeds, _ = self.visual_encoder(image)
         
-        if mode == "generation":
-            return self.generation_forward(samples)
-        else:
-            return self.contrastive_forward(samples)
+        # Tokenize target text (findings + impressions)
+        text = self.tokenizer(
+            samples["text_input"],
+            padding="longest",
+            truncation=True,
+            max_length=self.max_txt_len,
+            return_tensors="pt",
+        ).to(image_embeds.device)
+        
+        # Create attention mask for image embeddings
+        image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(
+            image_embeds.device
+        )
+
+        # Create decoder targets (mask padding tokens)
+        decoder_targets = text.input_ids.masked_fill(
+            text.input_ids == self.tokenizer.pad_token_id, -100
+        )
+
+        # Forward pass through text decoder with cross-attention to image
+        decoder_output = self.text_decoder(
+            text.input_ids,
+            attention_mask=text.attention_mask,
+            encoder_hidden_states=image_embeds,
+            encoder_attention_mask=image_atts,
+            labels=decoder_targets,
+            return_dict=True,
+        )
+
+        return decoder_output
     
     def contrastive_forward(self, samples):
         """Original zero-shot contrastive learning forward pass"""

@@ -7,6 +7,15 @@ model:
   load_finetuned: False
   load_pretrained: True
   pretrained: "/home/muhammedg/fvlm/checkpoints/model.pth"
+  
+  # BERT config for BiomedVLP tokenizer
+  med_config_path: "BiomedVLP-CXR-BERT-specialized/config.json"
+  
+  # Model parameters
+  image_size: 224
+  alpha: 0.5
+  embed_dim: 256
+  prompt: "a picture of "
 
 datasets:
   organ_aware_report_generation:
@@ -30,7 +39,7 @@ run:
   # Training parameters - optimized for organ-aware generation
   batch_size_train: 2  # Reduced for larger dataset
   batch_size_eval: 8
-  max_epoch: 5  # Scale up training with working cross-attention
+  max_epoch: 10  # Full dataset training for 10 epochs
 
   # Learning rate schedule
   lr_sched: "linear_warmup_cosine_lr"
@@ -46,11 +55,11 @@ run:
     weight_decay: 0.01  # Reduced weight decay
 
   seed: 42
-  output_dir: "output/BLIP/Organ_Aware_Report_Generation_Cross_Attention_1K"
+  output_dir: "output/BLIP/Organ_Aware_Report_Generation_Full_Dataset_10E"
 
   amp: True
   resume_ckpt_path: null
-  num_workers: 4  # Reduced for smaller dataset
+  num_workers: 8  # Increased for full dataset
 
   # Evaluation and checkpointing
   evaluate: False  # Disable evaluation to save checkpoint every epoch
@@ -64,5 +73,5 @@ run:
   distributed: False  # Start with single GPU
 
   # Organ-aware specific settings
-  save_freq: 1  # Save every epoch for organ-aware training
-  log_freq: 50  # More frequent logging for monitoring
+  save_freq: 2  # Save every epoch for organ-aware training
+  log_freq: 500  # More frequent logging for monitoring

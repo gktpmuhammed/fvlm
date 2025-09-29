@@ -59,7 +59,7 @@ class OrganAwareReportBuilder(BaseDatasetBuilder):
                 ann_paths=None,  # Not used in organ-aware dataset
                 conc_info_path=conc_info_path,
                 desc_info_path=desc_info_path,
-                        max_samples=1000  # Scale up with working cross-attention
+                        max_samples=None  # Full dataset for comprehensive training
             )
 
         return datasets

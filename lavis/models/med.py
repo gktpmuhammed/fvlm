@@ -552,6 +552,11 @@ class BertEncoder(nn.Module):
         elif mode == "multimodal":
             start_layer = 0
             output_layer = self.config.num_hidden_layers
+        
+        else:
+            # Default case for standalone generation or other modes
+            start_layer = 0
+            output_layer = self.config.num_hidden_layers
 
         # compatibility for ALBEF and BLIP
         # for i in range(self.config.num_hidden_layers):
@@ -1400,12 +1405,12 @@ class XBertLMHeadDecoder(BertLMHeadModel):
         if from_pretrained:
             try:
                 # Try the original BiomedVLP model first
-                return cls.from_pretrained("BiomedVLP-CXR-BERT-specialized", config=med_config, trust_remote_code=True)
+                return cls.from_pretrained("BiomedVLP-CXR-BERT-specialized", config=med_config)
             except Exception as e:
                 print(f"Failed to load BiomedVLP-CXR-BERT-specialized: {e}")
-                print("Falling back to bert-base-uncased for text decoder initialization")
-                # Fallback to standard BERT
-                return cls.from_pretrained("bert-base-uncased", config=med_config)
+                print("ERROR: Cannot fall back to different tokenizer - this causes vocabulary mismatch!")
+                print("Please ensure BiomedVLP-CXR-BERT-specialized is available or use consistent tokenizer throughout.")
+                raise e  # Don't allow fallback that causes vocab mismatch
         else:
             return cls(config=med_config)
     
