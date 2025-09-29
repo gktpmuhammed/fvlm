@@ -3,11 +3,9 @@ datasets:
     data_type: images
     
     build_info:
-      annotations:
-        train:
-          storage: /home/muhammedg/fvlm/data/dataset/radiology_text_reports/train_reports.csv
-        val:
-          storage: /home/muhammedg/fvlm/data/dataset/radiology_text_reports/validation_reports.csv
+      # JSON files for decomposed reports (no CSV needed)
+      conc_info_path: /home/muhammedg/test/fvlm/data/conc_info.json
+      desc_info_path: /home/muhammedg/test/fvlm/data/desc_info.json
       images:
         storage: /home/muhammedg/fvlm/data/
     

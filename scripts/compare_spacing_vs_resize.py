@@ -150,33 +150,33 @@ def compare_results(original_result, spacing_result):
     print("COMPARISON RESULTS")
     print(f"{'='*50}")
     
-    print(f"\n📏 SHAPES:")
+    print(f"\nSHAPES:")
     print(f"  Original Resized:     {original_result['shape']}")
     print(f"  SpacingNormalization: {spacing_result['shape']}")
     
     if original_result['shape'] == spacing_result['shape']:
-        print("  ✅ Shapes match!")
+        print("  Shapes match!")
     else:
-        print("  ❌ Shapes differ!")
+        print("  Shapes differ!")
     
-    print(f"\n📐 SPACING:")
+    print(f"\nSPACING:")
     print(f"  Original Resized:     {original_result['spacing']}")
     print(f"  SpacingNormalization: {spacing_result['spacing']}")
     
-    print(f"\n🎨 INTENSITY VALUES:")
+    print(f"\nINTENSITY VALUES:")
     print(f"  Original Resized:     [{original_result['min_val']:.2f}, {original_result['max_val']:.2f}] (mean: {original_result['mean_val']:.2f})")
     print(f"  SpacingNormalization: [{spacing_result['min_val']:.2f}, {spacing_result['max_val']:.2f}] (mean: {spacing_result['mean_val']:.2f})")
     
     # Check if intensity values are similar
     intensity_diff = abs(original_result['mean_val'] - spacing_result['mean_val'])
     if intensity_diff < 1.0:
-        print("  ✅ Intensity values are similar!")
+        print("  Intensity values are similar!")
     else:
-        print(f"  ⚠️  Intensity values differ significantly (diff: {intensity_diff:.2f})")
+        print(f"  Intensity values differ significantly (diff: {intensity_diff:.2f})")
     
     # Pixel-wise comparison if possible
     if original_result['shape'] == spacing_result['shape']:
-        print(f"\n🔍 PIXEL-WISE COMPARISON:")
+        print(f"\nPIXEL-WISE COMPARISON:")
         
         # Extract data arrays
         orig_data = original_result['data']
@@ -203,11 +203,11 @@ def compare_results(original_result, spacing_result):
         print(f"  Identical pixels: {identical_pixels}/{total_pixels} ({identical_percentage:.2f}%)")
         
         if max_diff < 1e-3:
-            print("  ✅ Images are nearly identical!")
+            print("  Images are nearly identical!")
         elif max_diff < 0.01:
-            print("  ⚠️  Small differences detected")
+            print("  Small differences detected")
         else:
-            print("  ❌ Significant differences found!")
+            print("  Significant differences found!")
 
 def main():
     # Define paths
@@ -223,10 +223,10 @@ def main():
                       (raw_image_path, "Raw image"), 
                       (raw_mask_path, "Raw mask")]:
         if not os.path.exists(path):
-            print(f"❌ {name} not found: {path}")
+            print(f"{name} not found: {path}")
             return
         else:
-            print(f"✅ {name} found: {path}")
+            print(f"{name} found: {path}")
     
     try:
         # Load and analyze original resized image
@@ -239,7 +239,7 @@ def main():
         compare_results(original_result, spacing_result)
         
     except Exception as e:
-        print(f"❌ Error during comparison: {e}")
+        print(f"Error during comparison: {e}")
         import traceback
         traceback.print_exc()
 

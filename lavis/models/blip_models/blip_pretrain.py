@@ -120,13 +120,70 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
         self.vision_projs = nn.ModuleList([nn.Linear(vision_width, embed_dim) for _ in range(len(self.organs))])
         self.query_tokens = nn.Parameter(torch.zeros(len(self.organs), vision_width))
 
+        # Freeze encoder weights for generation fine-tuning (after all components are initialized)
+        self._freeze_encoders()
+
+    def _freeze_encoders(self):
+        """Freeze vision and text encoder parameters for generation fine-tuning"""
+        print("Freezing vision and text encoder parameters...")
+        
+        # Freeze visual encoder
+        for param in self.visual_encoder.parameters():
+            param.requires_grad = False
+        
+        # Freeze text encoder  
+        for param in self.text_encoder.parameters():
+            param.requires_grad = False
+            
+        # Keep projection layers trainable for adaptation
+        for param in self.text_proj.parameters():
+            param.requires_grad = True
+            
+        for param in self.vision_projs.parameters():
+            param.requires_grad = True
+            
+        # Keep decoder fully trainable
+        for param in self.text_decoder.parameters():
+            param.requires_grad = True
+            
+        # Keep organ-specific components trainable
+        if hasattr(self, 'attention'):
+            for param in self.attention.parameters():
+                param.requires_grad = True
+                
+        if hasattr(self, 'query_tokens'):
+            self.query_tokens.requires_grad = True
+            
+        # Print parameter counts
+        total_params = sum(p.numel() for p in self.parameters())
+        trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        frozen_params = total_params - trainable_params
+        
+        print(f"Total parameters: {total_params:,}")
+        print(f"Trainable parameters: {trainable_params:,} ({trainable_params/total_params*100:.1f}%)")
+        print(f"Frozen parameters: {frozen_params:,} ({frozen_params/total_params*100:.1f}%)")
+
     def _rampup_factor(self, epoch, iters, num_iters_per_epoch):
         return min(1, (epoch * num_iters_per_epoch + iters) / (2 * num_iters_per_epoch))
 
     def forward(self, samples):
         if "text_input" not in samples:
             return self.generate(samples)
-            
+        
+        # Determine the mode: generation or contrastive learning
+        mode = samples.get("mode", "contrastive")
+        
+        # Handle mode as list (from batch processing)
+        if isinstance(mode, list):
+            mode = mode[0] if mode else "contrastive"
+        
+        if mode == "generation":
+            return self.generation_forward(samples)
+        else:
+            return self.contrastive_forward(samples)
+    
+    def contrastive_forward(self, samples):
+        """Original zero-shot contrastive learning forward pass"""
         image = samples["image"]
         seg = samples.get("seg")
 
@@ -219,8 +276,8 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
                 print(f"\n=== BATCH ORGAN ANALYSIS ===")
                 print(f"Abnormal organs ({len(abnormal_organ_names)}): {abnormal_organ_names}")
                 print(f"Detected organs ({len(detected_organ_names)}): {detected_organ_names}")
-                print(f"✅ Abnormal + Detected = LOSS ({len(detected_abnormal_names)}): {detected_abnormal_names}")
-                print(f"❌ Abnormal + Boundary = NO LOSS ({len(boundary_organ_names)}): {boundary_organ_names}")
+                print(f"Abnormal + Detected = LOSS ({len(detected_abnormal_names)}): {detected_abnormal_names}")
+                print(f"Abnormal + Boundary = NO LOSS ({len(boundary_organ_names)}): {boundary_organ_names}")
             
             organ_wise_loss_itm = {}
             for cl_organ_id in cl_organ_ids:
@@ -330,43 +387,177 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
                 organ_wise_loss_itm=organ_wise_loss_itm
             )
         
-        # Otherwise, use the language modeling loss for fine-tuning
+        # Fallback to basic generation if no segmentation
         else:
-            text = self.tokenizer(
-                samples["text_input"],
-                padding="longest",
-                truncation=True,
-                max_length=self.max_txt_len,
-                return_tensors="pt",
-            ).to(image.device)
-            
-            image_embeds, _ = self.visual_encoder(image)
-            image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(
-                image.device
-            )
+            return self.generation_forward(samples)
+    
+    def generation_forward(self, samples):
+        """Organ-aware report generation forward pass"""
+        image = samples["image"]
+        seg = samples.get("seg")
+        
+        # Get image embeddings
+        image_embeds, hidden_image_embeds = self.visual_encoder(image)
+        
+        # If segmentation is available, use organ-aware approach
+        if seg is not None:
+            return self._organ_aware_generation(samples, image_embeds, hidden_image_embeds)
+        else:
+            return self._global_generation(samples, image_embeds)
+    
+    def _global_generation(self, samples, image_embeds):
+        """Global image-to-text generation (fallback when no segmentation)"""
+        text = self.tokenizer(
+            samples["text_input"],
+            padding="longest",
+            truncation=True,
+            max_length=self.max_txt_len,
+            return_tensors="pt",
+        ).to(image_embeds.device)
+        
+        image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(
+            image_embeds.device
+        )
 
-            decoder_targets = text.input_ids.masked_fill(
-                text.input_ids == self.tokenizer.pad_token_id, -100
-            )
+        decoder_targets = text.input_ids.masked_fill(
+            text.input_ids == self.tokenizer.pad_token_id, -100
+        )
 
-            decoder_output = self.text_decoder(
-                text.input_ids,
-                attention_mask=text.attention_mask,
-                encoder_hidden_states=image_embeds,
-                encoder_attention_mask=image_atts,
-                labels=decoder_targets,
-                return_dict=True,
-            )
+        decoder_output = self.text_decoder(
+            text.input_ids,
+            attention_mask=text.attention_mask,
+            encoder_hidden_states=image_embeds,
+            encoder_attention_mask=image_atts,
+            labels=decoder_targets,
+            return_dict=True,
+        )
 
-            # Handle case where decoder returns a list [output, hidden_states] for sequence length 200
-            if isinstance(decoder_output, list):
-                decoder_output = decoder_output[0]
-            
-            loss_lm = decoder_output.loss
-            return {
-                "loss": loss_lm,
-                "organ_wise_loss_itm": {"chest": loss_lm.item()}  # For compatibility with base task
-            }
+        # Handle case where decoder returns a list [output, hidden_states] for sequence length 200
+        if isinstance(decoder_output, list):
+            decoder_output = decoder_output[0]
+        
+        loss_lm = decoder_output.loss
+        
+        # Enhanced return with organ information if available
+        organ_wise_loss = {}
+        if "organ_reports" in samples:
+            organ_reports = samples["organ_reports"]
+            for organ in organ_reports.keys():
+                organ_wise_loss[organ] = loss_lm.item()
+        else:
+            organ_wise_loss = {"chest": loss_lm.item()}
+        
+        return {
+            "loss": loss_lm,
+            "organ_wise_loss_itm": organ_wise_loss
+        }
+    
+    def _organ_aware_generation(self, samples, image_embeds, hidden_image_embeds):
+        """Organ-aware generation using segmentation masks"""
+        image = samples["image"]
+        seg = samples["seg"]
+        
+        B, L, C = image_embeds.size()
+        
+        # Process segmentation masks to identify organ regions (similar to contrastive_forward)
+        with torch.no_grad():
+            organ_mask_flags = torch.zeros(len(seg), len(self.organs), dtype=bool, device=seg.device)
+            for i, pul_seg in enumerate(seg):
+                organ_ids, organ_counts = torch.unique(pul_seg, return_counts=True)
+                
+                # Filter out background (id=0) from both arrays simultaneously
+                valid_mask = organ_ids > 0
+                organ_ids = organ_ids[valid_mask]
+                organ_counts = organ_counts[valid_mask]
+                
+                # Use voxel count threshold - keep organs with at least 100 voxels
+                intact_organ_ids = []
+                for idx, organ_id in enumerate(organ_ids):
+                    organ_voxel_count = organ_counts[idx].item()
+                    if organ_voxel_count >= 100:
+                        intact_organ_ids.append(organ_id)
+                
+                if intact_organ_ids:
+                    intact_organ_ids = torch.tensor(intact_organ_ids).long()
+                    organ_mask_flags[i][intact_organ_ids - 1] = True
+
+            # Create organ token flags for attention
+            organ_token_flags = torch.zeros(B, len(self.organs), L, dtype=bool).to(image.device)
+            for i in range(B):
+                inds = torch.where(organ_mask_flags[i])[0]
+                if not len(inds):
+                    continue
+                
+                # Create masks for detected organs
+                masks = torch.stack(
+                    [torch.eq(seg[i], organ_id + 1) for organ_id in inds], dim=0).float()
+
+                downsampled_masks = F.max_pool3d(
+                    masks.unsqueeze(1),
+                    kernel_size=(16, 16, 32),
+                    stride=(16, 16, 32)
+                )
+                
+                organ_token_flags[i][inds] = downsampled_masks.flatten(1) > 0
+        
+        # For now, use global generation but with organ-aware features preparation
+        # TODO: Implement true organ-specific generation
+        text = self.tokenizer(
+            samples["text_input"],
+            padding="longest",
+            truncation=True,
+            max_length=self.max_txt_len,
+            return_tensors="pt",
+        ).to(image.device)
+        
+        # Use global image features for generation (can be enhanced later)
+        image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(
+            image.device
+        )
+
+        decoder_targets = text.input_ids.masked_fill(
+            text.input_ids == self.tokenizer.pad_token_id, -100
+        )
+
+        decoder_output = self.text_decoder(
+            text.input_ids,
+            attention_mask=text.attention_mask,
+            encoder_hidden_states=image_embeds,
+            encoder_attention_mask=image_atts,
+            labels=decoder_targets,
+            return_dict=True,
+        )
+
+        # Handle case where decoder returns a list [output, hidden_states] for sequence length 200
+        if isinstance(decoder_output, list):
+            decoder_output = decoder_output[0]
+        
+        loss_lm = decoder_output.loss
+        
+        # Calculate organ-specific losses based on detected organs
+        organ_wise_loss = {}
+        if "organ_reports" in samples:
+            organ_reports = samples["organ_reports"]
+            for i, organ in enumerate(self.organs):
+                if organ in organ_reports:
+                    # Check if this organ was detected in the image
+                    organ_detected = organ_mask_flags[:, i].any().item()
+                    if organ_detected:
+                        organ_wise_loss[organ] = loss_lm.item()
+                    else:
+                        # Lower weight for organs not visible in image
+                        organ_wise_loss[organ] = loss_lm.item() * 0.1
+                else:
+                    organ_wise_loss[organ] = 0.0
+        else:
+            organ_wise_loss = {"chest": loss_lm.item()}
+        
+        return {
+            "loss": loss_lm,
+            "organ_wise_loss_itm": organ_wise_loss,
+            "organ_mask_flags": organ_mask_flags,  # For debugging/analysis
+            "organ_token_flags": organ_token_flags  # For future organ-specific attention
+        }
     
     @torch.no_grad()
     def generate(

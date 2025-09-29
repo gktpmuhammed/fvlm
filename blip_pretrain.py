@@ -287,8 +287,8 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
             print(f"\n=== BATCH ORGAN ANALYSIS ===")
             print(f"Abnormal organs ({len(abnormal_organ_names)}): {abnormal_organ_names}")
             print(f"Detected organs ({len(detected_organ_names)}): {detected_organ_names}")
-            print(f"✅ Abnormal + Detected = LOSS ({len(detected_abnormal_names)}): {detected_abnormal_names}")
-            print(f"❌ Abnormal + Boundary = NO LOSS ({len(boundary_organ_names)}): {boundary_organ_names}")
+            print(f"Abnormal + Detected = LOSS ({len(detected_abnormal_names)}): {detected_abnormal_names}")
+            print(f"Abnormal + Boundary = NO LOSS ({len(boundary_organ_names)}): {boundary_organ_names}")
         
         organ_wise_loss_itm = {}
         for cl_organ_id in cl_organ_ids:

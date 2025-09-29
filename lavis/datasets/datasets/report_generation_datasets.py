@@ -108,10 +108,10 @@ class ReportGenerationDataset(BaseDataset):
                     import os as os_module
                     if os_module.environ.get('FVLM_TEST_MODE', '').lower() == 'true':
                         if 'train_reports' in os.path.basename(ann_path) and len(annotations) >= 20:
-                            print(f"🧪 Test mode: Limited train dataset to {len(annotations)} samples")
+                            print(f"Test mode: Limited train dataset to {len(annotations)} samples")
                             break
                         elif 'validation_reports' in os.path.basename(ann_path) and len(annotations) >= 5:
-                            print(f"🧪 Test mode: Limited validation dataset to {len(annotations)} samples")
+                            print(f"Test mode: Limited validation dataset to {len(annotations)} samples")
                             break
         return annotations
 

@@ -154,16 +154,16 @@ def compare_results(original_result, user_result):
     print("COMPARISON: TRANSPOSE + INTENSITY SCALING")
     print(f"{'='*60}")
     
-    print(f"\n📏 SHAPES:")
+    print(f"\nSHAPES:")
     print(f"  Original Pipeline:  {original_result['shape']}")
     print(f"  User Pipeline:      {user_result['shape']}")
     
     if original_result['shape'] == user_result['shape']:
-        print("  ✅ Shapes match perfectly!")
+        print("  Shapes match perfectly!")
     else:
-        print("  ❌ Shapes differ!")
+        print("  Shapes differ!")
     
-    print(f"\n🎨 INTENSITY VALUES (after scaling to [0,1]):")
+    print(f"\nINTENSITY VALUES (after scaling to [0,1]):")
     print(f"  Original Pipeline:  [{original_result['min_val']:.4f}, {original_result['max_val']:.4f}] (mean: {original_result['mean_val']:.4f})")
     print(f"  User Pipeline:      [{user_result['min_val']:.4f}, {user_result['max_val']:.4f}] (mean: {user_result['mean_val']:.4f})")
     
@@ -172,32 +172,32 @@ def compare_results(original_result, user_result):
     range_diff = abs((original_result['max_val'] - original_result['min_val']) - (user_result['max_val'] - user_result['min_val']))
     
     if intensity_diff < 0.001 and range_diff < 0.001:
-        print("  ✅ Intensity scaling is identical!")
+        print("  Intensity scaling is identical!")
     elif intensity_diff < 0.01 and range_diff < 0.01:
-        print("  ⚠️  Very small intensity differences (likely numerical precision)")
+        print("  Very small intensity differences (likely numerical precision)")
     else:
-        print(f"  ❌ Significant intensity differences (mean diff: {intensity_diff:.4f}, range diff: {range_diff:.4f})")
+        print(f"  Significant intensity differences (mean diff: {intensity_diff:.4f}, range diff: {range_diff:.4f})")
     
-    print(f"\n🔄 TRANSPOSE VERIFICATION:")
+    print(f"\nTRANSPOSE VERIFICATION:")
     print(f"  Original sample values: {original_result['sample_values']}")
     print(f"  User sample values:     {user_result['sample_values']}")
     
     # Check if transpose worked the same way
     if original_result['sample_values'] == user_result['sample_values']:
-        print("  ✅ Transpose applied identically!")
+        print("  Transpose applied identically!")
     else:
-        print("  ❌ Transpose results differ!")
+        print("  Transpose results differ!")
         # Check if it's just floating point precision
         orig_vals = np.array(original_result['sample_values'])
         user_vals = np.array(user_result['sample_values'])
         max_diff = np.max(np.abs(orig_vals - user_vals))
         print(f"      Max difference in sample values: {max_diff:.6f}")
         if max_diff < 1e-5:
-            print("      ✅ Differences are negligible (floating point precision)")
+            print("      Differences are negligible (floating point precision)")
     
     # Pixel-wise comparison if possible
     if original_result['shape'] == user_result['shape']:
-        print(f"\n🔍 PIXEL-WISE COMPARISON:")
+        print(f"\nPIXEL-WISE COMPARISON:")
         
         # Extract data arrays
         orig_data = original_result['data']['image'].numpy()
@@ -219,11 +219,11 @@ def compare_results(original_result, user_result):
         print(f"  Identical pixels: {identical_pixels}/{total_pixels} ({identical_percentage:.2f}%)")
         
         if max_diff < 1e-5:
-            print("  ✅ Images are nearly identical (within floating point precision)!")
+            print("  Images are nearly identical (within floating point precision)!")
         elif max_diff < 0.001:
-            print("  ⚠️  Very small differences detected")
+            print("  Very small differences detected")
         else:
-            print("  ❌ Significant differences found!")
+            print("  Significant differences found!")
             
         # Show where the biggest differences are
         if max_diff > 1e-5:
@@ -246,10 +246,10 @@ def main():
                       (raw_image_path, "Raw image"), 
                       (raw_mask_path, "Raw mask")]:
         if not os.path.exists(path):
-            print(f"❌ {name} not found: {path}")
+            print(f"{name} not found: {path}")
             return
         else:
-            print(f"✅ {name} found")
+            print(f"{name} found")
     
     try:
         # Apply original pipeline steps (transpose + intensity scaling to resized image)
@@ -262,7 +262,7 @@ def main():
         compare_results(original_result, user_result)
         
     except Exception as e:
-        print(f"❌ Error during comparison: {e}")
+        print(f"Error during comparison: {e}")
         import traceback
         traceback.print_exc()
 

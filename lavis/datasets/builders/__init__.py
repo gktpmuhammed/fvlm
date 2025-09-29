@@ -12,10 +12,12 @@ from lavis.datasets.builders.caption_builder import (
     COCOCapBuilder,
 )
 from lavis.datasets.builders.report_generation_builder import ReportGenerationBuilder
+from lavis.datasets.builders.organ_aware_report_builder import OrganAwareReportBuilder
 
 __all__ = [
     "COCOCapBuilder",
     "ReportGenerationBuilder",
+    "OrganAwareReportBuilder",
 ]
 
 

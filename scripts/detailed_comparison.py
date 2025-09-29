@@ -165,19 +165,19 @@ def print_step_comparison(step_name, orig_data, user_data):
     user_img = user_data["image"] 
     user_lbl = user_data["label"]
     
-    print(f"📏 IMAGE SHAPES:")
+    print(f"IMAGE SHAPES:")
     print(f"  Original Pipeline: {orig_img.shape}")
     print(f"  Your Pipeline:     {user_img.shape}")
     shape_match = orig_img.shape == user_img.shape
-    print(f"  Match: {'✅' if shape_match else '❌'}")
+    print(f"  Match: {'YES' if shape_match else 'NO'}")
     
-    print(f"\n🏷️  LABEL INFO:")
+    print(f"\nLABEL INFO:")
     orig_unique = torch.unique(orig_lbl).tolist()
     user_unique = torch.unique(user_lbl).tolist()
     print(f"  Original unique labels: {orig_unique} (count: {len(orig_unique)})")
     print(f"  Your unique labels:     {user_unique} (count: {len(user_unique)})")
     
-    print(f"\n🎨 IMAGE STATS:")
+    print(f"\nIMAGE STATS:")
     print(f"  Original - min: {orig_img.min():.4f}, max: {orig_img.max():.4f}, mean: {orig_img.mean():.4f}")
     print(f"  Yours    - min: {user_img.min():.4f}, max: {user_img.max():.4f}, mean: {user_img.mean():.4f}")
     
@@ -189,16 +189,16 @@ def print_step_comparison(step_name, orig_data, user_data):
         print(f"  Mean pixel difference: {mean_diff:.6f}")
         
         if max_diff < 1e-6:
-            print("  🎯 Images are IDENTICAL!")
+            print("  Images are IDENTICAL!")
         elif max_diff < 0.001:
-            print("  ⚠️  Small differences (likely numerical precision)")
+            print("  Small differences (likely numerical precision)")
         else:
-            print("  ❌ Significant differences detected!")
+            print("  Significant differences detected!")
     else:
-        print("  ❌ Cannot compare pixel values - shapes differ!")
+        print("  Cannot compare pixel values - shapes differ!")
     
     if not shape_match:
-        print(f"\n🚨 DIVERGENCE DETECTED AT THIS STEP! 🚨")
+        print(f"\nDIVERGENCE DETECTED AT THIS STEP!")
 
 def get_limited_merged_labels(label):
     """Limited merge_labels function matching the preprocessing pipeline"""
@@ -288,7 +288,7 @@ def main():
     
     try:
         # Initialize user stream with semi-preprocessed data
-        print(f"\n🔄 Loading semi-preprocessed data for user stream...")
+        print(f"\nLoading semi-preprocessed data for user stream...")
         print(f"  Image: {user_image_path}")
         print(f"  Mask:  {user_mask_path}")
         loader = transforms.Compose([
@@ -304,7 +304,7 @@ def main():
         }
         
         # Load reference data at each stage
-        print("🔄 Loading reference data at each preprocessing stage...")
+        print("Loading reference data at each preprocessing stage...")
         
         # Reference: After label merging (we'll load the raw image for this comparison)
         raw_image_path = f"{reference_base_path}/train_fixed/{sample_id}"
@@ -316,7 +316,7 @@ def main():
         # Reference: Final processed
         ref_processed = loader({"image": processed_image_path, "label": processed_mask_path})
         
-        print("✅ All reference data loaded successfully!")
+        print("All reference data loaded successfully!")
         
         # COMPARISON 1: After label merging
         print("\n" + "="*60)
@@ -377,26 +377,26 @@ def main():
         final_user = user_stream
         
         if final_ref["image"].shape == final_user["image"].shape:
-            print("✅ SUCCESS: User pipeline produces the same final shape as reference!")
+            print("SUCCESS: User pipeline produces the same final shape as reference!")
             diff = torch.abs(final_ref["image"] - final_user["image"]).max().item()
             if diff < 1e-6:
-                print("✅ SUCCESS: Images are pixel-perfect identical to reference!")
+                print("SUCCESS: Images are pixel-perfect identical to reference!")
             else:
-                print(f"⚠️  Images have small differences from reference (max diff: {diff:.6f})")
+                print(f"Images have small differences from reference (max diff: {diff:.6f})")
                 
             # Check label similarity
             label_diff = torch.abs(final_ref["label"].float() - final_user["label"].float()).max().item()
             if label_diff < 1e-6:
-                print("✅ SUCCESS: Labels are identical to reference!")
+                print("SUCCESS: Labels are identical to reference!")
             else:
-                print(f"⚠️  Labels have differences from reference (max diff: {label_diff:.6f})")
+                print(f"Labels have differences from reference (max diff: {label_diff:.6f})")
         else:
-            print("❌ FAILURE: User pipeline produces different shapes from reference.")
+            print("FAILURE: User pipeline produces different shapes from reference.")
             print(f"Reference shape: {final_ref['image'].shape}")
             print(f"User shape: {final_user['image'].shape}")
         
     except Exception as e:
-        print(f"\n❌ Error during comparison: {e}")
+        print(f"\nError during comparison: {e}")
         import traceback
         traceback.print_exc()
 
