@@ -12,6 +12,7 @@ from lavis.common.registry import registry
 
 from lavis.models.base_model import BaseModel
 from lavis.models.blip_models.blip_pretrain import BlipPretrain
+from lavis.models.blip_models.blip_report_generation import BlipReportGeneration
 
 from lavis.processors.base_processor import BaseProcessor
 
@@ -19,6 +20,7 @@ from lavis.processors.base_processor import BaseProcessor
 __all__ = [
     "load_model",
     "BlipPretrain",
+    "BlipReportGeneration",
 ]
 
 

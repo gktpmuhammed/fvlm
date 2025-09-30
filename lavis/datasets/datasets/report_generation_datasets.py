@@ -130,5 +130,6 @@ class ReportGenerationDataset(BaseDataset):
         return {
             "image": image,
             "text_input": caption,
+            "mode": "generation",  # Signal report generation mode
             "image_id": self.img_ids[ann["image_id"]],
         }

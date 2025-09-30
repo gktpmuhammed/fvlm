@@ -247,7 +247,10 @@ class BaseTask:
             # metric_logger.update(**loss_dict)
             metric_logger.update(loss=loss_dict['loss'])
             metric_logger.update(lr=optimizer.param_groups[0]["lr"])
-            metric_logger.update(**loss_dict['organ_wise_loss_itm'])
+            
+            # Handle organ-aware losses if present (for contrastive learning)
+            if 'organ_wise_loss_itm' in loss_dict:
+                metric_logger.update(**loss_dict['organ_wise_loss_itm'])
 
         # after train_epoch()
         # gather the stats from all processes

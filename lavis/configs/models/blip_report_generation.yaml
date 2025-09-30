@@ -1,0 +1,8 @@
+model:
+  arch: blip_report_generation
+  
+  # Text generation parameters
+  max_txt_len: 512
+  
+  # BERT decoder configuration
+  med_config_path: "BiomedVLP-CXR-BERT-specialized/config.json"

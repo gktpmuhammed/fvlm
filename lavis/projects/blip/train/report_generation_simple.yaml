@@ -1,9 +1,6 @@
 model:
-  arch: blip_pretrain_vit
-  model_type: 'fvlp'
-  vit_model: 'base'
-  vit_rand_patches: True
-  vit_drop_path_rate: 0.1
+  arch: blip_report_generation
+  model_type: 'base'
   load_finetuned: False
   load_pretrained: True
   pretrained: "/home/muhammedg/fvlm/checkpoints/model.pth"
@@ -11,8 +8,8 @@ model:
   # BERT config for BiomedVLP tokenizer
   med_config_path: "BiomedVLP-CXR-BERT-specialized/config.json"
   
-  # Model parameters (only needed for contrastive learning)
-  embed_dim: 256  # Keep this - used for projection layers 
+  # Text generation parameters
+  max_txt_len: 512
 
 datasets:
   report_generation:
@@ -37,14 +34,14 @@ run:
   # generation parameters - optimized for medical reports
   use_nucleus_sampling: true
   num_beams: 1
-  max_length: 512  # Increased for full medical reports
+  max_length: 512
   min_length: 25
   top_p: 0.9
   repetition_penalty: 1.2
 
-  batch_size_train: 2  # Reduced for larger text sequences
+  batch_size_train: 2
   batch_size_eval: 2
-  max_epoch: 5  # Start with fewer epochs for testing
+  max_epoch: 10  # Fewer epochs to prevent overfitting
 
   lr_sched: "linear_warmup_cosine_lr"
   init_lr: 1e-5
@@ -58,21 +55,20 @@ run:
     weight_decay: 0.05
 
   seed: 42
-  output_dir: "output/BLIP/Report_Generation_Simplified"
+  output_dir: "output/BLIP/Report_Generation_Simple"
 
   amp: True
   resume_ckpt_path: null
-  num_workers: 8
+  num_workers: 4
 
-  evaluate: False  # Disable evaluation to save checkpoint every epoch
+  evaluate: False
   train_splits: ["train"]
-  # valid_splits: ["val"]  # Commented out to enable per-epoch saving
 
   device: "cuda"
   world_size: 1
   dist_url: "env://"
-  distributed: False  # Start with single GPU for testing
+  distributed: False
 
   # Report generation specific settings
-  save_freq: 1  # Save every epoch
-  log_freq: 100  # Log every 100 steps
+  save_freq: 2
+  log_freq: 500
