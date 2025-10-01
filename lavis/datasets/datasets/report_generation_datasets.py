@@ -81,7 +81,19 @@ class ReportGenerationDataset(BaseDataset):
             df = pd.read_csv(ann_path)
             df = df.dropna(subset=['Impressions_EN'])
             for index, row in df.iterrows():
-                report = row["Impressions_EN"]
+                # Combine findings and impressions for full report generation
+                findings = str(row.get("Findings_EN", "")).strip() if pd.notna(row.get("Findings_EN", "")) else ""
+                impressions = str(row.get("Impressions_EN", "")).strip() if pd.notna(row.get("Impressions_EN", "")) else ""
+                
+                # Create combined report text
+                if findings and impressions:
+                    report = f"{findings} {impressions}"
+                elif impressions:
+                    report = impressions
+                elif findings:
+                    report = findings
+                else:
+                    continue  # Skip if both are empty
                 volume_name = row["VolumeName"]
                 
                 # Extract the base name without extension to construct the nested path
@@ -103,14 +115,14 @@ class ReportGenerationDataset(BaseDataset):
                         "image_id": row["VolumeName"] 
                     })
                     
-                    # For testing: limit to small number of samples
+                    # For testing: limit to specified number of samples
                     # Check if we're in test mode by looking at environment variable
                     import os as os_module
                     if os_module.environ.get('FVLM_TEST_MODE', '').lower() == 'true':
-                        if 'train_reports' in os.path.basename(ann_path) and len(annotations) >= 20:
+                        if 'train_reports' in os.path.basename(ann_path) and len(annotations) >= 100:
                             print(f"Test mode: Limited train dataset to {len(annotations)} samples")
                             break
-                        elif 'validation_reports' in os.path.basename(ann_path) and len(annotations) >= 5:
+                        elif 'validation_reports' in os.path.basename(ann_path) and len(annotations) >= 10:
                             print(f"Test mode: Limited validation dataset to {len(annotations)} samples")
                             break
         return annotations
@@ -124,8 +136,12 @@ class ReportGenerationDataset(BaseDataset):
         data = self.transform({"image": ann["image_path"]})
         image = data["image"]
 
-        # For report generation, we need the raw text, not processed
+        # Apply text processing to the caption
         caption = ann["caption"]
+        if self.text_processor is not None:
+            # BlipCaptionProcessor expects a dict, so we wrap the caption
+            processed = self.text_processor({"caption": caption})
+            caption = processed.get("caption", caption)
 
         return {
             "image": image,

@@ -63,7 +63,7 @@ class DataFolder(Dataset):
             for file in files:
                 if file.endswith('.nii.gz'):
                     img_paths.append(os.path.join(root, file))
-        self.img_paths = img_paths[:100]
+        self.img_paths = img_paths[:100]  # Use 100 samples for evaluation
 
         if not self.img_paths:
             raise FileNotFoundError(f"No .nii.gz files found in {vis_root}")
@@ -111,7 +111,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Simplified Report Generation Evaluation")
     parser.add_argument('--vis_root', type=str, default='data/valid/images', help='The path to the visual root directory.')
     parser.add_argument('--ckpt_path', type=str, required=True, help='The path to the trained checkpoint file.')
-    parser.add_argument("--cfg-path", required=False, default='lavis/projects/blip/train/finetune_report_generation.yaml', help="path to configuration file.")
+    parser.add_argument("--cfg-path", required=False, default='lavis/projects/blip/train/report_generation.yaml', help="path to configuration file.")
     parser.add_argument(
         "--options",
         nargs="+",

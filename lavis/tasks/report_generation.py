@@ -49,5 +49,22 @@ class ReportGenerationTask(BaseTask):
         return results
 
     def after_evaluation(self, val_result, split_name, epoch, **kwargs):
-        # no need to evaluate during fine-tuning
-        return
+        """
+        Return validation metrics for checkpoint saving.
+        Since we don't have ground truth for comparison, we use epoch number
+        as a simple increasing metric (later epochs are considered better).
+        """
+        if val_result is None or len(val_result) == 0:
+            return {"agg_metrics": 0.0}
+        
+        num_reports = len(val_result)
+        
+        # Use epoch as metric - later epochs are considered better
+        # This ensures checkpoints are saved for each epoch
+        agg_metrics = float(epoch) + 1.0  # +1 to avoid 0 for epoch 0
+        
+        return {
+            "agg_metrics": agg_metrics,
+            "num_reports": num_reports,
+            "epoch": epoch,
+        }

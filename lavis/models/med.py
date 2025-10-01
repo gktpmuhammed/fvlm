@@ -1440,6 +1440,7 @@ class XBertLMHeadDecoder(BertLMHeadModel):
         model_kwargs = {
             "encoder_hidden_states": visual_embeds,
             "encoder_attention_mask": image_atts,
+            "mode": "multimodal",  # CRITICAL FIX: Enable cross-attention during generation
         }
 
         if use_nucleus_sampling:
