@@ -1,7 +1,9 @@
 *.nii.gz
-data/images
-data/masks
+data/train
 data/valid
+data/metadata
+data/multi_abnormality_labels
+data/radiology_text_reports
 BiomedVLP-CXR-BERT-specialized
 mae_pretrain_vit_base
 
