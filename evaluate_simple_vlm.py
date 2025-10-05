@@ -201,7 +201,7 @@ if __name__ == "__main__":
     model.to(device)
     model.eval()
     tokenizer = model.tokenizer
-    print("✅ Model loaded successfully.")
+    print("Model loaded successfully.")
 
     # --- Main execution ---
     # Define the MONAI transform pipeline
@@ -221,7 +221,7 @@ if __name__ == "__main__":
         ),
     ])
 
-    print(f"\n📊 Loading validation dataset with MONAI transforms...")
+    print(f"Loading validation dataset with MONAI transforms...")
     eval_dataset = ImageFirstDataset(
         csv_file=dataset_csv_path,
         tokenizer=tokenizer,
@@ -239,12 +239,12 @@ if __name__ == "__main__":
         batch_size=4
     )
 
-    print("\n✅ Evaluation Complete!")
-    print("\n📊 ROUGE Scores:")
+    print("Evaluation Complete!")
+    print("ROUGE Scores:")
     for key, value in rouge_scores.items():
         print(f"  - {key}: {value.item():.4f}")
         
     # Save results to CSV
     save_path = os.path.join(os.path.dirname(final_model_path), "evaluation_results.csv")
     results_df.to_csv(save_path, index=False)
-    print(f"\n💾 Results saved to: {save_path}")
+    print(f"Results saved to: {save_path}")

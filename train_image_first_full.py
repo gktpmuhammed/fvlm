@@ -168,7 +168,7 @@ def main():
     args = parser.parse_args()
 
     if args.full_dataset:
-        print("🚀 FULL DATASET TRAINING: Image-First VLM 🚀")
+        print("FULL DATASET TRAINING: Image-First VLM")
         print("=" * 70)
         # Settings for FULL training
         output_dir = "/home/muhammedg/fvlm/outputs/ImageFirst_VLM_Full_Training"
@@ -180,7 +180,7 @@ def main():
         eval_save_steps = 1000
         
     else:
-        print("🚀 SUBSET TRAINING (Final Check): Image-First VLM 🚀")
+        print("SUBSET TRAINING (Final Check): Image-First VLM")
         print("=" * 70)
         # Settings for SUBSET training
         output_dir = "/home/muhammedg/fvlm/outputs/ImageFirst_VLM_Final_Subset_Test"
@@ -205,7 +205,7 @@ def main():
     )
   
     # Create datasets with the MONAI transform
-    print(f"\n📊 Creating datasets with MONAI transforms...")
+    print(f"Creating datasets with MONAI transforms...")
     train_dataset = ImageFirstDataset(
         csv_file=dataset_path,
         tokenizer=tokenizer,
@@ -223,7 +223,7 @@ def main():
     
     # Filter out missing images by checking the dataset's count
     if hasattr(train_dataset, 'missing_images') and train_dataset.missing_images > 0:
-        print(f"\n🔍 Filtering Training dataset for existing images...")
+        print(f"\nFiltering Training dataset for existing images...")
         valid_samples = []
         missing_count = 0
         
@@ -239,10 +239,10 @@ def main():
             print(f"... and {missing_count - 5} more missing images")
         
         train_dataset.samples = valid_samples
-        print(f"✅ Training: {len(valid_samples)} valid samples ({missing_count} missing)")
+        print(f"Training: {len(valid_samples)} valid samples ({missing_count} missing)")
     
     if hasattr(val_dataset, 'missing_images') and val_dataset.missing_images > 0:
-        print(f"\n🔍 Filtering Validation dataset for existing images...")
+        print(f"\nFiltering Validation dataset for existing images...")
         valid_samples = []
         missing_count = 0
         
@@ -258,18 +258,18 @@ def main():
             print(f"... and {missing_count - 5} more missing images")
         
         val_dataset.samples = valid_samples
-        print(f"✅ Validation: {len(valid_samples)} valid samples ({missing_count} missing)")
+        print(f"Validation: {len(valid_samples)} valid samples ({missing_count} missing)")
     
-    print(f"\n📊 FINAL DATASET SIZES:")
-    print(f"✅ Training samples: {len(train_dataset)}")
-    print(f"✅ Validation samples: {len(val_dataset)}")
+    print(f"\nFINAL DATASET SIZES:")
+    print(f"Training samples: {len(train_dataset)}")
+    print(f"Validation samples: {len(val_dataset)}")
     
     if len(train_dataset) == 0:
-        print("❌ No valid training samples found!")
+        print("No valid training samples found!")
         return
     
     # Initialize model
-    print(f"\n🤖 Initializing SimpleMedicalVLM...")
+    print(f"\nInitializing SimpleMedicalVLM...")
     model = SimpleMedicalVLM(
         vision_encoder_path=vision_encoder_path
     )
@@ -311,7 +311,7 @@ def main():
     # Calculate effective batch size for logging
     effective_batch_size = training_args.per_device_train_batch_size * training_args.gradient_accumulation_steps
     
-    print(f"\n🎯 TRAINING CONFIGURATION:")
+    print(f"\nTRAINING CONFIGURATION:")
     print(f"   • Mode: {'FULL DATASET' if args.full_dataset else 'SUBSET'}")
     print(f"   • Training samples: {len(train_dataset):,}")
     print(f"   • Validation samples: {len(val_dataset):,}")
@@ -328,17 +328,17 @@ def main():
     print(f"   • Output directory: {training_args.output_dir}")
     print(f"   • GPU: RTX 3090 with FP16 mixed precision")
     
-    print(f"\n⚠️  IMPORTANT:")
+    print(f"\nIMPORTANT:")
     print(f"   • This is a {'FULL' if args.full_dataset else 'SUBSET'} run on the CLEANED and TRANSFORMED dataset.")
     print(f"   • Training will take {'several hours' if args.full_dataset else 'a short amount of time'}.")
     print(f"   • Make sure you have enough disk space for checkpoints.")
     print(f"   • You can monitor progress in: {output_dir}/logs")
     
     # Start training automatically (no user input needed)
-    print(f"\n🚀 Starting training...")
+    print(f"\nStarting training...")
     
     # Test a single forward pass first
-    print(f"\n🔍 Testing single forward pass...")
+    print(f"\nTesting single forward pass...")
     try:
         sample = train_dataset[0]
         pixel_values = sample['pixel_values'].unsqueeze(0).cuda()
@@ -356,29 +356,29 @@ def main():
             labels=labels
         )
         
-        print(f"✅ Forward pass successful!")
+        print(f"Forward pass successful!")
         print(f"   Initial loss: {outputs.loss.item():.4f}")
         
     except Exception as e:
-        print(f"❌ Forward pass failed: {e}")
+        print(f"Forward pass failed: {e}")
         return
     
     # Start full training
-    print(f"\n🚀 Starting training with {len(train_dataset):,} samples...")
+    print(f"\nStarting training with {len(train_dataset):,} samples...")
     try:
         trainer.train()
         
         # Save final model
-        print(f"\n💾 Saving final model...")
+        print(f"\nSaving final model...")
         trainer.save_model()
         train_dataset.tokenizer.save_pretrained(output_dir)
         
-        print(f"\n🎉 Training completed successfully!")
-        print(f"📁 Model saved to: {output_dir}")
-        print(f"✅ Ready for evaluation and inference!")
+        print(f"\nTraining completed successfully!")
+        print(f"Model saved to: {output_dir}")
+        print(f"Ready for evaluation and inference!")
         
     except Exception as e:
-        print(f"\n❌ Training failed: {e}")
+        print(f"\nTraining failed: {e}")
         raise
 
 if __name__ == "__main__":

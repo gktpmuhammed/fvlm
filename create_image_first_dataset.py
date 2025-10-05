@@ -12,7 +12,7 @@ from pathlib import Path
 from collections import defaultdict
 
 def create_image_first_dataset():
-    print("🔍 CREATING IMAGE-FIRST DATASET MAPPING")
+    print("CREATING IMAGE-FIRST DATASET MAPPING")
     print("=" * 60)
     
     # Paths
@@ -22,7 +22,7 @@ def create_image_first_dataset():
     train_img_dir = "/home/muhammedg/fvlm/data/images/train"
     
     # Load CSV files
-    print("📊 Loading CSV files...")
+    print("Loading CSV files...")
     val_df = pd.read_csv(val_csv_path)
     train_df = pd.read_csv(train_csv_path)
     
@@ -31,10 +31,10 @@ def create_image_first_dataset():
     
     def scan_images(img_dir, split_name):
         """Scan directory for actual image files"""
-        print(f"\n📁 Scanning {split_name} images...")
+        print(f"\nScanning {split_name} images...")
         
         if not os.path.exists(img_dir):
-            print(f"   ❌ Directory does not exist: {img_dir}")
+            print(f"   Directory does not exist: {img_dir}")
             return []
         
         image_files = []
@@ -48,7 +48,7 @@ def create_image_first_dataset():
                         'relative_path': os.path.relpath(full_path, img_dir)
                     })
         
-        print(f"   ✅ Found {len(image_files)} image files")
+        print(f"   Found {len(image_files)} image files")
         return image_files
     
     def create_csv_lookup(df):
@@ -66,7 +66,7 @@ def create_image_first_dataset():
     
     def map_images_to_reports(image_files, csv_lookup, split_name):
         """Map each image file to its corresponding report"""
-        print(f"\n🔗 Mapping {split_name} images to reports...")
+        print(f"\nMapping {split_name} images to reports...")
         
         mapped_data = []
         missing_reports = []
@@ -122,13 +122,13 @@ def create_image_first_dataset():
             else:
                 missing_reports.append(filename)
         
-        print(f"   ✅ Successfully mapped: {len(mapped_data)} images")
-        print(f"   ❌ Missing reports: {len(missing_reports)} images")
-        print(f"   👥 Unique patients: {len(patient_stats)}")
-        print(f"   📊 Patients with multiple scans: {sum(1 for scans in patient_stats.values() if len(scans) > 1)}")
+        print(f"   Successfully mapped: {len(mapped_data)} images")
+        print(f"   Missing reports: {len(missing_reports)} images")
+        print(f"   Unique patients: {len(patient_stats)}")
+        print(f"   Patients with multiple scans: {sum(1 for scans in patient_stats.values() if len(scans) > 1)}")
         
         if missing_reports:
-            print(f"   📋 Sample missing reports: {missing_reports[:5]}")
+            print(f"   Sample missing reports: {missing_reports[:5]}")
         
         return mapped_data, patient_stats
     
@@ -145,18 +145,18 @@ def create_image_first_dataset():
     # Combine all data
     all_mapped_data = val_mapped + train_mapped
     
-    print(f"\n📊 FINAL DATASET SUMMARY")
+    print(f"\nFINAL DATASET SUMMARY")
     print("=" * 60)
-    print(f"✅ Total images with reports: {len(all_mapped_data)}")
+    print(f"Total images with reports: {len(all_mapped_data)}")
     print(f"   - Validation: {len(val_mapped)}")
     print(f"   - Training: {len(train_mapped)}")
-    print(f"👥 Total unique patients: {len(val_patient_stats) + len(train_patient_stats)}")
+    print(f"Total unique patients: {len(val_patient_stats) + len(train_patient_stats)}")
     
     # Analyze patient distribution
     all_patient_stats = {**val_patient_stats, **train_patient_stats}
     multi_scan_patients = {pid: scans for pid, scans in all_patient_stats.items() if len(scans) > 1}
     
-    print(f"📈 Patient scan distribution:")
+    print(f"Patient scan distribution:")
     print(f"   - Single scan patients: {len(all_patient_stats) - len(multi_scan_patients)}")
     print(f"   - Multiple scan patients: {len(multi_scan_patients)}")
     
@@ -165,13 +165,13 @@ def create_image_first_dataset():
         print(f"   - Maximum scans per patient: {max_scans}")
         
         # Show examples of multi-scan patients
-        print(f"   📋 Sample multi-scan patients:")
+        print(f"   Sample multi-scan patients:")
         for i, (pid, scans) in enumerate(list(multi_scan_patients.items())[:5]):
             print(f"      {pid}: {len(scans)} scans ({', '.join(scans)})")
     
     # Save the mapped dataset
     output_file = "/home/muhammedg/fvlm/image_first_dataset.json"
-    print(f"\n💾 Saving image-first dataset to: {output_file}")
+    print(f"\nSaving image-first dataset to: {output_file}")
     
     with open(output_file, 'w') as f:
         json.dump(all_mapped_data, f, indent=2)
@@ -181,7 +181,7 @@ def create_image_first_dataset():
     df_output = pd.DataFrame(all_mapped_data)
     df_output.to_csv(csv_output_file, index=False)
     
-    print(f"💾 Also saved CSV version to: {csv_output_file}")
+    print(f"Also saved CSV version to: {csv_output_file}")
     
     # Create training/validation splits based on actual images
     train_data = [item for item in all_mapped_data if item['split'] == 'training']
@@ -189,7 +189,7 @@ def create_image_first_dataset():
     
     # Since we don't have training images, let's create a proper split from validation
     if len(train_data) == 0 and len(val_data) > 0:
-        print(f"\n🔄 Creating proper train/val split from available validation data...")
+        print(f"\nCreating proper train/val split from available validation data...")
         
         # Group by patient to ensure patient-level split
         patient_groups = defaultdict(list)
@@ -220,8 +220,8 @@ def create_image_first_dataset():
                 item['split'] = 'validation'
                 new_val_data.append(item)
         
-        print(f"   ✅ New training set: {len(new_train_data)} images from {len(train_patients)} patients")
-        print(f"   ✅ New validation set: {len(new_val_data)} images from {len(val_patients)} patients")
+        print(f"   New training set: {len(new_train_data)} images from {len(train_patients)} patients")
+        print(f"   New validation set: {len(new_val_data)} images from {len(val_patients)} patients")
         
         # Save the new splits
         with open("/home/muhammedg/fvlm/image_first_dataset_split.json", 'w') as f:
@@ -236,7 +236,7 @@ def create_image_first_dataset():
                 }
             }, f, indent=2)
         
-        print(f"💾 Saved proper train/val split to: image_first_dataset_split.json")
+        print(f"Saved proper train/val split to: image_first_dataset_split.json")
     
     return all_mapped_data
 
@@ -345,7 +345,7 @@ if __name__ == "__main__":
     with open("/home/muhammedg/fvlm/image_first_dataset_class.py", 'w') as f:
         f.write(dataset_code)
     
-    print(f"💾 Created example dataset class: image_first_dataset_class.py")
+    print(f"Created example dataset class: image_first_dataset_class.py")
 
 if __name__ == "__main__":
     # Create the image-first dataset
@@ -354,16 +354,16 @@ if __name__ == "__main__":
     # Create example dataset class
     create_dataset_class_example()
     
-    print(f"\n🎉 IMAGE-FIRST DATASET CREATION COMPLETE!")
-    print(f"📁 Files created:")
+    print(f"\nIMAGE-FIRST DATASET CREATION COMPLETE!")
+    print(f"Files created:")
     print(f"   - image_first_dataset.json (all data)")
     print(f"   - image_first_dataset.csv (spreadsheet view)")
     print(f"   - image_first_dataset_split.json (proper train/val split)")
     print(f"   - image_first_dataset_class.py (example usage)")
     
-    print(f"\n💡 BENEFITS OF IMAGE-FIRST APPROACH:")
-    print(f"   ✅ Only processes images that actually exist")
-    print(f"   ✅ No missing image errors during training")
-    print(f"   ✅ Proper patient-level train/val split")
-    print(f"   ✅ Handles multiple scans per patient correctly")
-    print(f"   ✅ Eliminates CSV-image mismatch issues")
+    print(f"\nBENEFITS OF IMAGE-FIRST APPROACH:")
+    print(f"   Only processes images that actually exist")
+    print(f"   No missing image errors during training")
+    print(f"   Proper patient-level train/val split")
+    print(f"   Handles multiple scans per patient correctly")
+    print(f"   Eliminates CSV-image mismatch issues")

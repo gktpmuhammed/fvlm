@@ -47,7 +47,7 @@ class SimpleMedicalVLM(nn.Module):
         for param in self.vision_encoder.parameters():
             param.requires_grad = False
             
-        print(f"✅ Vision encoder loaded and frozen")
+        print(f"Vision encoder loaded and frozen")
         
         # 2. Load pretrained BERT decoder from Hugging Face
         print(f"Loading BERT decoder: {bert_model_name}")
@@ -79,7 +79,7 @@ class SimpleMedicalVLM(nn.Module):
             if "crossattention" not in name:
                 param.requires_grad = False
             
-        print(f"✅ BERT decoder loaded. Cross-attention layers are trainable.")
+        print(f"BERT decoder loaded. Cross-attention layers are trainable.")
         
         # 3. A more substantial MLP projection layer (this is what we'll train!)
         vision_dim = 768  # ViT base dimension
@@ -94,7 +94,7 @@ class SimpleMedicalVLM(nn.Module):
             nn.Dropout(0.1)
         )
 
-        print(f"✅ Projection MLP: {vision_dim} -> {intermediate_dim} -> {text_dim}")
+        print(f"Projection MLP: {vision_dim} -> {intermediate_dim} -> {text_dim}")
         
     def forward(self, pixel_values, input_ids=None, attention_mask=None, labels=None):
         """
@@ -282,7 +282,7 @@ def train_simple_vlm():
     """
     Simple training script using Hugging Face Trainer
     """
-    print("🚀 Training Simple Medical VLM")
+    print("Training Simple Medical VLM")
     
     # Initialize model
     model = SimpleMedicalVLM(
@@ -303,8 +303,8 @@ def train_simple_vlm():
         tokenizer=model.tokenizer
     )
     
-    print(f"📊 Train samples: {len(train_dataset)}")
-    print(f"📊 Val samples: {len(val_dataset)}")
+    print(f"Train samples: {len(train_dataset)}")
+    print(f"Val samples: {len(val_dataset)}")
     
     # Training arguments
     training_args = TrainingArguments(
@@ -343,12 +343,12 @@ def train_simple_vlm():
     )
     
     # Train
-    print("🎯 Starting training...")
+    print("Starting training...")
     trainer.train()
     
     # Save final model
     trainer.save_model("/home/muhammedg/fvlm/outputs/simple_vlm/final")
-    print("✅ Training complete!")
+    print("Training complete!")
 
 
 if __name__ == "__main__":
