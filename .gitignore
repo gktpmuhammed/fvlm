@@ -22,3 +22,4 @@ log.txt
 *.log
 
 report_generations/
+outputs/

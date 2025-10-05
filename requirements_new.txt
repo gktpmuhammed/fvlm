@@ -1,0 +1,30 @@
+# Core ML & Data
+torch
+transformers==4.26.1
+pandas
+numpy
+SimpleITK
+monai
+
+# Hugging Face Ecosystem
+accelerate
+datasets
+
+# Utilities
+tqdm
+scikit-learn
+nltk
+seaborn
+matplotlib
+
+# Evaluation & Logging
+torchmetrics
+omegaconf
+iopath
+timm
+decord
+einops
+fairscale
+batchgenerators
+webdataset
+nibabel
