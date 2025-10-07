@@ -26,6 +26,7 @@ from monai.transforms import (
     SpatialPadd,
     CenterSpatialCropd,
     Transposed,
+    EnsureChannelFirstd,
 )
 import sys
 from pathlib import Path
@@ -43,7 +44,7 @@ sys.path.append(str(project_root))
 # Set GPU
 os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
-# Import improved model
+# Import FIXED improved model
 from improved_medical_vlm import ImprovedMedicalVLM, MedicalReportDataset
 
 # Set up logging
@@ -55,19 +56,19 @@ def build_transforms():
     """Build MONAI transforms for medical images"""
     return Compose([
         LoadImaged(keys=['image'], reader='ITKReader', image_only=True),
+        EnsureChannelFirstd(keys=['image']),
+        Transposed(keys=['image'], indices=(0, 3, 2, 1)),
         ScaleIntensityRanged(
             keys=['image'],
-            a_min=-1000,
-            a_max=500,
+            a_min=-1150,
+            a_max=350,
             b_min=0.0,
             b_max=1.0,
             clip=True
         ),
-        SpatialPadd(keys=['image'], spatial_size=(112, 256, 352)),
+        SpatialPadd(keys=['image'], spatial_size=(112, 256, 352),mode='constant', constant_values=0),
         CenterSpatialCropd(keys=['image'], roi_size=(112, 256, 352)),
-        Transposed(keys=['image'], indices=(0, 1, 2)),
     ])
-
 
 # ==================== Custom Trainer with NLP Metrics ====================
 class MetricsAwareTrainer(Trainer):
@@ -126,14 +127,15 @@ class MetricsAwareTrainer(Trainer):
 
         return (loss, outputs) if return_outputs else loss
 
-
 # ==================== Dataset Class ====================
 class ImageFirstDataset(Dataset):
-    def __init__(self, csv_file, tokenizer, transform, max_length=512, subset_size=None, split='train'):
+    def __init__(self, csv_file, tokenizer, transform, max_length=512, subset_size=None, split='training'):
         df = pd.read_csv(csv_file)
+        # Filter by split FIRST
         df = df[df['split'] == split].reset_index(drop=True)
 
-        if subset_size:
+        # THEN apply subset if specified
+        if subset_size and subset_size > 0:
             df = df.head(subset_size)
 
         self.data = df
@@ -159,7 +161,7 @@ class ImageFirstDataset(Dataset):
             image = image.unsqueeze(0)
 
         # Prepare text
-        report_text = f"{row['findings']} {row['impression']}"
+        report_text = f"{row['findings']} {row['impressions']}"
 
         # Tokenize
         encoding = self.tokenizer(
@@ -171,12 +173,11 @@ class ImageFirstDataset(Dataset):
         )
 
         return {
-            'images': image.squeeze(0),
+            'images': image,
             'input_ids': encoding['input_ids'].squeeze(0),
             'attention_mask': encoding['attention_mask'].squeeze(0),
             'labels': encoding['input_ids'].squeeze(0)
         }
-
 
 # ==================== Main Training Function ====================
 def main(args):
@@ -199,20 +200,26 @@ def main(args):
 
     # Create datasets
     logger.info("\nLoading datasets...")
+    if args.subset_size:
+        logger.info(f"Using a subset of size: {args.subset_size}")
+
     train_dataset = ImageFirstDataset(
         csv_file=args.csv_file,
         tokenizer=model.tokenizer,
         transform=transform,
         max_length=args.max_length,
-        split='train'
+        split='training',
+        subset_size=args.subset_size
     )
 
+    val_subset = int(args.subset_size / 4) if args.subset_size else None
     val_dataset = ImageFirstDataset(
         csv_file=args.csv_file,
         tokenizer=model.tokenizer,
         transform=transform,
         max_length=args.max_length,
-        split='validation'
+        split='validation',
+        subset_size=val_subset
     )
 
     logger.info(f"Train samples: {len(train_dataset)}")
@@ -237,10 +244,10 @@ def main(args):
         weight_decay=0.01,
 
         # Evaluation
-        eval_strategy='steps',
-        eval_steps=500,
+        evaluation_strategy='steps',
+        eval_steps=50,  # More frequent eval for subset
         save_strategy='steps',
-        save_steps=500,
+        save_steps=50,
         save_total_limit=3,
         load_best_model_at_end=True,
         metric_for_best_model='eval_loss',
@@ -248,7 +255,7 @@ def main(args):
 
         # Logging
         logging_dir=f'{args.output_dir}/logs',
-        logging_steps=50,
+        logging_steps=10,
         # report_to='tensorboard',
 
         # Optimization
@@ -274,7 +281,7 @@ def main(args):
         metric_weight=args.metric_weight,
         callbacks=[
             EarlyStoppingCallback(
-                early_stopping_patience=3,
+                early_stopping_patience=5,
                 early_stopping_threshold=0.01
             )
         ]
@@ -319,6 +326,8 @@ if __name__ == '__main__':
                        help='Path to data CSV')
     parser.add_argument('--max_length', type=int, default=512,
                        help='Maximum sequence length')
+    parser.add_argument('--subset_size', type=int, default=None,
+                       help='Use a subset of the data for training and validation (e.g., for debugging)')
 
     # Training config
     parser.add_argument('--output_dir', type=str,

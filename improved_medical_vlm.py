@@ -4,6 +4,7 @@ Improved Medical VLM with LoRA for Vision Encoder
 - Fixed BERT decoder (for now)
 - Better training configuration
 - NLP metrics for loss computation
+- HANDLES MULTIPLE CHECKPOINT FORMATS
 """
 
 import torch
@@ -75,44 +76,56 @@ class LoRALinear(nn.Module):
 def apply_lora_to_attention(vit_model, start_layer=8, rank=8, alpha=16):
     """
     Apply LoRA to attention layers in ViT starting from start_layer
-    Typically ViT has 12 layers, so start_layer=8 means last 4 layers
+    The lavis ViT has 12 blocks, so start_layer=8 means last 4 layers
     """
     print(f"Applying LoRA to ViT attention layers from layer {start_layer} onwards...")
 
     num_layers_modified = 0
-    # Access ViT blocks/layers
-    if hasattr(vit_model, 'blocks'):
-        blocks = vit_model.blocks
-    elif hasattr(vit_model, 'layers'):
-        blocks = vit_model.layers
-    else:
-        raise ValueError("Cannot find transformer blocks in ViT model")
 
-    for layer_idx, block in enumerate(blocks):
+    # The lavis ViT has blocks attribute
+    if not hasattr(vit_model, 'blocks'):
+        print("Warning: ViT model doesn't have 'blocks' attribute")
+        return vit_model
+
+    blocks = vit_model.blocks
+    total_blocks = len(blocks)
+    print(f"Found {total_blocks} transformer blocks in ViT")
+
+    for layer_idx in range(len(blocks)):
         if layer_idx < start_layer:
             continue
 
-        # Find attention module
+        block = blocks[layer_idx]
+
+        # Find attention module (typically block.attn)
         if hasattr(block, 'attn'):
             attn = block.attn
 
-            # Replace Q, K, V projections with LoRA versions
-            if hasattr(attn, 'qkv'):
-                # If using fused QKV projection
+            # Check for QKV projection (common in ViT implementations)
+            if hasattr(attn, 'qkv') and isinstance(attn.qkv, nn.Linear):
+                print(f"  Layer {layer_idx}: Adding LoRA to QKV projection")
                 attn.qkv = LoRALinear(attn.qkv, rank=rank, alpha=alpha)
                 num_layers_modified += 1
             else:
                 # Separate Q, K, V projections
-                if hasattr(attn, 'q'):
+                modified_this_layer = False
+                if hasattr(attn, 'q') and isinstance(attn.q, nn.Linear):
                     attn.q = LoRALinear(attn.q, rank=rank, alpha=alpha)
-                if hasattr(attn, 'k'):
+                    modified_this_layer = True
+                if hasattr(attn, 'k') and isinstance(attn.k, nn.Linear):
                     attn.k = LoRALinear(attn.k, rank=rank, alpha=alpha)
-                if hasattr(attn, 'v'):
+                    modified_this_layer = True
+                if hasattr(attn, 'v') and isinstance(attn.v, nn.Linear):
                     attn.v = LoRALinear(attn.v, rank=rank, alpha=alpha)
-                num_layers_modified += 1
+                    modified_this_layer = True
 
-            # Also add LoRA to output projection
-            if hasattr(attn, 'proj'):
+                if modified_this_layer:
+                    print(f"  Layer {layer_idx}: Adding LoRA to separate Q/K/V projections")
+                    num_layers_modified += 1
+
+            # Also add LoRA to output projection if it exists
+            if hasattr(attn, 'proj') and isinstance(attn.proj, nn.Linear):
+                print(f"  Layer {layer_idx}: Adding LoRA to output projection")
                 attn.proj = LoRALinear(attn.proj, rank=rank, alpha=alpha)
 
     print(f"Applied LoRA to {num_layers_modified} attention layers")
@@ -131,33 +144,72 @@ class ImprovedMedicalVLM(nn.Module):
     ):
         super().__init__()
 
-        # 1. Load pretrained vision encoder
+        # 1. Load pretrained vision encoder with flexible checkpoint loading
         print("Loading pretrained vision encoder...")
         checkpoint = torch.load(vision_encoder_path, map_location='cpu')
 
+        # Import the correct ViT from lavis
         from lavis.models.blip_models.vit import ViT
+
+        # Use ONLY the parameters that the lavis ViT accepts
         self.vision_encoder = ViT(
             in_channels=1,
             img_size=(112, 256, 352),
             patch_size=(16, 16, 32),
-            num_classes=0,
-            embed_dim=768,
-            depth=12,
-            num_heads=12,
+            num_classes=0,  # No classification head
         )
 
-        # Load weights
-        vision_state = {k.replace('visual_encoder.', ''): v 
-                       for k, v in checkpoint['state_dict'].items() 
-                       if k.startswith('visual_encoder')}
-        self.vision_encoder.load_state_dict(vision_state, strict=False)
+        # Load weights from checkpoint - HANDLE MULTIPLE FORMATS
+        print("Extracting vision encoder weights from checkpoint...")
+
+        # Try different checkpoint formats
+        vision_state = {}
+
+        if 'state_dict' in checkpoint:
+            # PyTorch Lightning format
+            print("  Detected PyTorch Lightning checkpoint format (state_dict)")
+            for k, v in checkpoint['state_dict'].items():
+                if k.startswith('visual_encoder.'):
+                    new_key = k.replace('visual_encoder.', '')
+                    vision_state[new_key] = v
+        elif 'model' in checkpoint:
+            # Model dict format
+            print("  Detected model dict checkpoint format")
+            for k, v in checkpoint['model'].items():
+                if k.startswith('visual_encoder.'):
+                    new_key = k.replace('visual_encoder.', '')
+                    vision_state[new_key] = v
+        else:
+            # Assume checkpoint IS the state dict
+            print("  Detected direct state dict format")
+            for k, v in checkpoint.items():
+                if k.startswith('visual_encoder.'):
+                    new_key = k.replace('visual_encoder.', '')
+                    vision_state[new_key] = v
+                else:
+                    # Maybe keys don't have prefix
+                    vision_state[k] = v
+
+        if len(vision_state) == 0:
+            print("  WARNING: No vision encoder weights found in checkpoint!")
+            print(f"  Checkpoint keys: {list(checkpoint.keys())[:5]}...")
+        else:
+            print(f"  Found {len(vision_state)} vision encoder parameters")
+
+        missing_keys, unexpected_keys = self.vision_encoder.load_state_dict(vision_state, strict=False)
+        print(f"Loaded vision encoder weights")
+        if missing_keys:
+            print(f"  Missing keys: {len(missing_keys)}")
+        if unexpected_keys:
+            print(f"  Unexpected keys: {len(unexpected_keys)}")
 
         # Freeze all ViT parameters initially
         for param in self.vision_encoder.parameters():
             param.requires_grad = False
 
         # Apply LoRA to last N layers
-        total_layers = 12  # Standard ViT-Base
+        # The lavis ViT typically has 12 blocks
+        total_layers = 12
         start_layer = total_layers - vit_layers_to_adapt
         self.vision_encoder = apply_lora_to_attention(
             self.vision_encoder, 
@@ -189,7 +241,7 @@ class ImprovedMedicalVLM(nn.Module):
                 for param in layer.crossattention.parameters():
                     param.requires_grad = True
 
-        # 3. Trainable projection layer (enhanced)
+        # 3. Enhanced trainable projection layer
         self.projection = nn.Sequential(
             nn.Linear(768, 1536),
             nn.LayerNorm(1536),
@@ -209,6 +261,9 @@ class ImprovedMedicalVLM(nn.Module):
     def forward(self, images, input_ids, attention_mask, labels=None):
         # Encode images
         visual_features = self.vision_encoder(images)
+
+        if isinstance(visual_features, tuple):
+            visual_features = visual_features[0]
         encoder_hidden_states = self.projection(visual_features)
 
         # Create encoder attention mask
@@ -248,6 +303,8 @@ class ImprovedMedicalVLM(nn.Module):
         with torch.no_grad():
             # Encode images
             visual_features = self.vision_encoder(images)
+            if isinstance(visual_features, tuple):
+                visual_features = visual_features[0]
             encoder_hidden_states = self.projection(visual_features)
 
             batch_size = encoder_hidden_states.size(0)
