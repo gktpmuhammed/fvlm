@@ -76,56 +76,13 @@ class MetricsAwareTrainer(Trainer):
     Custom Trainer that computes NLP metrics during training
     and uses them to augment the loss
     """
-    def __init__(self, *args, use_metric_loss=True, metric_weight=0.1, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.use_metric_loss = use_metric_loss
-        self.metric_weight = metric_weight
-
-        # Initialize metrics
-        self.rouge_metric = ROUGEScore()
-        self.bleu_metric = BLEUScore(n_gram=2)
-
     def compute_loss(self, model, inputs, return_outputs=False):
         """
-        Compute loss with optional NLP metric-based regularization
+        Standard loss computation. The metric-based loss is disabled
+        as it's incompatible with the decoder-only BioGPT architecture.
         """
-        labels = inputs.pop("labels")
-        outputs = model(**inputs, labels=labels)
-        loss = outputs.loss
+        return super().compute_loss(model, inputs, return_outputs=return_outputs)
 
-        # Add metric-based loss component during training
-        if self.use_metric_loss and model.training:
-            try:
-                # Generate predictions (greedy for speed)
-                with torch.no_grad():
-                    generated = model.generate(
-                        images=inputs['images'],
-                        max_length=128,
-                        num_beams=1,  # Greedy for speed
-                        temperature=1.0,
-                        repetition_penalty=1.5,
-                    )
-
-                # Decode predictions and labels
-                predictions = model.tokenizer.batch_decode(generated, skip_special_tokens=True)
-                references = model.tokenizer.batch_decode(labels, skip_special_tokens=True)
-
-                # Compute ROUGE score
-                rouge_scores = self.rouge_metric(predictions, references)
-                rouge_l_f1 = rouge_scores['rougeL_fmeasure']
-
-                # Use negative ROUGE as penalty (we want to maximize ROUGE)
-                metric_loss = (1.0 - rouge_l_f1) * self.metric_weight
-                loss = loss + metric_loss
-
-                # Log metric loss occasionally
-                if self.state.global_step % 100 == 0:
-                    logger.info(f"Step {self.state.global_step}: CE Loss={outputs.loss:.4f}, "
-                              f"ROUGE-L F1={rouge_l_f1:.4f}, Total Loss={loss:.4f}")
-            except Exception as e:
-                logger.warning(f"Could not compute metric loss: {e}")
-
-        return (loss, outputs) if return_outputs else loss
 
 # ==================== Dataset Class ====================
 class ImageFirstDataset(Dataset):
@@ -189,7 +146,6 @@ def main(args):
     logger.info("\nInitializing improved model with LoRA...")
     model = ImprovedMedicalVLM(
         vision_encoder_path=args.vision_encoder_path,
-        bert_model_name=args.bert_model_name,
         lora_rank=args.lora_rank,
         lora_alpha=args.lora_alpha,
         vit_layers_to_adapt=args.vit_layers_to_adapt
@@ -231,9 +187,9 @@ def main(args):
         num_train_epochs=args.num_epochs,
 
         # Batch size (keeping same as requested)
-        per_device_train_batch_size=8,
-        per_device_eval_batch_size=8,
-        gradient_accumulation_steps=4,  # Effective batch size = 32
+        per_device_train_batch_size=4,
+        per_device_eval_batch_size=4,
+        gradient_accumulation_steps=8,  # Effective batch size = 32
 
         # Learning rate (IMPROVED)
         learning_rate=1e-5,  # Lower than before (was 5e-5)
@@ -277,8 +233,6 @@ def main(args):
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=val_dataset,
-        use_metric_loss=args.use_metric_loss,
-        metric_weight=args.metric_weight,
         callbacks=[
             EarlyStoppingCallback(
                 early_stopping_patience=5,
@@ -308,10 +262,7 @@ if __name__ == '__main__':
     parser.add_argument('--vision_encoder_path', type=str,
                        default='/home/muhammedg/fvlm/checkpoints/model.pth',
                        help='Path to pretrained vision encoder')
-    parser.add_argument('--bert_model_name', type=str,
-                       default='/home/muhammedg/fvlm/BiomedVLP-CXR-BERT-specialized',
-                       help='BERT model path')
-
+    
     # LoRA config
     parser.add_argument('--lora_rank', type=int, default=8,
                        help='LoRA rank (higher = more capacity, more parameters)')
@@ -335,12 +286,6 @@ if __name__ == '__main__':
                        help='Output directory')
     parser.add_argument('--num_epochs', type=int, default=10,
                        help='Number of training epochs')
-
-    # Metric loss config
-    parser.add_argument('--use_metric_loss', action='store_true',
-                       help='Use NLP metrics (ROUGE) to augment loss')
-    parser.add_argument('--metric_weight', type=float, default=0.1,
-                       help='Weight for metric-based loss component')
 
     args = parser.parse_args()
     main(args)

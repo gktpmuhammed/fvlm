@@ -59,8 +59,8 @@ class BlipCaptionProcessor(BaseProcessor):
             caption = caption.rstrip("\n")
             caption = caption.strip(" ")
 
-            if caption and caption[-1] != '。':
-                caption += '。'
+            if caption and caption[-1] != '':
+                caption += ''
 
             captions[organ] = caption
 

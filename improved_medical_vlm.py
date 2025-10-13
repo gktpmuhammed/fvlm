@@ -1,15 +1,14 @@
 """
-Improved Medical VLM with LoRA for Vision Encoder
+Improved Medical VLM with LoRA for Vision Encoder + BioGPT Decoder
 - LoRA adapters on last 4-6 layers of ViT
-- Fixed BERT decoder (for now)
+- BioGPT decoder (medical domain pretrained)
 - Better training configuration
 - NLP metrics for loss computation
-- HANDLES MULTIPLE CHECKPOINT FORMATS
 """
 
 import torch
 import torch.nn as nn
-from transformers import BertConfig, BertModel, BertLMHeadModel, AutoTokenizer
+from transformers import BioGptConfig, BioGptForCausalLM, BioGptTokenizer
 from torch.utils.data import Dataset
 import pandas as pd
 from PIL import Image
@@ -137,7 +136,7 @@ class ImprovedMedicalVLM(nn.Module):
     def __init__(
         self, 
         vision_encoder_path, 
-        bert_model_name="/home/muhammedg/fvlm/BiomedVLP-CXR-BERT-specialized",
+        decoder_model_name="microsoft/biogpt",
         lora_rank=8,
         lora_alpha=16,
         vit_layers_to_adapt=4  # Adapt last N layers
@@ -218,69 +217,100 @@ class ImprovedMedicalVLM(nn.Module):
             alpha=lora_alpha
         )
 
-        # 2. Load BERT decoder (keeping frozen for now as requested)
-        print("Loading BERT decoder...")
-        self.tokenizer = AutoTokenizer.from_pretrained(bert_model_name)
-        bert_config = BertConfig.from_pretrained(bert_model_name)
-        bert_config.is_decoder = True
-        bert_config.add_cross_attention = True
+        # 2. Load BioGPT decoder
+        print("Loading BioGPT decoder...")
+        self.tokenizer = BioGptTokenizer.from_pretrained(decoder_model_name)
 
-        self.decoder = BertLMHeadModel.from_pretrained(
-            bert_model_name,
-            config=bert_config,
+        biogpt_config = BioGptConfig.from_pretrained(decoder_model_name)
+        biogpt_config.is_decoder = True
+        biogpt_config.add_cross_attention = True
+
+        self.decoder = BioGptForCausalLM.from_pretrained(
+            decoder_model_name,
+            config=biogpt_config,
             ignore_mismatched_sizes=True
         )
 
-        # Freeze BERT decoder
+        # Freeze BioGPT decoder
         for param in self.decoder.parameters():
             param.requires_grad = False
 
-        # Unfreeze cross-attention layers
-        for layer in self.decoder.bert.encoder.layer:
-            if hasattr(layer, 'crossattention'):
-                for param in layer.crossattention.parameters():
-                    param.requires_grad = True
+        # Unfreeze cross-attention layers in BioGPT
+        # BioGPT has: self.decoder.biogpt.layers (list of decoder layers)
+        if hasattr(self.decoder, 'biogpt') and hasattr(self.decoder.biogpt, 'layers'):
+            print("Unfreezing cross-attention layers in BioGPT...")
+            for layer in self.decoder.biogpt.layers:
+                if hasattr(layer, 'encoder_attn'):  # Cross-attention layer
+                    for param in layer.encoder_attn.parameters():
+                        param.requires_grad = True
+                    print(f"  Unfroze encoder_attn in layer")
+        else:
+            print("Warning: Could not find BioGPT layers for cross-attention unfreezing")
 
-        # 3. Enhanced trainable projection layer
+        # NEW: Resampler to reduce number of visual tokens
+        self.visual_resampler = nn.AdaptiveAvgPool1d(512)
+
+        # 3. Projection layer: 768 (ViT) -> 1024 (BioGPT hidden size)
+        vit_dim = 768
+        biogpt_dim = biogpt_config.hidden_size  # 1024 for BioGPT
+
         self.projection = nn.Sequential(
-            nn.Linear(768, 1536),
-            nn.LayerNorm(1536),
+            nn.Linear(vit_dim, biogpt_dim * 2),
+            nn.LayerNorm(biogpt_dim * 2),
             nn.GELU(),
             nn.Dropout(0.1),
-            nn.Linear(1536, 768),
-            nn.LayerNorm(768)
+            nn.Linear(biogpt_dim * 2, biogpt_dim),
+            nn.LayerNorm(biogpt_dim)
         )
 
-        print("Model initialized with:")
+        print("\nModel initialized:")
         trainable_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
         total_params = sum(p.numel() for p in self.parameters())
         print(f"  Trainable parameters: {trainable_params:,}")
         print(f"  Total parameters: {total_params:,}")
         print(f"  Percentage trainable: {100 * trainable_params / total_params:.2f}%")
 
-    def forward(self, images, input_ids, attention_mask, labels=None):
-        # Encode images
-        visual_features = self.vision_encoder(images)
+    def forward(self, images=None, input_ids=None, attention_mask=None, labels=None, prompt_embeds=None):
+        # Handle generation case where we pass pre-computed prompt embeddings
+        if prompt_embeds is not None:
+            text_embeds = self.decoder.biogpt.embed_tokens(input_ids)
+            inputs_embeds = torch.cat([prompt_embeds, text_embeds], dim=1)
+            visual_attention_mask = torch.ones(prompt_embeds.shape[:2], dtype=torch.long, device=prompt_embeds.device)
+            attention_mask = torch.cat([visual_attention_mask, attention_mask], dim=1)
+            
+            # During generation, we don't have visual_labels
+            if labels is not None:
+                visual_labels = torch.full(prompt_embeds.shape[:2], -100, dtype=torch.long, device=prompt_embeds.device)
+                labels = torch.cat([visual_labels, labels], dim=1)
 
+            return self.decoder(
+                inputs_embeds=inputs_embeds,
+                attention_mask=attention_mask,
+                labels=labels,
+                return_dict=True
+            )
+
+        # Handle training/evaluation case
+        visual_features = self.vision_encoder(images)
         if isinstance(visual_features, tuple):
             visual_features = visual_features[0]
-        encoder_hidden_states = self.projection(visual_features)
+        
+        resampled_features = self.visual_resampler(visual_features.permute(0, 2, 1)).permute(0, 2, 1)
+        projected_features = self.projection(resampled_features)
 
-        # Create encoder attention mask
-        batch_size = encoder_hidden_states.size(0)
-        seq_len = encoder_hidden_states.size(1)
-        encoder_attention_mask = torch.ones(
-            batch_size, seq_len,
-            dtype=torch.long,
-            device=encoder_hidden_states.device
-        )
+        text_embeds = self.decoder.biogpt.embed_tokens(input_ids)
+        inputs_embeds = torch.cat([projected_features, text_embeds], dim=1)
+        
+        visual_attention_mask = torch.ones(projected_features.shape[:2], dtype=torch.long, device=images.device)
+        combined_attention_mask = torch.cat([visual_attention_mask, attention_mask], dim=1)
 
-        # Decode with cross-attention
+        if labels is not None:
+            visual_labels = torch.full(projected_features.shape[:2], -100, dtype=torch.long, device=images.device)
+            labels = torch.cat([visual_labels, labels], dim=1)
+
         outputs = self.decoder(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_attention_mask,
+            inputs_embeds=inputs_embeds,
+            attention_mask=combined_attention_mask,
             labels=labels,
             return_dict=True
         )
@@ -290,57 +320,105 @@ class ImprovedMedicalVLM(nn.Module):
     def generate(
         self, 
         images, 
-        max_length=512, 
-        num_beams=5,
+        max_length=256, 
+        num_beams=1,  # Greedy for now (beam search is complex to implement)
         temperature=1.0,
-        repetition_penalty=2.0,  # IMPORTANT: prevents repetition
-        no_repeat_ngram_size=3,  # Prevents repeating 3-grams
+        repetition_penalty=1.5,
+        no_repeat_ngram_size=3,
         length_penalty=1.0,
-        early_stopping=True
+        early_stopping=True,
+        log_attention=False
     ):
-        """Generate text with anti-repetition mechanisms"""
+        """
+        Generate text with visual prefix - Manual implementation
+        BioGPT doesn't support inputs_embeds in .generate(), so we do it manually
+        """
         self.eval()
         with torch.no_grad():
-            # Encode images
+            batch_size = images.size(0)
+
+            # 1. Encode and project visual features
             visual_features = self.vision_encoder(images)
             if isinstance(visual_features, tuple):
                 visual_features = visual_features[0]
-            encoder_hidden_states = self.projection(visual_features)
 
-            batch_size = encoder_hidden_states.size(0)
-            seq_len = encoder_hidden_states.size(1)
-            encoder_attention_mask = torch.ones(
-                batch_size, seq_len,
-                dtype=torch.long,
-                device=encoder_hidden_states.device
-            )
+            resampled_features = self.visual_resampler(visual_features.permute(0, 2, 1)).permute(0, 2, 1)
+            visual_embeds = self.projection(resampled_features)
+            num_visual_tokens = visual_embeds.size(1)
 
-            # Start generation with [CLS] token
-            input_ids = torch.full(
+            # 2. Start with BOS token
+            generated_ids = torch.full(
                 (batch_size, 1),
-                self.tokenizer.cls_token_id,
+                self.tokenizer.bos_token_id,
                 dtype=torch.long,
                 device=images.device
             )
 
-            # Generate with improved decoding
-            generated = self.decoder.generate(
-                input_ids=input_ids,
-                encoder_hidden_states=encoder_hidden_states,
-                encoder_attention_mask=encoder_attention_mask,
-                max_length=max_length,
-                num_beams=num_beams,
-                temperature=temperature,
-                repetition_penalty=repetition_penalty,  # Key for preventing collapse
-                no_repeat_ngram_size=no_repeat_ngram_size,  # Prevents n-gram repetition
-                length_penalty=length_penalty,
-                early_stopping=early_stopping,
-                pad_token_id=self.tokenizer.pad_token_id,
-                eos_token_id=self.tokenizer.sep_token_id,
-                bos_token_id=self.tokenizer.cls_token_id,
-            )
+            # 3. Manual autoregressive generation
+            for step in range(max_length):
+                # Get text embeddings for current sequence
+                text_embeds = self.decoder.biogpt.embed_tokens(generated_ids)
 
-            return generated
+                # Concatenate visual prefix with text
+                combined_embeds = torch.cat([visual_embeds, text_embeds], dim=1)
+
+                # Create attention mask
+                seq_len = generated_ids.size(1)
+                combined_attention_mask = torch.ones(
+                    batch_size, num_visual_tokens + seq_len,
+                    dtype=torch.long,
+                    device=images.device
+                )
+
+                # Forward pass
+                outputs = self.decoder(
+                    inputs_embeds=combined_embeds,
+                    attention_mask=combined_attention_mask,
+                    return_dict=True,
+                    output_attentions=True
+                )
+
+                # Log attention weights if requested
+                if log_attention:
+                    # attentions is a tuple of (layer, batch, head, seq, seq)
+                    last_layer_attention = outputs.attentions[-1] # (batch, head, seq, seq)
+                    
+                    # We want attention from the LAST token to all previous tokens
+                    # The last token is the query
+                    attention_from_last_token = last_layer_attention[:, :, -1, :] # (batch, head, seq)
+                    
+                    # Average across heads
+                    attention_from_last_token = attention_from_last_token.mean(dim=1) # (batch, seq)
+                    
+                    # Attention to visual prefix (first N tokens)
+                    attention_to_visual = attention_from_last_token[:, :num_visual_tokens].sum(dim=1) # (batch)
+
+                    print(f"[Step {step}] Attention to visual prefix: {attention_to_visual.item():.4f}")
+
+                # Get next token logits (from the last position)
+                next_token_logits = outputs.logits[:, -1, :]
+
+                # Apply temperature
+                if temperature != 1.0:
+                    next_token_logits = next_token_logits / temperature
+
+                # Apply repetition penalty
+                if repetition_penalty != 1.0:
+                    for i in range(batch_size):
+                        for token_id in set(generated_ids[i].tolist()):
+                            next_token_logits[i, token_id] /= repetition_penalty
+
+                # Get next token (greedy)
+                next_tokens = torch.argmax(next_token_logits, dim=-1, keepdim=True)
+
+                # Append to generated sequence
+                generated_ids = torch.cat([generated_ids, next_tokens], dim=1)
+
+                # Check for EOS token (early stopping)
+                if early_stopping and (next_tokens == self.tokenizer.eos_token_id).all():
+                    break
+
+            return generated_ids
 
 
 # ==================== Dataset (unchanged) ====================
