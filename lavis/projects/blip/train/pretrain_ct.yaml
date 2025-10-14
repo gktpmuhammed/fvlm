@@ -27,9 +27,9 @@ datasets:
         val:
           storage: annotations.json
       images:
-        storage: /home/muhammedg/fvlm/data/images/train
+        storage: /home/muhammedg/fvlm/data/train/images/train
       val_images:
-        storage: /home/muhammedg/fvlm/data/valid/images
+        storage: /home/muhammedg/fvlm/data/valid/images/valid
     vis_processor:
         train:
           name: "fvlm_image_train"

@@ -19,7 +19,7 @@ def create_image_first_dataset():
     val_csv_path = "/home/muhammedg/fvlm/data/dataset/radiology_text_reports/validation_reports.csv"
     train_csv_path = "/home/muhammedg/fvlm/data/dataset/radiology_text_reports/train_reports.csv"
     val_img_dir = "/home/muhammedg/fvlm/data/valid/images/valid"
-    train_img_dir = "/home/muhammedg/fvlm/data/images/train"
+    train_img_dir = "/home/muhammedg/fvlm/data/train/images/train"
     
     # Load CSV files
     print("Loading CSV files...")

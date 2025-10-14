@@ -224,7 +224,7 @@ class MedicalReportDataset(Dataset):
             nested_path = f"{parts[0]}_{parts[1]}/{parts[0]}_{parts[1]}_{parts[2]}/{volume_name}"
             # Check which split this is based on the CSV path
             if 'train_reports' in str(self.csv_path):
-                image_path = os.path.join(self.images_root, "images/train", nested_path)
+                image_path = os.path.join(self.images_root, "train/images/train", nested_path)
             else:
                 image_path = os.path.join(self.images_root, "valid/images/valid", nested_path)
         else:
@@ -234,7 +234,7 @@ class MedicalReportDataset(Dataset):
         if not os.path.exists(image_path):
             # Try without nested structure
             if 'train_reports' in str(self.csv_path):
-                alt_path = os.path.join(self.images_root, "images/train", volume_name)
+                alt_path = os.path.join(self.images_root, "train/images/train", volume_name)
             else:
                 alt_path = os.path.join(self.images_root, "valid/images/valid", volume_name)
             
