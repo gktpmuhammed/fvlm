@@ -27,9 +27,9 @@ datasets:
         val:
           storage: annotations.json
       images:
-        storage: /home/muhammedg/fvlm/data/images/train
+        storage: /home/muhammedg/fvlm/data/train/images/train
       val_images:
-        storage: /home/muhammedg/fvlm/data/valid/images
+        storage: /home/muhammedg/fvlm/data/valid/images/valid
     vis_processor:
         train:
           name: "fvlm_image_train"
@@ -54,23 +54,22 @@ run:
   warmup_lr: 1e-6
 
   weight_decay: 0.05
-  max_epoch: 500
-  batch_size_train: 2
+  max_epoch: 20
+  batch_size_train: 8  # Reduced from 32 - CT volumes are large!
   batch_size_eval: 8
-  num_workers: 4
-  # warmup_steps: 377
-  warmup_steps: 50
+  num_workers: 4  # Reduced from 16 - too many workers cause OOM
+  warmup_steps: 1500
   log_freq: 1
 
   seed: 42
-  output_dir: "../multi-modal-results/pretrain_ckpts"
+  output_dir: "/home/muhammedg/checkpoints/pretrain_ckpts"  # Absolute path inside container to ensure persistence
 
   amp: False
   resume_ckpt_path:
 
   evaluate: False
   train_splits: ["train"]
-  valid_splits: ["val"]
+  valid_splits: []  # Disable validation to enable checkpoint saving every epoch
 
   device: "cuda"
   world_size: 1

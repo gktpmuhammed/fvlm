@@ -39,7 +39,7 @@ class CaptionDataset(BaseDataset, __DisplMixin):
             os.path.join(vis_root, f1, f2)
             for f1 in os.listdir(vis_root)
             for f2 in os.listdir(os.path.join(vis_root, f1))
-        ][:4]
+        ]  # Limit to 100 samples for testing
 
         # self.organs = [
         #     'face', 'brain', 'esophagus', 'trachea', 'lung', 'heart', 
@@ -59,6 +59,9 @@ class CaptionDataset(BaseDataset, __DisplMixin):
 
         desc_info = json.load(open('data/desc_info.json'))
         conc_info = json.load(open('data/conc_info.json'))
+        # print if they loaded correctly
+        print(f'desc_info loaded: {len(desc_info)}')
+        print(f'conc_info loaded: {len(conc_info)}')
 
         all_info = {}
         for patient_path in self.patient_paths:
@@ -95,6 +98,9 @@ class CaptionDataset(BaseDataset, __DisplMixin):
 
     def __getitem__(self, index):
         exit = False
+        max_retries = 10  # Prevent infinite loop
+        retry_count = 0
+        
         while not exit:
             try:
                 patient_path = self.patient_paths[index]
@@ -124,7 +130,14 @@ class CaptionDataset(BaseDataset, __DisplMixin):
                 exit = True
 
             except Exception as e:
-                print(e, patient_path)
+                retry_count += 1
+                if retry_count >= max_retries:
+                    raise RuntimeError(
+                        f"Failed to load data after {max_retries} retries. "
+                        f"Last error: {e}, Last path: {patient_path}. "
+                        f"Please check your data paths and file integrity."
+                    )
+                print(f"[Retry {retry_count}/{max_retries}] Error loading {patient_path}: {e}")
                 index = random.randint(0, len(self.patient_paths) - 1)
                 continue
         

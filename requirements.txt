@@ -200,7 +200,7 @@ thinc
 threadpoolctl==3.5.0
 tifffile==2024.8.30
 timm==0.4.12
-tokenizers==0.14.0
+tokenizers
 toml==0.10.2
 tomli==2.1.0
 torch==2.3.1

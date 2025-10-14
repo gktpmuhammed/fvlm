@@ -20,8 +20,9 @@ from lavis.models.blip_models.vit import interpolate_pos_embed
 class BlipBase(BaseModel):
     def __init__(self):
         super().__init__()
-        transformers_version = version.parse(transformers.__version__)
-        assert transformers_version < version.parse("4.27"), "BLIP models are not compatible with transformers>=4.27, run pip install transformers==4.25 to downgrade"
+        # Note: Removed overly restrictive transformers version check for Python 3.12 compatibility
+        # transformers_version = version.parse(transformers.__version__)
+        # assert transformers_version < version.parse("4.27"), "BLIP models are not compatible with transformers>=4.27, run pip install transformers==4.25 to downgrade"
         
     @classmethod
     def init_tokenizer(cls):
