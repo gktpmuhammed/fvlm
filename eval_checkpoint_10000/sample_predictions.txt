@@ -1,0 +1,38 @@
+Sample Predictions (first 5):
+================================================================================
+
+Sample 1:
+Prediction: 
+Trachea, both main bronchi are open. Mediastinal major vascular structures and heart contour size were normal in the non-contrast examination. Thoracic aortas, trifid arteries, carotids, esophagus, subcarina, mediastinum heights have no pathological wall thickening or edema. Peribronchial soft tissue changes are observed at the level of lymph nodes under evaluation within his upper arm; No enlarged lymph node was detected in prevascular, prevascular, bilateral hilar-axillary pathological dimensions as far as can be seen inside the sections passing through the middle segment. When examined in the lung parenchyma window; A nonspecific nodule is
+Reference: Trachea and lumen of both main bronchi are open. No occlusive pathology was detected in the trachea and lumen of both main bronchi. Mediastinal structures were evaluated as suboptimal since the examin...
+
+--------------------------------------------------------------------------------
+
+Sample 2:
+Prediction: 
+Trachea and both main bronchi are open. No occlusive pathology was detected in the trachoma, lumen of which is narrow at its apex. Mediastinal major vascular structures were evaluated as suboptimal since they have a natural appearance when examined without contrast material; Heart contour size increased with age. Pericardial effusion-thickening was not observed. Thoracic esophagus calibration could be reviewed optimally because no significant pathological wall thickener or mass was found therein. There are millimetric nodules on each side of the right lung upper lobe lower lobule that measure approximately 3 mm across (inferior segment). The density increases gradually from left to center within this area until
+Reference: Trachea, both main bronchi are open. Calcific atheroma plaques are observed in the aortic arch and descending aorta. Mediastinal main vascular structures, heart contour, size are normal. Thoracic aort...
+
+--------------------------------------------------------------------------------
+
+Sample 3:
+Prediction: 
+Trachea, both main bronchi are open. Mediastinal major vascular structures and heart contour size were normal in the non-contrast examination. Thoracic aortasprings measured 4 mm larger than average. Peribronchial thickening was not observed. Calibrations of mediastinum bone density values are natural. No enlarged lymph nodes in prevascular, prevascular or bilateral hilar-axillary pathological dimensions were detected. When examined in the lung parenchyma window; A nonspecific nodule is present at right upper lobe level 2 on the left side (upper lobular segment). It measures approximately 3 cm long with an area width less that 1 millimeter across its perimeter.
+Reference: In the thyroid gland, both lobes are observed to be larger than normal. If necessary, USG examination is recommended. CTO is normal. Mediastinal main vascular structures, heart contour, size are norma...
+
+--------------------------------------------------------------------------------
+
+Sample 4:
+Prediction: 
+Trachea and both main bronchi are open. No occlusive pathology was detected in the trachoma, lumen of which is narrow at its apex (0.5 mm). There were no mass or infiltration observed on examination within mediastinum that can be evaluated as suboptimal pathological appearance. Calibration of thoracic major vascular structures has a natural look. Heart contour size increased by 4 cm from previous examinations; The diameter of left ventricular outflow tract is larger than normal. Peri-cardiac thickening with an irregular shape up to 0.8 inches long was found near the anterior wall of right coronary artery. Thoracoabdominal organs included in the sections cannot be assessed optimally
+Reference: Trachea, both main bronchi are open. Heart size, contour, configuration are natural. Mediastinal main vascular structures are natural. In the mediastinum, prevascular, preparatracheal, and calcific ly...
+
+--------------------------------------------------------------------------------
+
+Sample 5:
+Prediction: 
+Trachea, both main bronchi are open. Mediastinal major vascular structures and heart contour were normal in the non-contrast examination. Thoracic aortas, trifid arteries, coronary vasculature measurements were natural. Peritoneum was not observed within the cross sectional image. No enlarged lymph nodes in prevascular, pre-paratracharatic, subcarinic or bilateral hilar pathological dimensions were detected. When examined in the lung parenchyma window; There is an increase of ground glass density (GGD) at least 1 mm thick on each side with no significant difference between upper lobe segments 6 to 7 millimeters apart from one another as far back into mediobronch
+Reference: Trachea, both main bronchi are open. Mediastinal main vascular structures, heart contour, size are normal. Thoracic aorta diameter is normal. Pericardial effusion-thickening was not observed. Thoracic...
+
+--------------------------------------------------------------------------------
+

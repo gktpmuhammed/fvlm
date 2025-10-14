@@ -22,3 +22,7 @@ log.txt
 *.log
 
 report_generations/
+outputs/
+checkpoints/
+blip2_official_full/
+blip2_official_full_512_length/

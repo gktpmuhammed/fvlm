@@ -27,12 +27,14 @@ class BlipReportGeneration(BaseModel):
         image_encoder,
         text_decoder,
         max_txt_len=256,
+        use_autoregressive_training=False,
     ):
         super().__init__()
 
         self.visual_encoder = image_encoder
         self.text_decoder = text_decoder
         self.max_txt_len = max_txt_len
+        self.use_autoregressive_training = use_autoregressive_training
         
         # Initialize tokenizer
         self.tokenizer = self.init_tokenizer()
@@ -48,8 +50,18 @@ class BlipReportGeneration(BaseModel):
     def forward(self, samples):
         """
         Forward pass for training: Image → Vision Encoder → Text Decoder
-        Uses proper autoregressive training with teacher forcing.
+        Can use either teacher forcing or autoregressive training.
         """
+        # Add training mode parameter (can be set via config)
+        use_autoregressive_training = getattr(self, 'use_autoregressive_training', False)
+        
+        if use_autoregressive_training:
+            return self._forward_autoregressive(samples)
+        else:
+            return self._forward_teacher_forcing(samples)
+    
+    def _forward_teacher_forcing(self, samples):
+        """Original teacher forcing training"""
         image = samples["image"]
         text_input = samples["text_input"]  # Target text (findings + impressions)
         
@@ -69,10 +81,6 @@ class BlipReportGeneration(BaseModel):
         image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(
             image_embeds.device
         )
-        
-        # Prepare decoder input and targets for autoregressive training
-        # Input: [CLS] + target[:-1] (shifted right for teacher forcing)
-        # Labels: target[1:] (what we want to predict)
         
         batch_size = text.input_ids.size(0)
         
@@ -106,6 +114,94 @@ class BlipReportGeneration(BaseModel):
         )
         
         return {"loss": decoder_output.loss}
+    
+    def _forward_autoregressive(self, samples):
+        """Autoregressive training - matches inference behavior"""
+        image = samples["image"]
+        text_input = samples["text_input"]  # Target text (findings + impressions)
+        
+        # Encode image
+        image_embeds, _ = self.visual_encoder(image)
+        
+        # Tokenize target text
+        text = self.tokenizer(
+            text_input,
+            padding="longest",
+            truncation=True,
+            max_length=self.max_txt_len,
+            return_tensors="pt",
+        ).to(image_embeds.device)
+        
+        batch_size = image.size(0)
+        device = image.device
+        
+        # Start with CLS token for each sample
+        generated_ids = torch.full(
+            (batch_size, 1), 
+            self.tokenizer.cls_token_id, 
+            dtype=torch.long, 
+            device=device
+        )
+        
+        # Create attention mask for image embeddings
+        image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(device)
+        
+        total_loss = 0.0
+        num_tokens = 0
+        
+        # Generate tokens one by one (like in inference)
+        max_length = min(self.max_txt_len, text.input_ids.size(1))
+        
+        for step in range(max_length - 1):  # -1 because we start with CLS
+            # Create attention mask for current sequence
+            attention_mask = torch.ones_like(generated_ids)
+            
+            # Forward pass to get next token logits
+            decoder_output = self.text_decoder(
+                generated_ids,
+                attention_mask=attention_mask,
+                encoder_hidden_states=image_embeds,
+                encoder_attention_mask=image_atts,
+                return_dict=True,
+            )
+            
+            # Get logits for next token prediction
+            next_token_logits = decoder_output.logits[:, -1, :]  # [batch_size, vocab_size]
+            
+            # Get target tokens for this step
+            if step + 1 < text.input_ids.size(1):
+                target_tokens = text.input_ids[:, step + 1]  # Next token in ground truth
+                
+                # Compute loss for this step
+                loss_fn = torch.nn.CrossEntropyLoss(ignore_index=self.tokenizer.pad_token_id)
+                step_loss = loss_fn(next_token_logits, target_tokens)
+                
+                # Only add to loss if not padding
+                valid_mask = (target_tokens != self.tokenizer.pad_token_id)
+                if valid_mask.any():
+                    total_loss += step_loss * valid_mask.float().mean()
+                    num_tokens += 1
+                
+                # Use ground truth for next input (can be changed to use predictions)
+                next_tokens = target_tokens.unsqueeze(1)
+            else:
+                # Beyond ground truth length, stop
+                break
+            
+            # Append next token to sequence
+            generated_ids = torch.cat([generated_ids, next_tokens], dim=1)
+            
+            # Stop if all sequences hit SEP token
+            if (next_tokens.squeeze() == self.tokenizer.sep_token_id).all():
+                break
+        
+        # Average loss over all tokens
+        if num_tokens > 0:
+            avg_loss = total_loss / num_tokens
+        else:
+            avg_loss = torch.tensor(0.0, device=device, requires_grad=True)
+        
+        return {"loss": avg_loss}
 
     def generate(
         self,
@@ -126,10 +222,15 @@ class BlipReportGeneration(BaseModel):
         image_embeds, _ = self.visual_encoder(image)
         
         # Create prompt (start with CLS token)
-        prompt = [self.tokenizer.cls_token] * image.size(0)
-        prompt = self.tokenizer(prompt, return_tensors="pt").to(image.device)
-        prompt.input_ids[:, 0] = self.tokenizer.cls_token_id
-        prompt.input_ids = prompt.input_ids[:, :-1]  # Remove last token
+        batch_size = image.size(0)
+        prompt_ids = torch.full((batch_size, 1), self.tokenizer.cls_token_id, dtype=torch.long, device=image.device)
+        
+        # Create tokenizer-like object for compatibility
+        class PromptTokens:
+            def __init__(self, input_ids):
+                self.input_ids = input_ids
+                
+        prompt = PromptTokens(prompt_ids)
         
         # Generate text
         outputs = self.text_decoder.generate_from_encoder(
@@ -192,11 +293,13 @@ class BlipReportGeneration(BaseModel):
         text_decoder = XBertLMHeadDecoder.from_config(cfg, from_pretrained=True)
 
         max_txt_len = cfg.get("max_txt_len", 256)
+        use_autoregressive_training = cfg.get("use_autoregressive_training", False)
 
         model = cls(
             image_encoder=image_encoder,
             text_decoder=text_decoder,
             max_txt_len=max_txt_len,
+            use_autoregressive_training=use_autoregressive_training,
         )
 
         return model
