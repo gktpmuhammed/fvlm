@@ -15,7 +15,6 @@ from collections.abc import Sequence
 
 import torch
 import torch.nn as nn
-from functools import partial
 
 from lavis.models.blip_models.patchembedding import PatchEmbeddingBlock
 from lavis.models.blip_models.transformerblock import TransformerBlock
@@ -145,10 +144,3 @@ class ViT(nn.Module):
         
         outs.append(x)
         return x, outs
-
-
-def interpolate_pos_embed(pos_embed_checkpoint, visual_encoder):
-    # For this model architecture, we'll just return the checkpoint as-is
-    # The position embeddings are handled by the PatchEmbeddingBlock
-    print(f"Loading position embeddings with shape: {pos_embed_checkpoint.shape}")
-    return pos_embed_checkpoint

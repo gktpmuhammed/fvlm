@@ -87,7 +87,6 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
         self.visual_encoder = image_encoder
 
         self.text_encoder = text_encoder
-        self.text_decoder = text_decoder
 
         # creating projection layers for ITC
         text_width = text_encoder.config.hidden_size
@@ -124,48 +123,30 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
         return min(1, (epoch * num_iters_per_epoch + iters) / (2 * num_iters_per_epoch))
 
     def forward(self, samples):
-        # Route to appropriate forward method based on task
-        if "text_input" not in samples:
-            # Generation mode (no text targets provided)
-            return self.generate(samples)
-        
-        # Check if this is report generation training
-        mode = samples.get("mode", "contrastive")
-        if mode == "generation" or "seg" not in samples:
-            # Report generation training mode
-            return self.forward_report_generation(samples)
-        
-        # Default: Contrastive learning mode
-        return self.forward_contrastive(samples)
-    
-    def forward_contrastive(self, samples):
-        """Organ-aware contrastive learning forward pass"""
         image = samples["image"]
         seg = samples["seg"]
 
         with torch.no_grad():
             organ_mask_flags = torch.zeros(len(seg), len(self.organs), dtype=bool, device=seg.device)
             for i, pul_seg in enumerate(seg):
+                boundaries = [
+                    pul_seg[0], pul_seg[-1],
+                    pul_seg[:, 0], pul_seg[:, -1],
+                    pul_seg[:, :, 0], pul_seg[:, :, -1]
+                ]
+                
+                non_zero_boundaries = [b[b != 0].flatten() for b in boundaries]
+                boundary_values = torch.cat(non_zero_boundaries)
+                boundary_organs = torch.unique(boundary_values)
+
                 organ_ids, organ_counts = torch.unique(pul_seg, return_counts=True)
+                organ_ids = organ_ids[organ_ids > 0]
                 
-                # Filter out background (id=0) from both arrays simultaneously
-                valid_mask = organ_ids > 0
-                organ_ids = organ_ids[valid_mask]
-                organ_counts = organ_counts[valid_mask]
-                
-                #TODO: instread of voxel count filtering, remove the orgons that are not fully present in the image
-                # Use voxel count threshold instead of boundary detection
-                # Only exclude organs with very few voxels (mostly cropped out)
-                intact_organ_ids = []
-                for idx, organ_id in enumerate(organ_ids):
-                    organ_voxel_count = organ_counts[idx].item()
-                    # Keep organs with at least 100 voxels (meaningful presence)
-                    if organ_voxel_count >= 100:
-                        intact_organ_ids.append(organ_id)
-                
-                if intact_organ_ids:
-                    intact_organ_ids = torch.tensor(intact_organ_ids).long()
-                    organ_mask_flags[i][intact_organ_ids - 1] = True
+                # remove incomplete organs caused by random crop.
+                intact_organ_ids = [organ_id for organ_id in organ_ids if organ_id not in boundary_organs]
+                intact_organ_ids = torch.tensor(intact_organ_ids).long()
+                    
+                organ_mask_flags[i][intact_organ_ids - 1] = True
 
         organ_captions = samples["text_input"]
         organ_abnormal_flags = samples["organ_abnormal_flags"]
@@ -182,7 +163,6 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
                 if not len(inds):
                     continue
                 
-                # Since preprocessing merges labels to 1-24 range, create masks directly
                 masks = torch.stack(
                     [torch.eq(seg[i], organ_id + 1) for organ_id in inds], dim=0).float()
 
@@ -342,107 +322,6 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
             organ_wise_loss_itm=organ_wise_loss_itm
         )
     
-    def forward_report_generation(self, samples):
-        """
-        Report generation forward pass: Vision Encoder → Text Decoder
-        Target: Combined findings + impressions text
-        """
-        image = samples["image"]
-        text_input = samples["text_input"]  # Combined findings + impressions
-        
-        # Encode image with vision encoder
-        image_embeds, _ = self.visual_encoder(image)
-        
-        # Tokenize target text (findings + impressions)
-        text = self.tokenizer(
-            text_input,
-            padding="longest",
-            truncation=True,
-            max_length=self.max_txt_len,
-            return_tensors="pt",
-        ).to(image_embeds.device)
-        
-        # Create attention mask for image embeddings
-        image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(
-            image_embeds.device
-        )
-
-        # Create decoder targets (mask padding tokens)
-        decoder_targets = text.input_ids.masked_fill(
-            text.input_ids == self.tokenizer.pad_token_id, -100
-        )
-
-        # Forward pass through text decoder with cross-attention to image
-        decoder_output = self.text_decoder(
-            text.input_ids,
-            attention_mask=text.attention_mask,
-            encoder_hidden_states=image_embeds,
-            encoder_attention_mask=image_atts,
-            labels=decoder_targets,
-            return_dict=True,
-        )
-
-        # Return in the format expected by the task
-        return {
-            "loss": decoder_output.loss,
-            "decoder_output": decoder_output
-        }
-    
-    def generate(
-        self,
-        samples,
-        use_nucleus_sampling=False,
-        num_beams=3,
-        max_length=100,
-        min_length=10,
-        top_p=0.9,
-        repetition_penalty=1.0,
-    ):
-        """
-        Generate medical reports from CT images
-        
-        Args:
-            samples (dict): A dictionary containing the following keys:
-                - image (torch.Tensor): A tensor of shape (batch_size, C, D, H, W)
-            use_nucleus_sampling (bool): Whether to use nucleus sampling. If False, use beam search.
-            num_beams (int): Number of beams for beam search. 1 means no beam search.
-            max_length (int): The maximum length of the sequence to be generated.
-            min_length (int): The minimum length of the sequence to be generated.
-            top_p (float): The cumulative probability for nucleus sampling.
-            repetition_penalty (float): The parameter for repetition penalty. 1.0 means no penalty.
-
-        Returns:
-            output_text (list of str): A list of generated medical reports.
-        """
-        image = samples["image"]
-        
-        # Encode image with vision encoder
-        image_embeds, _ = self.visual_encoder(image)
-
-        # Create prompt tokens (start with CLS token)
-        prompt = [self.tokenizer.cls_token] * image.size(0)
-        prompt = self.tokenizer(prompt, return_tensors="pt").to(image.device)
-        prompt.input_ids[:, 0] = self.tokenizer.cls_token_id
-        prompt.input_ids = prompt.input_ids[:, :-1]  # Remove last token
-        
-        # Generate text using the decoder
-        outputs = self.text_decoder.generate_from_encoder(
-            tokenized_prompt=prompt,
-            visual_embeds=image_embeds,
-            sep_token_id=self.tokenizer.sep_token_id,
-            pad_token_id=self.tokenizer.pad_token_id,
-            use_nucleus_sampling=use_nucleus_sampling,
-            num_beams=num_beams,
-            max_length=max_length,
-            min_length=min_length,
-            top_p=top_p,
-            repetition_penalty=repetition_penalty,
-        )
-
-        # Decode generated tokens to text
-        output_text = self.tokenizer.batch_decode(outputs, skip_special_tokens=True)
-        return output_text
-    
     # def get_roi_features(self, image_embeds, organ_token_flags, cl_patient_ids, cl_organ_id):
     #     query = self.query_tokens[cl_organ_id].unsqueeze(0).unsqueeze(0)
 
@@ -517,7 +396,7 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
         image_encoder = model
 
         text_encoder = XBertEncoder.from_config(cfg, from_pretrained=True)
-        text_decoder = XBertLMHeadDecoder.from_config(cfg, from_pretrained=True)
+        text_decoder = None
 
         alpha = cfg.get("alpha", 0.4)
         max_txt_len = cfg.get("max_txt_len", 250)

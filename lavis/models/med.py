@@ -65,9 +65,10 @@ class BertEmbeddings(nn.Module):
             config.max_position_embeddings, config.hidden_size
         )
 
-        self.token_type_embeddings = nn.Embedding(
-            config.type_vocab_size, config.hidden_size
-        )
+        if config.add_type_embeddings:
+            self.token_type_embeddings = nn.Embedding(
+                config.type_vocab_size, config.hidden_size
+            )
 
         # self.LayerNorm is not snake-cased to stick with TensorFlow model variable name and be able to load
         # any TensorFlow checkpoint file
@@ -552,11 +553,6 @@ class BertEncoder(nn.Module):
         elif mode == "multimodal":
             start_layer = 0
             output_layer = self.config.num_hidden_layers
-        
-        else:
-            # Default case for standalone generation or other modes
-            start_layer = 0
-            output_layer = self.config.num_hidden_layers
 
         # compatibility for ALBEF and BLIP
         # for i in range(self.config.num_hidden_layers):
@@ -609,15 +605,6 @@ class BertEncoder(nn.Module):
                 next_decoder_cache += (layer_outputs[-1],)
             if output_attentions:
                 all_self_attentions = all_self_attentions + (layer_outputs[1],)
-                
-                # Collect cross-attention outputs if they exist
-                if (self.config.add_cross_attention and 
-                    encoder_hidden_states is not None and 
-                    mode in ["multimodal", "fusion"] and 
-                    len(layer_outputs) > 2):
-                    # Cross-attention is typically at index 2 in the outputs
-                    if all_cross_attentions is not None:
-                        all_cross_attentions = all_cross_attentions + (layer_outputs[2],)
 
         if output_hidden_states:
             all_hidden_states = all_hidden_states + (hidden_states,)
@@ -1325,82 +1312,11 @@ class XBertLMHeadDecoder(BertLMHeadModel):
     In this way, different VL models can share this decoder as long as
     they feed encoder_embeds as required.
     """
-    
-    def forward(
-        self,
-        input_ids=None,
-        attention_mask=None,
-        token_type_ids=None,
-        position_ids=None,
-        head_mask=None,
-        inputs_embeds=None,
-        encoder_hidden_states=None,
-        encoder_attention_mask=None,
-        labels=None,
-        past_key_values=None,
-        use_cache=None,
-        output_attentions=None,
-        output_hidden_states=None,
-        return_dict=None,
-        **kwargs
-    ):
-        """
-        Override forward to use multimodal mode for cross-attention
-        """
-        return_dict = return_dict if return_dict is not None else self.config.use_return_dict
-
-        outputs = self.bert(
-            input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
-            position_ids=position_ids,
-            head_mask=head_mask,
-            inputs_embeds=inputs_embeds,
-            encoder_hidden_states=encoder_hidden_states,
-            encoder_attention_mask=encoder_attention_mask,
-            past_key_values=past_key_values,
-            use_cache=use_cache,
-            output_attentions=output_attentions,
-            output_hidden_states=output_hidden_states,
-            return_dict=return_dict,
-            mode="multimodal" if encoder_hidden_states is not None else None,  # KEY FIX!
-        )
-
-        sequence_output = outputs[0]
-        prediction_scores = self.cls(sequence_output)
-
-        lm_loss = None
-        if labels is not None:
-            # we are doing next-token prediction; shift prediction scores and input ids by one
-            shifted_prediction_scores = prediction_scores[:, :-1, :].contiguous()
-            labels = labels[:, 1:].contiguous()
-            loss_fct = CrossEntropyLoss()
-            lm_loss = loss_fct(shifted_prediction_scores.view(-1, self.config.vocab_size), labels.view(-1))
-
-        if not return_dict:
-            output = (prediction_scores,) + outputs[1:]
-            return ((lm_loss,) + output) if lm_loss is not None else output
-
-        return CausalLMOutputWithCrossAttentions(
-            loss=lm_loss,
-            logits=prediction_scores,
-            past_key_values=outputs.past_key_values,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
-            cross_attentions=outputs.cross_attentions,
-        )
 
     @classmethod
     def from_config(cls, cfg, from_pretrained=False):
         med_config_path = get_abs_path(cfg.get("med_config_path"))
-        med_config_path = med_config_path.replace('lavis', 'lavis/..')
         med_config = BertConfig.from_json_file(med_config_path)
-        
-        # CRITICAL FIX: Configure BERT as a decoder with cross-attention
-        med_config.is_decoder = True
-        med_config.add_cross_attention = True
-        med_config.encoder_width = 768  # Vision encoder output dimension
-        print(f"Configured BERT decoder: is_decoder={med_config.is_decoder}, add_cross_attention={med_config.add_cross_attention}, encoder_width={med_config.encoder_width}")
 
         if from_pretrained:
             try:
@@ -1440,7 +1356,6 @@ class XBertLMHeadDecoder(BertLMHeadModel):
         model_kwargs = {
             "encoder_hidden_states": visual_embeds,
             "encoder_attention_mask": image_atts,
-            "mode": "multimodal",  # CRITICAL FIX: Enable cross-attention during generation
         }
 
         if use_nucleus_sampling:

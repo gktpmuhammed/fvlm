@@ -32,7 +32,10 @@ class BlipCaptionProcessor(BaseProcessor):
         self.max_words = max_words
 
     def __call__(self, caption):
+        # the conc and desc are processed here
+        # caption = self.prompt + self.pre_caption(caption)
         caption = self.pre_caption(caption)
+
         return caption
 
     @classmethod
@@ -41,14 +44,11 @@ class BlipCaptionProcessor(BaseProcessor):
             cfg = OmegaConf.create()
 
         prompt = cfg.get("prompt", "")
-        max_words = cfg.get("max_words", 80)
+        max_words = cfg.get("max_words", 80)    # 注意
 
         return cls(prompt=prompt, max_words=max_words)
 
     def pre_caption(self, captions):
-        if isinstance(captions, str):
-            captions = {"caption": captions}
-            
         for (organ, caption) in captions.items():
 
             caption = re.sub(
@@ -59,8 +59,8 @@ class BlipCaptionProcessor(BaseProcessor):
             caption = caption.rstrip("\n")
             caption = caption.strip(" ")
 
-            if caption and caption[-1] != '':
-                caption += ''
+            if caption[-1] != '。':
+                caption += '。'
 
             captions[organ] = caption
 
@@ -91,6 +91,7 @@ class BlipQuestionProcessor(BaseProcessor):
         )
         question = question.rstrip(" ")
 
+        # truncate question
         question_words = question.split(" ")
         if len(question_words) > self.max_words:
             question = " ".join(question_words[: self.max_words])
@@ -127,6 +128,7 @@ class BlipImageTrainProcessor(BlipImageBaseProcessor):
         image_size = cfg.get("image_size", 384)
         mean = cfg.get("mean", None)
         std = cfg.get("std", None)
+
         min_scale = cfg.get("min_scale", 0.5)
         max_scale = cfg.get("max_scale", 1.0)
 
@@ -163,6 +165,7 @@ class BlipImageEvalProcessor(BlipImageBaseProcessor):
             cfg = OmegaConf.create()
 
         image_size = cfg.get("image_size", 384)
+
         mean = cfg.get("mean", None)
         std = cfg.get("std", None)
 
@@ -506,8 +509,10 @@ class Blip2ImageTrainProcessor(BlipImageBaseProcessor):
             cfg = OmegaConf.create()
 
         image_size = cfg.get("image_size", 364)
+
         mean = cfg.get("mean", None)
         std = cfg.get("std", None)
+
         min_scale = cfg.get("min_scale", 0.5)
         max_scale = cfg.get("max_scale", 1.0)
 

@@ -15,14 +15,12 @@ from lavis.common.utils import is_url
 from lavis.models.base_model import BaseModel
 from transformers import BertTokenizer
 import transformers
-from lavis.models.blip_models.vit import interpolate_pos_embed
 
 class BlipBase(BaseModel):
     def __init__(self):
         super().__init__()
-        # Note: Removed overly restrictive transformers version check for Python 3.12 compatibility
-        # transformers_version = version.parse(transformers.__version__)
-        # assert transformers_version < version.parse("4.27"), "BLIP models are not compatible with transformers>=4.27, run pip install transformers==4.25 to downgrade"
+        transformers_version = version.parse(transformers.__version__)
+        assert transformers_version < version.parse("4.27"), "BLIP models are not compatible with transformers>=4.27, run pip install transformers==4.25 to downgrade"
         
     @classmethod
     def init_tokenizer(cls):
@@ -41,13 +39,6 @@ class BlipBase(BaseModel):
             raise RuntimeError("checkpoint url or path is invalid")
 
         state_dict = checkpoint["model"]
-
-        if "visual_encoder.patch_embedding.position_embeddings" in state_dict:
-            state_dict["visual_encoder.pos_embed"] = state_dict.pop("visual_encoder.patch_embedding.position_embeddings")
-
-        # interpolate positional embedding
-        if "visual_encoder.pos_embed" in state_dict:
-            pos_embed_checkpoint = state_dict["visual_encoder.pos_embed"]
 
         state_dict["visual_encoder.pos_embed"] = interpolate_pos_embed(
             state_dict["visual_encoder.pos_embed"], self.visual_encoder

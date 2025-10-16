@@ -8,7 +8,6 @@
 from lavis.common.registry import registry
 from lavis.tasks.base_task import BaseTask
 from lavis.tasks.image_text_pretrain import ImageTextPretrainTask
-from lavis.tasks.report_generation import ReportGenerationTask
 
 
 def setup_task(cfg):
@@ -23,6 +22,5 @@ def setup_task(cfg):
 
 __all__ = [
     "BaseTask",
-    "ImageTextPretrainTask",
-    "ReportGenerationTask"
+    "ImageTextPretrainTask"
 ]
