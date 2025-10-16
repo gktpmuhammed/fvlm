@@ -224,17 +224,16 @@ class MedicalBLIP2Official(nn.Module):
         """
         batch_size = image.shape[0]
         device = image.device
-
+        
         # Get vision features
         image_output = self.visual_encoder(image)
         if isinstance(image_output, tuple):
             image_embeds = image_output[0]
         else:
             image_embeds = image_output
-
         image_embeds = image_embeds.float()
         image_atts = torch.ones(image_embeds.size()[:-1], dtype=torch.long).to(device)
-
+        
         # Q-Former
         query_tokens = self.query_tokens.expand(batch_size, -1, -1)
         query_output = self.Qformer(
@@ -243,31 +242,31 @@ class MedicalBLIP2Official(nn.Module):
             encoder_attention_mask=image_atts,
             return_dict=True,
         )
-
+        
         # Project
         inputs_opt = self.opt_proj(query_output.last_hidden_state)
         atts_opt = torch.ones(inputs_opt.size()[:-1], dtype=torch.long).to(device)
-
+        
         # Prompt
         if prompt is None:
             prompt = [self.prompt] * batch_size
         elif isinstance(prompt, str):
             prompt = [prompt] * batch_size
-
+        
         prompt_tokens = self.opt_tokenizer(
             prompt,
             return_tensors="pt",
             padding="longest",
             truncation=True,
         ).to(device)
-
+        
         prompt_embeds = self.opt_model.get_input_embeddings()(prompt_tokens.input_ids)
         prompt_atts = prompt_tokens.attention_mask
-
+        
         # Concatenate vision + prompt (prefix)
         prefix_embeds = torch.cat([inputs_opt, prompt_embeds], dim=1)
         prefix_atts = torch.cat([atts_opt, prompt_atts], dim=1)
-
+        
         # Simple greedy generation
         generated_ids = self._simple_greedy_generate(
             prefix_embeds=prefix_embeds,
@@ -278,12 +277,18 @@ class MedicalBLIP2Official(nn.Module):
             pad_token_id=self.opt_tokenizer.pad_token_id,
             repetition_penalty=repetition_penalty,
         )
-
+        
+        # FIX: Clip out-of-vocabulary token IDs before decoding
+        vocab_size = self.opt_tokenizer.vocab_size
+        generated_ids = torch.clamp(generated_ids, max=vocab_size - 1)
+        generated_ids[generated_ids >= vocab_size] = self.opt_tokenizer.unk_token_id
+        
         # Decode
         generated_texts = self.opt_tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
-
         return generated_texts
 
+
+    @torch.no_grad()
     def _simple_greedy_generate(
         self,
         prefix_embeds,
@@ -295,66 +300,62 @@ class MedicalBLIP2Official(nn.Module):
         repetition_penalty=1.0,
     ):
         """
-        Simplified greedy generation: Always use embeddings (full sequence)
-        Slower but more reliable - no attention mask issues
+        Simplified greedy generation. Always use embeddings (full sequence).
+        Slower but more reliable - no attention mask issues.
         """
         batch_size = prefix_embeds.shape[0]
         device = prefix_embeds.device
         embedding_layer = self.opt_model.get_input_embeddings()
-
-        # Start with empty generated
+        
         generated = []
         unfinished = torch.ones(batch_size, dtype=torch.long, device=device)
-
+        
         for step in range(max_length):
-            # Build current sequence embeddings
             if step == 0:
-                # First step: just prefix
                 cur_embeds = prefix_embeds
                 cur_atts = prefix_atts
             else:
-                # Subsequent: prefix + generated tokens
-                gen_ids = torch.stack(generated, dim=1)  # [B, step]
-                gen_embeds = embedding_layer(gen_ids)
+                gen_ids = torch.stack(generated, dim=1)
+                # FIX 1: Detach to prevent graph accumulation
+                gen_embeds = embedding_layer(gen_ids).detach()
                 gen_atts = torch.ones(gen_ids.shape, dtype=torch.long, device=device)
-
-                cur_embeds = torch.cat([prefix_embeds, gen_embeds], dim=1)
+                # FIX 2: Detach concatenated tensors
+                cur_embeds = torch.cat([prefix_embeds.detach(), gen_embeds], dim=1)
                 cur_atts = torch.cat([prefix_atts, gen_atts], dim=1)
-
-            # Forward pass
-            outputs = self.opt_model(
-                inputs_embeds=cur_embeds,
-                attention_mask=cur_atts,
-                return_dict=True,
-            )
-
-            # Get next token logits
-            next_logits = outputs.logits[:, -1, :]
-
-            # Apply repetition penalty
+            
+            # FIX 3: Ensure model outputs are detached
+            with torch.no_grad():
+                outputs = self.opt_model(
+                    inputs_embeds=cur_embeds,
+                    attention_mask=cur_atts,
+                    return_dict=True,
+                )
+            
+            # FIX 4: Detach logits immediately
+            next_logits = outputs.logits[:, -1, :].detach()
+            
+            # Repetition penalty
             if repetition_penalty != 1.0 and step > 0:
                 for i in range(batch_size):
                     for token_id in set([t[i].item() for t in generated]):
                         next_logits[i, token_id] /= repetition_penalty
-
+            
             # Prevent EOS before min_length
             if step < min_length:
-                next_logits[:, eos_token_id] = -float('inf')
-
+                next_logits[:, eos_token_id] = -float("inf")
+            
             # Get next token
             next_token = torch.argmax(next_logits, dim=-1)
-
-            # Update
             next_token = next_token * unfinished + pad_token_id * (1 - unfinished)
-            generated.append(next_token)
-
-            # Check EOS
-            unfinished = unfinished * (next_token != eos_token_id).long()
-
+            generated.append(next_token.detach())  # FIX 5: Detach appended tokens
+            
+            # Update unfinished
+            unfinished = (unfinished * (next_token != eos_token_id).long())
             if unfinished.max() == 0:
                 break
-
+        
         return torch.stack(generated, dim=1)
+
 
     def save_pretrained(self, output_dir):
         """Save model"""
@@ -388,5 +389,14 @@ class MedicalBLIP2Official(nn.Module):
         instance.Qformer = BertModel.from_pretrained(f"{model_path}/qformer")
         instance.query_tokens = torch.load(f"{model_path}/query_tokens.pth")
         instance.opt_proj.load_state_dict(torch.load(f"{model_path}/opt_proj.pth"))
+
+        # Load the correct tokenizer from the model path
+        print(f"\nLoading Tokenizer from: {model_path}/tokenizer")
+        instance.opt_tokenizer = AutoTokenizer.from_pretrained(
+            f"{model_path}/tokenizer", use_fast=False
+        )
+        if instance.opt_tokenizer.pad_token is None:
+            instance.opt_tokenizer.pad_token = instance.opt_tokenizer.eos_token
+        print(" Tokenizer loaded")
 
         return instance
