@@ -39,6 +39,10 @@ class MedicalBLIP2Official(nn.Module):
         print(f"\nLoading Vision Encoder: {vision_encoder_path}")
 
         try:
+            # Add parent directory to path to import lavis
+            import sys
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+            
             from lavis.models.blip_models.vit import ViT
             vision_encoder = ViT(
                 in_channels=1,
