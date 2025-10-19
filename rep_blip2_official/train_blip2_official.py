@@ -264,7 +264,7 @@ if __name__ == "__main__":
 
     # Data arguments
     parser.add_argument('--csv_file', type=str, 
-                       default='/home/muhammedg/fvlm/image_first_dataset.csv',
+                       default='/home/muhammedg/fvlm/data/image_first_dataset.csv',
                        help='Path to CSV file')
     parser.add_argument('--subset_size', type=int, default=None,
                        help='Use subset of training data')

@@ -1,0 +1,34 @@
+================================================================================
+BLIP-2 Vision Input Impact Test Results
+================================================================================
+
+Model: /home/muhammedg/fvlm/blip2_official_full_512_length/final_model
+Test Image: /home/muhammedg/fvlm/data/valid/images/valid/valid_730/valid_730_a/valid_730_a_1.nii.gz
+Prompt: A medical report describing this CT scan: 
+
+Results:
+--------------------------------------------------------------------------------
+
+Amplification: 1.0x
+Generated: 
+Trachea and both main bronchi are open. No occlusive pathology was detected in the trachas, both lumen areas of each lung parenchyma were normal size and appearance as far as can be observed without contrast agent. Mediastinal structures cannot real-time diagnostic evaluation due to noncontrast examination limitations. As no pathological wall thickening or infiltrative lesion is visible within the mediastinum; Thoracic esophagus calibration was normal and there was no significant tumoral mass inside the stomach. When examined in the lungs: The density of alveolar tissue around all major thorax airway passages appears natural with minimal infiltration by lymph nodes. There's a few millimetric nodules on upper lobe frontal bone surfaces that have not yet reached their maximum diameter but do not appear suspiciously enlarged. In addition,there may also exist some small fibrotics at different stages which could enter into secondary pneumonia if they reach clinical significance.. strutConnector guiActiveUnfocused 4090 Focal subpleural effusion? None found. Bone structure within medical scope. attRot<mask> 4090 Subconjunctival enlargement/thickened mucus membrane? Nodular inflammation (subclinical) ; minor changes seen during follow up CT scan after
+Vision Stats: {'original_mean': -0.02661196142435074, 'original_std': 0.8860623240470886, 'original_norm': 862.2749633789062, 'amplified_mean': -0.02661196142435074, 'amplified_std': 0.8860623240470886, 'amplified_norm': 862.2749633789062, 'amplification_factor': 1.0}
+
+Amplification: 5.0x
+Generated: 
+CT scan of the brain was not detected in any area.
+Vision Stats: {'original_mean': -0.02661196142435074, 'original_std': 0.8860623240470886, 'original_norm': 862.2749633789062, 'amplified_mean': -0.1330598145723343, 'amplified_std': 4.43031120300293, 'amplified_norm': 4311.375, 'amplification_factor': 5.0}
+
+Amplification: 10.0x
+Generated: 
+The patient's lung was not found in the scan. No active lymph node at risk for cancer is detected, and no suspicious nodules were identified throughout this examination. The mediastinum has minimal changes with a few small areas of dense fat accumulation (1-2 mm).
+Vision Stats: {'original_mean': -0.02661196142435074, 'original_std': 0.8860623240470886, 'original_norm': 862.2749633789062, 'amplified_mean': -0.2661196291446686, 'amplified_std': 8.86062240600586, 'amplified_norm': 8622.75, 'amplification_factor': 10.0}
+
+Amplification: 20.0x
+Generated: 
+Trace of the lung nodules in this image.
+Vision Stats: {'original_mean': -0.02661196142435074, 'original_std': 0.8860623240470886, 'original_norm': 862.2749633789062, 'amplified_mean': -0.5322392582893372, 'amplified_std': 17.72124481201172, 'amplified_norm': 17245.5, 'amplification_factor': 20.0}
+
+================================================================================
+Summary: 4 unique texts from 4 tests
+================================================================================

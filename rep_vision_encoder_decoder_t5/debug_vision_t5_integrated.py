@@ -384,7 +384,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run diagnostics on a Vision-T5 model.")
     parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/checkpoints/model.pth', help='Path to the original LAVIS ViT checkpoint (e.g., model.pth)')
     parser.add_argument('--t5_model', type=str, default='google/flan-t5-large', help='Name of the T5 model')
-    parser.add_argument('--csv_path', type=str, default='/home/muhammedg/fvlm/image_first_dataset.csv', help='Path to the dataset CSV file')
+    parser.add_argument('--csv_path', type=str, default='/home/muhammedg/fvlm/data/image_first_dataset.csv', help='Path to the dataset CSV file')
     parser.add_argument('--batch_size', type=int, default=4, help='Batch size for diagnostic tests')
     args = parser.parse_args()
 

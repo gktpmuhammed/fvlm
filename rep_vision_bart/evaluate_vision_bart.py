@@ -162,7 +162,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--model_path', type=str, default='./checkpoints/vision_bart/final_model')
-    parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/image_first_dataset.csv')
+    parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data/image_first_dataset.csv')
     parser.add_argument('--output_csv', type=str, default='vision_bart_results.csv')
     parser.add_argument('--max_length', type=int, default=256)
     parser.add_argument('--num_beams', type=int, default=5)

@@ -269,7 +269,7 @@ if __name__ == "__main__":
 
     # Data arguments
     parser.add_argument('--csv_file', type=str, 
-                       default='/home/muhammedg/fvlm/image_first_dataset.csv',
+                       default='/home/muhammedg/fvlm/data/image_first_dataset.csv',
                        help='Path to CSV file with "split" column (training/validation)')
     parser.add_argument('--max_length', type=int, default=256,
                        help='Maximum sequence length for tokenization')

@@ -263,7 +263,7 @@ if __name__ == '__main__':
 
     # Data config
     parser.add_argument('--csv_file', type=str,
-                       default='/home/muhammedg/fvlm/image_first_dataset.csv',
+                       default='/home/muhammedg/fvlm/data/image_first_dataset.csv',
                        help='Path to data CSV')
     parser.add_argument('--max_length', type=int, default=512,
                        help='Maximum sequence length')

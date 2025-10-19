@@ -389,7 +389,7 @@ if __name__ == "__main__":
     parser.add_argument('--vision_encoder_path', default='/home/muhammedg/fvlm/checkpoints/model.pth')
     parser.add_argument('--t5_model', default='google/flan-t5-large')
     parser.add_argument('--freeze_vision', action='store_true')
-    parser.add_argument('--csv_file', default='/home/muhammedg/fvlm/image_first_dataset.csv')
+    parser.add_argument('--csv_file', default='/home/muhammedg/fvlm/data/image_first_dataset.csv')
     parser.add_argument('--max_length', type=int, default=512)
     parser.add_argument('--train_subset_size', type=int, default=None)
     parser.add_argument('--val_subset_size', type=int, default=None)

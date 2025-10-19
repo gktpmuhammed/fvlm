@@ -165,7 +165,7 @@ if __name__ == '__main__':
                        default='./checkpoints/vision_encoder_decoder/final_model',
                        help='Path to trained model')
     parser.add_argument('--csv_file', type=str,
-                       default='/home/muhammedg/fvlm/image_first_dataset.csv',
+                       default='/home/muhammedg/fvlm/data/image_first_dataset.csv',
                        help='Path to data CSV')
     parser.add_argument('--output_csv', type=str,
                        default='vision_encoder_decoder_results.csv',

@@ -271,7 +271,7 @@ if __name__ == "__main__":
     parser.add_argument(
         '--csv_path',
         type=str,
-        default='/home/muhammedg/fvlm/image_first_dataset.csv',
+        default='/home/muhammedg/fvlm/data/image_first_dataset.csv',
         help='Path to the dataset CSV file.'
     )
     parser.add_argument(

@@ -237,7 +237,7 @@ if __name__ == '__main__':
     parser.add_argument('--vision_encoder_path', type=str,
                        default='/home/muhammedg/fvlm/checkpoints/model.pth')
     parser.add_argument('--csv_file', type=str,
-                       default='/home/muhammedg/fvlm/image_first_dataset.csv')
+                       default='/home/muhammedg/fvlm/data/image_first_dataset.csv')
     parser.add_argument('--max_length', type=int, default=512)
     parser.add_argument('--subset_size', type=int, default=None)
     parser.add_argument('--output_dir', type=str,
