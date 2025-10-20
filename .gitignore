@@ -7,7 +7,7 @@ data/radiology_text_reports
 BiomedVLP-CXR-BERT-specialized
 mae_pretrain_vit_base
 rep_vision_encoder_decoder_t5/trained_vision_t5_lavis/
-
+blip2_finetuned_6layers/
 __pycache__/
 *.cpython-310.pyc
 *.pyc

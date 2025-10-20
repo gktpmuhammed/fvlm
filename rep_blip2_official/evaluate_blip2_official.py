@@ -312,7 +312,7 @@ if __name__ == "__main__":
     parser.add_argument('--vision_encoder_path', type=str,
                        default='/home/muhammedg/fvlm/checkpoints/model.pth',
                        help='Path to vision encoder')
-    parser.add_argument('--csv_file', type=str, required=True,
+    parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data/image_first_dataset.csv',
                        help='Path to CSV file')
     parser.add_argument('--split', type=str, default='validation',
                        help='Which split to evaluate')
