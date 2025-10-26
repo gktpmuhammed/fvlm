@@ -156,6 +156,40 @@ class RunnerIter(RunnerBase):
             accum_grad_iters=self.accum_grad_iters,
         )
 
+    def _cleanup_checkpoints(self, keep_last_n=3):
+        """
+        Keep only the latest N checkpoints, excluding the best checkpoint.
+        """
+        import glob
+        import re
+        
+        # Get all checkpoint files (excluding best checkpoint)
+        checkpoint_pattern = os.path.join(self.output_dir, "checkpoint_*.pth")
+        all_checkpoints = glob.glob(checkpoint_pattern)
+        
+        # Filter out the best checkpoint
+        regular_checkpoints = [
+            ckpt for ckpt in all_checkpoints 
+            if not ckpt.endswith("checkpoint_best.pth")
+        ]
+        
+        # Sort by iteration number (extract from filename)
+        def extract_iters(filepath):
+            match = re.search(r'checkpoint_(\d+)\.pth', filepath)
+            return int(match.group(1)) if match else -1
+        
+        regular_checkpoints.sort(key=extract_iters)
+        
+        # Delete old checkpoints if we have more than keep_last_n
+        if len(regular_checkpoints) > keep_last_n:
+            checkpoints_to_delete = regular_checkpoints[:-keep_last_n]
+            for ckpt_path in checkpoints_to_delete:
+                try:
+                    os.remove(ckpt_path)
+                    logging.info(f"Deleted old checkpoint: {ckpt_path}")
+                except Exception as e:
+                    logging.warning(f"Failed to delete checkpoint {ckpt_path}: {e}")
+
     @main_process
     def _save_checkpoint(self, cur_iters, is_best=False):
         model_no_ddp = self.unwrap_dist_model(self.model)
@@ -182,6 +216,10 @@ class RunnerIter(RunnerBase):
         )
         logging.info("Saving checkpoint at iters {} to {}.".format(cur_iters, save_to))
         torch.save(save_obj, save_to)
+        
+        # Clean up old checkpoints, keeping only the latest 3
+        if not is_best:
+            self._cleanup_checkpoints(keep_last_n=3)
 
     def _load_checkpoint(self, url_or_filename):
         """
