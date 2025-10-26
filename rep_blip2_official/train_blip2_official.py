@@ -111,6 +111,34 @@ class BLIP2Trainer(Trainer):
 
         return (loss, outputs) if return_outputs else loss
 
+    def _save(self, output_dir=None, state_dict=None):
+        """
+        Override to save only trainable parameters in checkpoints
+        This reduces checkpoint size from 11GB to ~885MB
+        """
+        output_dir = output_dir if output_dir is not None else self.args.output_dir
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Save only trainable parameters (exclude frozen OPT model)
+        if state_dict is None:
+            state_dict = {
+                k: v for k, v in self.model.state_dict().items() 
+                if any(k.startswith(prefix) for prefix in 
+                       ['visual_encoder', 'Qformer', 'query_tokens', 'opt_proj'])
+            }
+        
+        # Save trainable weights
+        torch.save(state_dict, os.path.join(output_dir, "pytorch_model.bin"))
+        
+        # Save optimizer and scheduler (still needed for resuming)
+        torch.save(self.optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
+        torch.save(self.lr_scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
+        
+        # Save training state
+        self.state.save_to_json(os.path.join(output_dir, "trainer_state.json"))
+        
+        print(f"✓ Checkpoint saved (trainable params only): {output_dir}")
+
 
 def main(args):
     print("="*80)
