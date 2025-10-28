@@ -35,6 +35,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Training")
 
     parser.add_argument("--cfg-path", required=False, default='lavis/projects/blip/train/pretrain_ct.yaml', help="path to configuration file.")
+    parser.add_argument('--all_organs', action='store_true', help='If set, use all available organs. Otherwise, use default four organs (lung, heart, esophagus, aorta).')
     parser.add_argument(
         "--options",
         nargs="+",
@@ -74,7 +75,11 @@ def main():
     # set before init_distributed_mode() to ensure the same job_id shared across all ranks.
     job_id = now()
 
-    cfg = Config(parse_args())
+    args = parse_args()
+    cfg = Config(args)
+    
+    # Add all_organs flag to config so datasets and models can access it
+    cfg.config.all_organs = args.all_organs
     
     init_distributed_mode(cfg.run_cfg)
 

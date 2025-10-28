@@ -68,7 +68,9 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
         alpha=0.4,
         embed_dim=256,
         tie_enc_dec_weights=True,
-        max_txt_len=175
+        max_txt_len=175,
+        organs=None,
+        all_organs=False
     ):
         super().__init__()
 
@@ -99,15 +101,24 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
         self.alpha = alpha
         self.max_txt_len = max_txt_len
 
-        # self.organs = [
-        #     'face', 'brain', 'esophagus', 'trachea', 'lung', 'heart', 
-        #     'kidney', 'stomach', 'liver', 'gallbladder', 'pancreas', 'spleen', 
-        #     'colon', 'aorta', 'rib', 'humerus', 'scapula', 'clavicula', 
-        #     'femur', 'hip', 'sacrum', 'gluteus', 'iliopsoas', 'autochthon'
-        # ]
-        self.organs = [
-            'lung', 'heart', 'esophagus', 'aorta'
-        ]
+        # Set organs based on flag or config
+        if all_organs:
+            self.organs = [
+                'face', 'brain', 'esophagus', 'trachea', 'lung', 'heart', 
+                'kidney', 'stomach', 'liver', 'gallbladder', 'pancreas', 'spleen', 
+                'colon', 'aorta', 'rib', 'humerus', 'scapula', 'clavicula', 
+                'femur', 'hip', 'sacrum', 'gluteus', 'iliopsoas', 'autochthon'
+            ]
+            print(f"BlipPretrain using all organs ({len(self.organs)}): {self.organs}")
+        elif organs is not None:
+            self.organs = organs if isinstance(organs, list) else list(organs)
+            print(f"BlipPretrain using organs from config: {self.organs}")
+        else:
+            # Default organs
+            self.organs = [
+                'lung', 'heart', 'esophagus', 'aorta'
+            ]
+            print(f"BlipPretrain using default organs: {self.organs}")
 
         self.attention = nn.MultiheadAttention(
             embed_dim=vision_width,
@@ -401,6 +412,16 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
         alpha = cfg.get("alpha", 0.4)
         max_txt_len = cfg.get("max_txt_len", 250)
         embed_dim = 256
+        
+        # Get organs from config
+        organs = cfg.get("organs", None)
+        if organs is not None:
+            print(f"Loading organs from model config: {organs}")
+        
+        # Get all_organs flag from global config (set by train.py)
+        from lavis.common.registry import registry as reg
+        global_config = reg.get("configuration")
+        all_organs = getattr(global_config.config, 'all_organs', False) if global_config else False
 
         model = cls(
             image_encoder=image_encoder,
@@ -409,7 +430,9 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
             embed_dim=embed_dim,
             alpha=alpha,
             tie_enc_dec_weights=False,
-            max_txt_len=max_txt_len
+            max_txt_len=max_txt_len,
+            organs=organs,
+            all_organs=all_organs
         )
 
         model.load_checkpoint_from_config(cfg)

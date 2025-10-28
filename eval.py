@@ -313,7 +313,7 @@ class ToRegularTensor:
         return data
 
 class DataFolder(Dataset):
-    def __init__(self, vis_root='data/processed_valid_images'):
+    def __init__(self, vis_root='data/processed_valid_images', all_organs=False):
         super().__init__()
 
         img_paths = []
@@ -323,9 +323,19 @@ class DataFolder(Dataset):
                     img_paths.append(os.path.join(root, file))
         self.img_paths = img_paths
 
-        self.organs = [
-            'lung', 'heart', 'esophagus', 'aorta'
-        ]
+        if all_organs:
+            self.organs = [
+                'face', 'brain', 'esophagus', 'trachea', 'lung', 'heart', 
+                'kidney', 'stomach', 'liver', 'gallbladder', 'pancreas', 'spleen', 
+                'colon', 'aorta', 'rib', 'humerus', 'scapula', 'clavicula', 
+                'femur', 'hip', 'sacrum', 'gluteus', 'iliopsoas', 'autochthon'
+            ]
+            print(f"Using all organs ({len(self.organs)}): {self.organs}")
+        else:
+            self.organs = [
+                'lung', 'heart', 'esophagus', 'aorta'
+            ]
+            print(f"Using default organs ({len(self.organs)}): {self.organs}")
 
         self.transform = transforms.Compose([
             transforms.LoadImaged(keys=["image", "label"], image_only=False, ensure_channel_first=True),
@@ -412,6 +422,7 @@ def parse_args():
     parser.add_argument('--csv_file', type=str, help='The path to the CSV file for processing.')
     parser.add_argument('--vis_root', type=str, default='data/processed_valid_images', help='The path to the visual root directory.')
     parser.add_argument('--ckpt_path', type=str, default='/home/muhammedg/fvlm/checkpoints/model.pth', help='The path to the checkpoint file.')
+    parser.add_argument('--all_organs', action='store_true', help='If set, use all available organs. Otherwise, use default four organs (lung, heart, esophagus, aorta).')
 
     parser.add_argument("--cfg-path", required=False, default='lavis/projects/blip/train/pretrain_ct.yaml', help="path to configuration file.")
     parser.add_argument(
@@ -432,7 +443,7 @@ def evaluate():
     cfg = Config(args)
     init_distributed_mode(cfg.run_cfg)
 
-    datafolder = DataFolder(args.vis_root)
+    datafolder = DataFolder(args.vis_root, all_organs=args.all_organs)
     dataloader = DataLoader(
         datafolder,
         batch_size=1,

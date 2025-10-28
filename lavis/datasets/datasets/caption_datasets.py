@@ -28,7 +28,7 @@ class __DisplMixin:
         )
 
 class CaptionDataset(BaseDataset, __DisplMixin):
-    def __init__(self, vis_processor, text_processor, vis_root, ann_paths):
+    def __init__(self, vis_processor, text_processor, vis_root, ann_paths, organs=None, all_organs=False):
         super().__init__(vis_processor, text_processor, vis_root, ann_paths)
 
         self.vis_root = vis_root
@@ -41,15 +41,24 @@ class CaptionDataset(BaseDataset, __DisplMixin):
             for f2 in os.listdir(os.path.join(vis_root, f1))
         ]  # Limit to 100 samples for testing
 
-        # self.organs = [
-        #     'face', 'brain', 'esophagus', 'trachea', 'lung', 'heart', 
-        #     'kidney', 'stomach', 'liver', 'gallbladder', 'pancreas', 'spleen', 
-        #     'colon', 'aorta', 'rib', 'humerus', 'scapula', 'clavicula', 
-        #     'femur', 'hip', 'sacrum', 'gluteus', 'iliopsoas', 'autochthon'
-        # ]
-        self.organs = [
-            'lung', 'heart', 'esophagus', 'aorta'
-        ]
+        # Set organs based on flag or config
+        if all_organs:
+            self.organs = [
+                'face', 'brain', 'esophagus', 'trachea', 'lung', 'heart', 
+                'kidney', 'stomach', 'liver', 'gallbladder', 'pancreas', 'spleen', 
+                'colon', 'aorta', 'rib', 'humerus', 'scapula', 'clavicula', 
+                'femur', 'hip', 'sacrum', 'gluteus', 'iliopsoas', 'autochthon'
+            ]
+            print(f"CaptionDataset using all organs ({len(self.organs)}): {self.organs}")
+        elif organs is not None:
+            self.organs = organs if isinstance(organs, list) else list(organs)
+            print(f"CaptionDataset using organs from config: {self.organs}")
+        else:
+            # Default organs
+            self.organs = [
+                'lung', 'heart', 'esophagus', 'aorta'
+            ]
+            print(f"CaptionDataset using default organs: {self.organs}")
 
         self.loader = transforms.Compose([
             transforms.LoadImaged(keys=["image", "label"], image_only=False, ensure_channel_first=True),
