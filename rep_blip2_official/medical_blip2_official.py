@@ -41,7 +41,9 @@ class MedicalBLIP2Official(nn.Module):
         try:
             # Add parent directory to path to import lavis
             import sys
-            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+            parent_dir = os.path.join(os.path.dirname(__file__), '..')
+            if parent_dir not in sys.path:
+                sys.path.insert(0, parent_dir)
             
             from lavis.models.blip_models.vit import ViT
             vision_encoder = ViT(
@@ -51,7 +53,9 @@ class MedicalBLIP2Official(nn.Module):
                 num_classes=0,
             )
             print("  Using LAVIS 3D ViT")
-        except ImportError:
+        except Exception as e:
+            print(f"  WARNING: Could not import LAVIS ViT: {e}")
+            print("  Falling back to timm 2D ViT (this will NOT work with 3D medical images!)")
             import timm
             vision_encoder = timm.create_model('vit_base_patch16_224', pretrained=False, num_classes=0)
 
@@ -174,6 +178,43 @@ class MedicalBLIP2Official(nn.Module):
 
         # 6. Training
         if text_output is not None:
+            # Handle DataParallel: when using DataParallel, the image tensor is split across GPUs
+            # but text_output (a list) is not automatically split. We need to slice it to match.
+            if isinstance(text_output, list):
+                if len(text_output) != batch_size:
+                    if len(text_output) > batch_size:
+                        # DataParallel splits batches sequentially across devices:
+                        # Device 0: items [0:batch_size]
+                        # Device 1: items [batch_size:2*batch_size]
+                        # Device 2: items [2*batch_size:3*batch_size], etc.
+                        # We need to determine which slice this device should process
+                        device_idx = 0  # Default
+                        try:
+                            if device.type == 'cuda':
+                                # Get the current CUDA device index
+                                device_idx = torch.cuda.current_device()
+                        except:
+                            pass
+                        
+                        # Calculate the slice for this device
+                        start_idx = device_idx * batch_size
+                        end_idx = start_idx + batch_size
+                        
+                        if end_idx <= len(text_output):
+                            text_output = text_output[start_idx:end_idx]
+                        elif start_idx < len(text_output):
+                            # Last device with remainder - take what's available
+                            text_output = text_output[start_idx:]
+                        else:
+                            # Fallback: shouldn't happen in normal operation
+                            text_output = text_output[:batch_size]
+                    else:
+                        raise ValueError(
+                            f"Batch size mismatch: image has batch_size={batch_size}, "
+                            f"but text_output has {len(text_output)} items (less than batch_size). "
+                            f"This shouldn't happen with proper data collation."
+                        )
+            
             text_tokens = self.opt_tokenizer(
                 text_output,
                 return_tensors="pt",
@@ -184,6 +225,14 @@ class MedicalBLIP2Official(nn.Module):
 
             targets_embeds = self.opt_model.get_input_embeddings()(text_tokens.input_ids)
             targets_atts = text_tokens.attention_mask
+
+            # Final verification
+            if targets_embeds.shape[0] != batch_size:
+                raise RuntimeError(
+                    f"Batch size mismatch in embeddings: inputs_embeds has batch_size={batch_size}, "
+                    f"but targets_embeds has batch_size={targets_embeds.shape[0]}. "
+                    f"inputs_embeds shape: {inputs_embeds.shape}, targets_embeds shape: {targets_embeds.shape}"
+                )
 
             inputs_embeds = torch.cat([inputs_embeds, targets_embeds], dim=1)
             attention_mask = torch.cat([attention_mask, targets_atts], dim=1)

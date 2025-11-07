@@ -1,6 +1,7 @@
 # following CT-CLIP's evaluation protocol
 
 import math
+import os
 import numpy as np
 import pandas as pd
 from sklearn.metrics import confusion_matrix, roc_auc_score, f1_score, precision_score
@@ -40,6 +41,7 @@ def find_threshold(probabilities, true_labels):
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('--csv_file', type=str, default='')
+parser.add_argument('--out_dir', type=str, default='', help='Directory to save metrics CSV. Defaults to zero_shot_logs/$SLURM_JOB_ID if set, else alongside logs.')
 args = parser.parse_args()
 
 label_csv = pd.read_csv('data/multi_abnormality_labels/valid_predicted_labels.csv')
@@ -109,3 +111,55 @@ print('Average Spec of Ours:', round(np.mean(list(spec_scores.values())), 3))
 print('Average Sens of Ours:', round(np.mean(list(sens_scores.values())), 3))
 print('Average F1 of Ours:', round(np.mean(list(f1_scores.values())), 3))
 print('Average Prec of Ours:', round(np.mean(list(prec_scores.values())), 3))
+
+# =============================
+# Save metrics to CSV files
+# =============================
+
+# Determine output directory: prefer the Slurm log folder
+job_id = os.environ.get('SLURM_JOB_ID')
+default_out_dir = f"zero_shot_logs/{job_id}" if job_id else ''
+out_dir = args.out_dir or default_out_dir
+
+if not out_dir:
+    # Fallback to current working directory if no slurm job id and no explicit out_dir
+    out_dir = os.getcwd()
+
+os.makedirs(out_dir, exist_ok=True)
+
+# Build per-abnormality metrics table
+abnormalities = list(auc_scores.keys())
+records = []
+for ab in abnormalities:
+    records.append({
+        'abnormality': ab,
+        'auc': auc_scores[ab],
+        'acc': acc_scores[ab],
+        'spec': spec_scores[ab],
+        'sens': sens_scores[ab],
+        'f1': f1_scores[ab],
+        'prec': prec_scores[ab],
+    })
+
+per_class_df = pd.DataFrame.from_records(records)
+
+# Summary row
+summary_df = pd.DataFrame([{ 
+    'avg_auc': round(np.mean(list(auc_scores.values())), 6),
+    'avg_acc': round(np.mean(list(acc_scores.values())), 6),
+    'avg_spec': round(np.mean(list(spec_scores.values())), 6),
+    'avg_sens': round(np.mean(list(sens_scores.values())), 6),
+    'avg_f1': round(np.mean(list(f1_scores.values())), 6),
+    'avg_prec': round(np.mean(list(prec_scores.values())), 6),
+}])
+
+# Compose output filenames
+base_name = os.path.splitext(os.path.basename(args.csv_file))[0]
+per_class_path = os.path.join(out_dir, f"metrics_per_class_{base_name}.csv")
+summary_path = os.path.join(out_dir, f"metrics_summary_{base_name}.csv")
+
+per_class_df.to_csv(per_class_path, index=False)
+summary_df.to_csv(summary_path, index=False)
+
+print(f"Saved per-class metrics to: {per_class_path}")
+print(f"Saved summary metrics to: {summary_path}")

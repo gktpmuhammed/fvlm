@@ -98,7 +98,7 @@ class BLIP2Collator:
 class BLIP2Trainer(Trainer):
     """Custom trainer for BLIP-2"""
 
-    def compute_loss(self, model, inputs, return_outputs=False):
+    def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         """
         Compute loss for BLIP-2 training
         """

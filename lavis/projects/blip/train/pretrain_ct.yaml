@@ -55,10 +55,10 @@ run:
 
   weight_decay: 0.05
   max_epoch: 60
-  batch_size_train: 16  # Reduced from 32 - CT volumes are large!
-  batch_size_eval: 16
+  batch_size_train: 8  # Reduced from 32 - CT volumes are large!
+  batch_size_eval: 8
   num_workers: 4  # Reduced from 16 - too many workers cause OOM
-  warmup_steps: 2500
+  warmup_steps: 4200
   log_freq: 1
 
   seed: 42
