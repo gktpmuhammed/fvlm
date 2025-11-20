@@ -579,6 +579,8 @@ def evaluate():
 
                 # print('EXTRA', organ_name, window_patch.size())
 
+                # derive patient id matching CSV format (first three tokens)
+                pid = '_'.join(str(fid).split('_')[:3])
                 organ_logits = model.forward_test_win(
                     window_patch[None], 
                     window_mask[None],
@@ -587,7 +589,8 @@ def evaluate():
                     text_feat_dict,
                     organ_feat_dict[fid],
                     whole_organ_sizes,
-                    skip_organ=organ_id
+                    skip_organ=organ_id,
+                    patient_id=pid
                 )
             
         res = [meta_info['file_name']] + [''] * len(datafolder.test_items)

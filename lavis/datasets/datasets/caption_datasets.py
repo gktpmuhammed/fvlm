@@ -154,5 +154,6 @@ class CaptionDataset(BaseDataset, __DisplMixin):
             "image": image,
             "seg": pul_seg,
             "text_input": text_input,
-            "organ_abnormal_flags": organ_abnormal_flags
+            "organ_abnormal_flags": organ_abnormal_flags,
+            "patient_id": patient_id
         }

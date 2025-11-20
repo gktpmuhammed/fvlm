@@ -29,6 +29,7 @@ import os
 import json
 import numpy as np
 import torch.nn.functional as F
+import csv
 
 @torch.no_grad()
 def all_gather(data):
@@ -130,6 +131,37 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
         self.vision_projs = nn.ModuleList([nn.Linear(vision_width, embed_dim) for _ in range(len(self.organs))])
         self.query_tokens = nn.Parameter(torch.zeros(len(self.organs), vision_width))
 
+        # Load per-scan organ voxel retention percentages (optional)
+        # CSV expected columns: patient_id, <organ>_retained_pct (matching self.organs order/names)
+        csv_path = os.environ.get(
+            'ORGAN_VOXEL_CSV', '/home/muhammedg/fvlm/data/cleaned_per_scan_organ_voxel_percentages.csv'
+        )
+        self.organ_pct_threshold = float(os.environ.get('ORGAN_PCT_THRESHOLD', 0.7))
+        self.organ_voxel_pct = {}
+        try:
+            if os.path.exists(csv_path):
+                with open(csv_path, newline='') as f:
+                    reader = csv.DictReader(f)
+                    for row in reader:
+                        pid = row.get('patient_id')
+                        if pid is None:
+                            continue
+                        pct_list = []
+                        for organ in self.organs:
+                            col = organ + '_retained_pct'
+                            val = row.get(col)
+                            try:
+                                pct = float(val) if val is not None and val != '' else 0.0
+                            except Exception:
+                                pct = 0.0
+                            pct_list.append(pct)
+                        self.organ_voxel_pct[pid] = pct_list
+                print(f"Loaded organ voxel percentages for {len(self.organ_voxel_pct)} scans from {csv_path}")
+            else:
+                print(f"Organ voxel CSV not found at {csv_path}; falling back to boundary-based filtering")
+        except Exception as e:
+            print(f"Failed to load organ voxel CSV {csv_path}: {e}; falling back to boundary-based filtering")
+
     def _rampup_factor(self, epoch, iters, num_iters_per_epoch):
         return min(1, (epoch * num_iters_per_epoch + iters) / (2 * num_iters_per_epoch))
 
@@ -139,25 +171,48 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
 
         with torch.no_grad():
             organ_mask_flags = torch.zeros(len(seg), len(self.organs), dtype=bool, device=seg.device)
+            # If dataset provides patient ids in the batch (collated as list), use CSV mapping when available
+            patient_ids = samples.get("patient_id", None)
             for i, pul_seg in enumerate(seg):
-                boundaries = [
-                    pul_seg[0], pul_seg[-1],
-                    pul_seg[:, 0], pul_seg[:, -1],
-                    pul_seg[:, :, 0], pul_seg[:, :, -1]
-                ]
-                
-                non_zero_boundaries = [b[b != 0].flatten() for b in boundaries]
-                boundary_values = torch.cat(non_zero_boundaries)
-                boundary_organs = torch.unique(boundary_values)
-
                 organ_ids, organ_counts = torch.unique(pul_seg, return_counts=True)
                 organ_ids = organ_ids[organ_ids > 0]
-                
-                # remove incomplete organs caused by random crop.
-                intact_organ_ids = [organ_id for organ_id in organ_ids if organ_id not in boundary_organs]
-                intact_organ_ids = torch.tensor(intact_organ_ids).long()
-                    
-                organ_mask_flags[i][intact_organ_ids - 1] = True
+                present_organs = set([int(x.item()) for x in organ_ids])
+
+                pid = None
+                if patient_ids is not None:
+                    try:
+                        if isinstance(patient_ids, (list, tuple)):
+                            pid = patient_ids[i] if i < len(patient_ids) else None
+                        else:
+                            pid = patient_ids
+                    except Exception:
+                        pid = None
+
+                # If we have CSV info for this patient, use the percentage threshold to decide kept organs
+                if pid is not None and pid in self.organ_voxel_pct:
+                    pct_list = self.organ_voxel_pct[pid]
+                    for j, organ_name in enumerate(self.organs):
+                        organ_idx = j + 1
+                        if organ_idx in present_organs and pct_list[j] >= self.organ_pct_threshold:
+                            organ_mask_flags[i, j] = True
+                else:
+                    # fallback to original boundary-based removal
+                    boundaries = [
+                        pul_seg[0], pul_seg[-1],
+                        pul_seg[:, 0], pul_seg[:, -1],
+                        pul_seg[:, :, 0], pul_seg[:, :, -1]
+                    ]
+                    non_zero_boundaries = [b[b != 0].flatten() for b in boundaries]
+                    if len(non_zero_boundaries) > 0:
+                        boundary_values = torch.cat(non_zero_boundaries)
+                        boundary_organs = torch.unique(boundary_values)
+                    else:
+                        boundary_organs = torch.tensor([], device=pul_seg.device)
+
+                    intact_organ_ids = [organ_id for organ_id in organ_ids if organ_id not in boundary_organs]
+                    if len(intact_organ_ids):
+                        intact_organ_ids = torch.tensor(intact_organ_ids).long()
+                        organ_mask_flags[i][intact_organ_ids - 1] = True
 
         organ_captions = samples["text_input"]
         organ_abnormal_flags = samples["organ_abnormal_flags"]
@@ -459,7 +514,8 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
         text_feat_dict,
         organ_feat_dict,
         whole_organ_sizes,
-        skip_organ=None
+        skip_organ=None,
+        patient_id=None,
     ):
         # image_embeds  = self.visual_encoder(images)
         image_embeds, hidden_image_embeds = self.visual_encoder(images)
@@ -500,6 +556,19 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
             intact_organ_ids = [organ_id for organ_id, organ_count in zip(organ_ids, organ_counts) if organ_id not in boundary_organs]
             intact_organ_ids = torch.tensor(intact_organ_ids, device=masks.device).long()
             intact_organ_ids = intact_organ_ids - 1
+
+            # If patient-level CSV percentages are available, filter organs by retention pct threshold
+            if patient_id is not None and patient_id in self.organ_voxel_pct:
+                pct_list = self.organ_voxel_pct[patient_id]
+                kept = []
+                for organ_id in intact_organ_ids:
+                    idx = int(organ_id.item())  # zero-based organ index
+                    if pct_list[idx] >= self.organ_pct_threshold:
+                        kept.append(organ_id.item())
+                if len(kept):
+                    intact_organ_ids = torch.tensor(kept, device=masks.device).long()
+                else:
+                    intact_organ_ids = torch.tensor([], device=masks.device).long()
             
             if not len(intact_organ_ids):
                 continue
