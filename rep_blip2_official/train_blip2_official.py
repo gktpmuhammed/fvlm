@@ -24,11 +24,25 @@ from monai.transforms import (
     CenterSpatialCropd,
 )
 import SimpleITK as sitk
+from typing import Optional, Sequence, Union
+
+# Hardcoded standardization values (edit these to use your computed mean/std).
+# Set to None to disable standardization.
+# Example: STANDARDIZE_MEAN = 0.45; STANDARDIZE_STD = 0.22
+STANDARDIZE_MEAN: Optional[Union[float, Sequence[float]]] = -0.028866397216916084
+STANDARDIZE_STD: Optional[Union[float, Sequence[float]]] = 0.5328696370124817
 
 
 def build_transforms():
-    """Transform pipeline for 3D medical images"""
-    return Compose([
+    """Transform pipeline for 3D medical images.
+
+    Uses hardcoded STANDARDIZE_MEAN/STD defined above to optionally include a standardization
+    transform at the end of the pipeline.
+    """
+    mean = STANDARDIZE_MEAN
+    std = STANDARDIZE_STD
+
+    transforms = [
         LoadImaged(keys=['image'], reader='ITKReader', image_only=True),
         EnsureChannelFirstd(keys=['image']),
         Transposed(keys=['image'], indices=(0, 3, 2, 1)),
@@ -42,7 +56,55 @@ def build_transforms():
         ),
         SpatialPadd(keys=['image'], spatial_size=(112, 256, 352), mode='constant', constant_values=0),
         CenterSpatialCropd(keys=['image'], roi_size=(112, 256, 352)),
-    ])
+    ]
+
+
+    # Append standardization if requested (scaling removed per request)
+    if mean is not None or std is not None:
+        transforms.append(StandardizeAndScale(mean=mean, std=std))
+
+    return Compose(transforms)
+
+
+class StandardizeAndScale:
+    """MONAI-style transform that applies dataset standardization using provided mean/std.
+
+    The transform performs: image = (image - mean) / (std + eps)
+    Scaling/jittering has been removed per request.
+    """
+
+    def __init__(self,
+                 mean: Optional[Union[float, Sequence[float]]] = None,
+                 std: Optional[Union[float, Sequence[float]]] = None,
+                 eps: float = 1e-8):
+        self.mean = np.array(mean, dtype=np.float32) if mean is not None else None
+        self.std = np.array(std, dtype=np.float32) if std is not None else None
+        self.eps = float(eps)
+
+    def __call__(self, data):
+        image = data['image']
+
+        # Convert to numpy array and float32
+        arr = np.array(image).astype(np.float32)
+
+        # Apply standardization if mean/std provided
+        if self.mean is not None:
+            try:
+                arr = (arr - self.mean) / (self.std + self.eps)
+            except Exception:
+                # Try broadcasting along channel dimension if shapes differ
+                if hasattr(self.mean, 'ndim') and self.mean.ndim > 0:
+                    mean = self.mean.reshape((1,) + self.mean.shape)
+                else:
+                    mean = self.mean
+                if self.std is not None and hasattr(self.std, 'ndim') and self.std.ndim > 0:
+                    std = self.std.reshape((1,) + self.std.shape)
+                else:
+                    std = self.std
+                arr = (arr - mean) / (std + self.eps)
+
+        data['image'] = arr
+        return data
 
 
 class MedicalReportDataset(Dataset):

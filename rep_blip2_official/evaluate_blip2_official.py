@@ -26,7 +26,12 @@ import SimpleITK as sitk
 from torchmetrics.text.rouge import ROUGEScore
 from torchmetrics.text import BLEUScore
 from nltk.translate.meteor_score import meteor_score
+from nltk.translate.bleu_score import corpus_bleu
+from nltk.translate.gleu_score import sentence_gleu
 import nltk
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 # Download NLTK data
 try:
@@ -106,6 +111,128 @@ def calculate_meteor(predictions, references):
     return np.mean(scores)
 
 
+def calculate_bleu_scores(predictions, references):
+    """Calculate corpus BLEU-1..4 using NLTK corpus_bleu with standard n-gram weights."""
+    # Prepare references as list of list of tokens
+    references_tok = [[ref.split()] for ref in references]
+    hypotheses_tok = [pred.split() for pred in predictions]
+
+    # BLEU-1..4 weights
+    weights = [ (1.0, 0, 0, 0),
+                (0.5, 0.5, 0, 0),
+                (1/3, 1/3, 1/3, 0),
+                (0.25, 0.25, 0.25, 0.25) ]
+
+    scores = {}
+    for i, w in enumerate(weights, start=1):
+        try:
+            score = corpus_bleu(references_tok, hypotheses_tok, weights=w)
+        except Exception:
+            score = 0.0
+        scores[f'bleu{i}'] = score
+
+    return scores
+
+
+def calculate_greene(predictions, references):
+    """Compute GLEU (reported as GREEN in paper/table) by averaging sentence GLEU scores."""
+    scores = []
+    for pred, ref in zip(predictions, references):
+        try:
+            # sentence_gleu expects list of reference token lists
+            score = sentence_gleu([ref.split()], pred.split())
+            scores.append(score)
+        except Exception:
+            scores.append(0.0)
+    return np.mean(scores)
+
+
+def calculate_accuracy(predictions, references):
+    """Exact-match accuracy (case-insensitive, stripped)."""
+    matches = 0
+    total = len(predictions)
+    for p, r in zip(predictions, references):
+        if p is None:
+            continue
+        if p.strip().lower() == r.strip().lower():
+            matches += 1
+    return matches / total if total > 0 else 0.0
+
+
+def calculate_cider_approx(predictions, references, ngram=4):
+    """A lightweight CIDEr-like approximation using TF-IDF over n-grams up to `ngram` and cosine similarity.
+
+    This is not the official COCO CIDEr but correlates with n-gram overlap while down-weighting common n-grams.
+    """
+    from collections import Counter, defaultdict
+    import math
+
+    def ngrams(tokens, n):
+        return [' '.join(tokens[i:i+n]) for i in range(len(tokens)-n+1)] if len(tokens) >= n else []
+
+    docs = []
+    # for idf calculation include both predictions and references
+    for p in predictions:
+        toks = p.split()
+        ngs = []
+        for k in range(1, ngram+1):
+            ngs.extend(ngrams(toks, k))
+        docs.append(ngs)
+    for r in references:
+        toks = r.split()
+        ngs = []
+        for k in range(1, ngram+1):
+            ngs.extend(ngrams(toks, k))
+        docs.append(ngs)
+
+    # document frequencies
+    df = defaultdict(int)
+    for doc in docs:
+        seen = set(doc)
+        for g in seen:
+            df[g] += 1
+
+    N = len(docs)
+
+    def tf_idf_vector(ng_list):
+        tf = Counter(ng_list)
+        vec = {}
+        for k, v in tf.items():
+            idf = math.log((N+1) / (1 + df.get(k, 0)))
+            vec[k] = (v / sum(tf.values())) * idf
+        return vec
+
+    def cosine(v1, v2):
+        if not v1 or not v2:
+            return 0.0
+        # dot
+        dot = 0.0
+        for k, v in v1.items():
+            dot += v * v2.get(k, 0.0)
+        norm1 = math.sqrt(sum(v*v for v in v1.values()))
+        norm2 = math.sqrt(sum(v*v for v in v2.values()))
+        if norm1 == 0 or norm2 == 0:
+            return 0.0
+        return dot / (norm1 * norm2)
+
+    scores = []
+    # Precompute reference vectors per sample (here we treat only single reference per sample)
+    for p, r in zip(predictions, references):
+        p_ngrams = []
+        r_ngrams = []
+        for k in range(1, ngram+1):
+            p_ngrams.extend(ngrams(p.split(), k))
+            r_ngrams.extend(ngrams(r.split(), k))
+
+        v_p = tf_idf_vector(p_ngrams)
+        v_r = tf_idf_vector(r_ngrams)
+        sim = cosine(v_p, v_r)
+        scores.append(sim)
+
+    # Scale to be roughly comparable to CIDEr (0..10). We'll multiply by 10.
+    return float(np.mean(scores) * 10.0) if scores else 0.0
+
+
 def evaluate_model(model, dataloader, device, args):
     """Run evaluation"""
     model.eval()
@@ -146,23 +273,32 @@ def compute_metrics(predictions, references):
     print("\n" + "="*80)
     print("Computing Metrics...")
     print("="*80)
-
     # Initialize metrics
     rouge = ROUGEScore()
-    bleu = BLEUScore(n_gram=4)
 
     # ROUGE
     print("\nComputing ROUGE scores...")
     rouge_scores = rouge(predictions, references)
 
-    # BLEU
-    print("Computing BLEU scores...")
-    references_list = [[ref] for ref in references]
-    bleu_score = bleu(predictions, references_list)
+    # BLEU-1..4
+    print("Computing BLEU-1..4 scores...")
+    bleu_scores = calculate_bleu_scores(predictions, references)
 
     # METEOR
     print("Computing METEOR scores...")
     meteor = calculate_meteor(predictions, references)
+
+    # GREEN (GLEU)
+    print("Computing GREEN (GLEU) scores...")
+    green_score = calculate_greene(predictions, references)
+
+    # Accuracy (exact match)
+    print("Computing Accuracy (exact match)...")
+    accuracy = calculate_accuracy(predictions, references)
+
+    # CIDEr (approximation)
+    print("Computing CIDEr (approx)...")
+    cider = calculate_cider_approx(predictions, references)
 
     results = {
         'rouge1_fmeasure': rouge_scores['rouge1_fmeasure'].item(),
@@ -174,7 +310,13 @@ def compute_metrics(predictions, references):
         'rougeL_fmeasure': rouge_scores['rougeL_fmeasure'].item(),
         'rougeL_precision': rouge_scores['rougeL_precision'].item(),
         'rougeL_recall': rouge_scores['rougeL_recall'].item(),
-        'bleu': bleu_score.item(),
+        'bleu1': bleu_scores.get('bleu1', 0.0),
+        'bleu2': bleu_scores.get('bleu2', 0.0),
+        'bleu3': bleu_scores.get('bleu3', 0.0),
+        'bleu4': bleu_scores.get('bleu4', 0.0),
+        'green': green_score,
+        'accuracy': accuracy,
+        'cider': cider,
         'meteor': meteor,
     }
 
@@ -210,8 +352,17 @@ def save_results(results, predictions, references, image_paths, output_dir):
 
         f.write("Other Metrics:\n")
         f.write("-"*80 + "\n")
-        f.write(f"  BLEU-4:            {results['bleu']:.4f}\n")
+        f.write(f"  BLEU-1:            {results.get('bleu1', 0.0):.4f}\n")
+        f.write(f"  BLEU-2:            {results.get('bleu2', 0.0):.4f}\n")
+        f.write(f"  BLEU-3:            {results.get('bleu3', 0.0):.4f}\n")
+        f.write(f"  BLEU-4:            {results.get('bleu4', 0.0):.4f}\n")
+        f.write(f"  GREEN (GLEU):      {results.get('green', 0.0):.4f}\n")
         f.write(f"  METEOR:            {results['meteor']:.4f}\n")
+        f.write(f"  ROUGE-L (F1):      {results['rougeL_fmeasure']:.4f}\n")
+        f.write(f"  ROUGE-L (Prec):    {results['rougeL_precision']:.4f}\n")
+        f.write(f"  ROUGE-L (Recall):  {results['rougeL_recall']:.4f}\n")
+        f.write(f"  ACC (exact):       {results.get('accuracy', 0.0):.4f}\n")
+        f.write(f"  CIDEr (approx):    {results.get('cider', 0.0):.4f}\n")
         f.write("="*80 + "\n")
 
     with open(metrics_file, 'r') as f:
@@ -243,6 +394,101 @@ def save_results(results, predictions, references, image_paths, output_dir):
             f.write("="*80 + "\n\n")
 
     print(f"Sample predictions saved to: {samples_file}")
+
+    # Create a table-style plot of the metrics (single-row)
+    try:
+        label = os.path.basename(output_dir.rstrip('/'))
+        create_metrics_table_plot([results], [label], output_dir)
+    except Exception as e:
+        print(f"Failed to create metrics plot: {e}")
+
+
+def create_metrics_table_plot(results_list, labels, output_dir):
+    """Create and save a table-style plot of metrics.
+
+    results_list: list of dicts (each dict like compute_metrics output)
+    labels: list of row labels (e.g., encoder/model names)
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Column order to match provided table: ACC, GREEN, BLEU1..4, METEOR, ROUGE-L, CIDEr
+    col_labels = ['Encoder', 'ACC', 'GREEN', 'BLEU-1', 'BLEU-2', 'BLEU-3', 'BLEU-4', 'METEOR', 'ROUGE-L', 'CIDEr']
+
+    table_rows = []
+    csv_rows = []
+    for label, res in zip(labels, results_list):
+        acc = res.get('accuracy', 0.0) * 100.0
+        green = res.get('green', 0.0) * 100.0
+        b1 = res.get('bleu1', 0.0) * 100.0
+        b2 = res.get('bleu2', 0.0) * 100.0
+        b3 = res.get('bleu3', 0.0) * 100.0
+        b4 = res.get('bleu4', 0.0) * 100.0
+        meteor = res.get('meteor', 0.0) * 100.0
+        rouge_l = res.get('rougeL_fmeasure', 0.0) * 100.0
+        cider = res.get('cider', 0.0)
+
+        row = [
+            label,
+            f"{acc:.1f}",
+            f"{green:.1f}",
+            f"{b1:.1f}",
+            f"{b2:.1f}",
+            f"{b3:.1f}",
+            f"{b4:.1f}",
+            f"{meteor:.1f}",
+            f"{rouge_l:.1f}",
+            f"{cider:.1f}",
+        ]
+        csv_rows.append({
+            'encoder': label,
+            'acc': acc,
+            'green': green,
+            'bleu1': b1,
+            'bleu2': b2,
+            'bleu3': b3,
+            'bleu4': b4,
+            'meteor': meteor,
+            'rougeL': rouge_l,
+            'cider': cider,
+        })
+        table_rows.append(row)
+
+    # Save CSV summary
+    try:
+        import csv
+        csv_file = os.path.join(output_dir, 'metrics_summary.csv')
+        with open(csv_file, 'w', newline='') as cf:
+            writer = csv.DictWriter(cf, fieldnames=csv_rows[0].keys())
+            writer.writeheader()
+            for r in csv_rows:
+                writer.writerow(r)
+    except Exception:
+        pass
+
+    # Plot table
+    fig, ax = plt.subplots(figsize=(len(col_labels) * 1.2, max(2, len(table_rows) * 0.6)))
+    ax.axis('off')
+
+    # Create table with first column being encoder name
+    table = ax.table(cellText=table_rows, colLabels=col_labels, cellLoc='center', loc='center')
+    table.auto_set_font_size(False)
+    table.set_fontsize(12)
+    table.scale(1, 1.2)
+
+    # Header styling
+    for (row, col), cell in table.get_celld().items():
+        if row == 0:
+            cell.set_text_props(weight='bold', color='white')
+            cell.set_facecolor('#333333')
+        elif col == 0:
+            cell.set_text_props(weight='bold')
+
+    png_file = os.path.join(output_dir, 'metrics_table.png')
+    plt.tight_layout()
+    fig.savefig(png_file, dpi=200, bbox_inches='tight')
+    plt.close(fig)
+
+    print(f"Metrics table saved to: {png_file}")
 
 
 def main(args):
