@@ -1,7 +1,19 @@
 """
 Medical Vision-Language Model using GPT2
-Refined for Surgical Fine-Tuning (Cross-Attention Only)
+Fixed: Adds 'main_input_name' to ViTWrapper to satisfy HF Generation utils.
 """
+
+import sys
+import os
+
+# ------------------------------------------------------------------
+# FIX: Insert parent directory at the BEGINNING of sys.path
+# ------------------------------------------------------------------
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir) # Go up to 'fvlm'
+
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
 
 import torch
 import torch.nn as nn
@@ -14,7 +26,16 @@ from transformers import (
     ViTConfig
 )
 from transformers.modeling_outputs import BaseModelOutput
-import os
+
+# Now import your local ViT
+try:
+    from lavis.models.blip_models.vit import ViT
+except ImportError as e:
+    print("\nCRITICAL IMPORT ERROR")
+    print(f"We tried to look in: {sys.path[0]}")
+    print("But failed to find 'lavis.models.blip_models.vit'")
+    raise e
+
 
 class ViTWrapper(nn.Module):
     """Wrapper to ensure ViT outputs match HuggingFace expectations"""
@@ -22,6 +43,12 @@ class ViTWrapper(nn.Module):
         super().__init__()
         self.vit = vit_model
         self.config = config
+        
+        # --- FIX IS HERE ---
+        # Hugging Face generation utils check this attribute to know 
+        # if they should pass 'pixel_values' or 'input_ids' to the encoder.
+        self.main_input_name = "pixel_values" 
+        # -------------------
 
     def forward(
         self,
@@ -32,18 +59,13 @@ class ViTWrapper(nn.Module):
         **kwargs
     ):
         # Forward pass through your pretrained ViT
-        # We assume self.vit returns the sequence of hidden states (B, Seq_Len, Dim)
         outputs = self.vit(pixel_values)
 
-        # Handle different output types from various ViT implementations
         if isinstance(outputs, tuple):
             last_hidden_state = outputs[0]
-        elif hasattr(outputs, 'last_hidden_state'):
-            last_hidden_state = outputs.last_hidden_state
         else:
             last_hidden_state = outputs
 
-        # Return as BaseModelOutput for the VisionEncoderDecoder model to consume
         return BaseModelOutput(
             last_hidden_state=last_hidden_state,
             hidden_states=None,
@@ -58,7 +80,6 @@ class MedicalVisionGPT2(nn.Module):
         decoder_model_name="gpt2",
         image_size=(112, 256, 352),
         patch_size=(16, 16, 32),
-        # We remove specific freeze flags in favor of a smart init strategy
     ):
         super().__init__()
 
@@ -80,7 +101,7 @@ class MedicalVisionGPT2(nn.Module):
         )
 
         print(f"Loading pretrained medical ViT from {vision_encoder_path}...")
-        from lavis.models.blip_models.vit import ViT
+        
         vision_encoder = ViT(
             in_channels=1,
             img_size=image_size,
@@ -88,21 +109,31 @@ class MedicalVisionGPT2(nn.Module):
             num_classes=0,
         )
 
-        # Load weights
-        checkpoint = torch.load(vision_encoder_path, map_location='cpu')
-        vision_state = {}
-        # Clean up state dict keys if necessary
-        source_state = checkpoint['model'] if 'model' in checkpoint else checkpoint
-        for k, v in source_state.items():
-            if k.startswith('visual_encoder.'):
-                vision_state[k.replace('visual_encoder.', '')] = v
-            else:
-                vision_state[k] = v
-        
-        vision_encoder.load_state_dict(vision_state, strict=False)
+        # Load your custom weights
+        if os.path.exists(vision_encoder_path):
+            checkpoint = torch.load(vision_encoder_path, map_location='cpu')
+            vision_state = {}
+            
+            source_state = checkpoint
+            if 'model' in checkpoint:
+                source_state = checkpoint['model']
+            elif 'state_dict' in checkpoint:
+                source_state = checkpoint['state_dict']
+            
+            for k, v in source_state.items():
+                if k.startswith('visual_encoder.'):
+                    vision_state[k.replace('visual_encoder.', '')] = v
+                elif not k.startswith('text_encoder') and not k.startswith('temp'):
+                    vision_state[k] = v
+            
+            msg = vision_encoder.load_state_dict(vision_state, strict=False)
+            print(f"ViT Weights Loaded: {msg}")
+        else:
+            print(f"WARNING: Encoder path {vision_encoder_path} not found. Using random init.")
+
         wrapped_encoder = ViTWrapper(vision_encoder, encoder_config)
 
-        # Freeze Encoder completely
+        # Freeze Encoder completely (Preserve Medical Knowledge)
         for param in wrapped_encoder.parameters():
             param.requires_grad = False
 
@@ -113,7 +144,7 @@ class MedicalVisionGPT2(nn.Module):
         self.tokenizer = AutoTokenizer.from_pretrained(decoder_model_name)
         self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        # Important: add_cross_attention=True creates NEW, RANDOM layers
+        # enable cross_attention (creates new random layers)
         decoder_config = GPT2Config.from_pretrained(decoder_model_name)
         decoder_config.is_decoder = True
         decoder_config.add_cross_attention = True 
@@ -125,42 +156,41 @@ class MedicalVisionGPT2(nn.Module):
         # ------------------------------------------------------------------
         print("Applying surgical freezing to Decoder:")
         
-        # Start by freezing EVERYTHING in decoder
+        # 1. Freeze EVERYTHING first
         for param in decoder.parameters():
             param.requires_grad = False
             
         trainable_params = 0
         all_params = 0
         
+        # 2. Unfreeze ONLY specific parts
         for name, param in decoder.named_parameters():
             all_params += param.numel()
             
-            # UNFREEZE 1: Cross Attention (The bridge between Image and Text)
-            # These are initialized randomly, so they MUST be trained.
+            # A. Unfreeze Cross Attention (The connection between Image and Text)
             if "crossattention" in name:
                 param.requires_grad = True
                 trainable_params += param.numel()
                 
-            # UNFREEZE 2: Layer Norms (Crucial for stability in fine-tuning)
+            # B. Unfreeze Layer Norms (Crucial for stability)
             elif "ln_" in name or "ln_1" in name or "ln_2" in name:
                 param.requires_grad = True
                 trainable_params += param.numel()
                 
-            # UNFREEZE 3: LM Head (To adapt to medical vocabulary)
+            # C. Unfreeze LM Head (To adapt output vocabulary)
             elif "lm_head" in name:
                 param.requires_grad = True
                 trainable_params += param.numel()
-                
-            # OPTIONAL: Unfreeze the very last transformer block entirely
-            # allowing it to synthesize all features
-            elif "h.11." in name: # Assuming gpt2 (12 layers, 0-11)
+
+            # D. Unfreeze wte/wpe (Embeddings)
+            elif "wte" in name or "wpe" in name:
                 param.requires_grad = True
                 trainable_params += param.numel()
 
         print(f"  > Encoder: Frozen")
-        print(f"  > Decoder Self-Attention: Frozen (preserving English)")
-        print(f"  > Decoder Cross-Attention: Unfrozen (learning Image connection)")
-        print(f"  > Trainable Parameters: {trainable_params:,} / {all_params:,} ({(trainable_params/all_params)*100:.2f}%)")
+        print(f"  > Decoder Self-Attention: Frozen")
+        print(f"  > Decoder Cross-Attention: Unfrozen (Trainable)")
+        print(f"  > Trainable Params: {trainable_params:,} / {all_params:,} ({(trainable_params/all_params)*100:.2f}%)")
 
         # ------------------------------------------------------------------
         # 4. COMPILE MODEL

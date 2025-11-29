@@ -3,7 +3,17 @@
 Training Script for Medical Vision-GPT2
 """
 
+import sys
 import os
+
+# ------------------------------------------------------------------
+# FIX: Insert parent directory at the BEGINNING of sys.path
+# ------------------------------------------------------------------
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+if parent_dir not in sys.path:
+    sys.path.insert(0, parent_dir)
+
 import pandas as pd
 import torch
 import numpy as np
@@ -41,6 +51,10 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 @dataclass
 class VisionEncoderDecoderCollator:
     def __call__(self, features: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
+        features = [f for f in features if f is not None]
+        if not features:
+            raise ValueError("All features in batch were None!")
+            
         pixel_values = torch.stack([f['pixel_values'] for f in features])
         labels = torch.stack([f['labels'] for f in features])
         return {'pixel_values': pixel_values, 'labels': labels}
@@ -75,7 +89,6 @@ class MedicalReportDataset(Dataset):
     def __getitem__(self, idx):
         row = self.data.iloc[idx]
         
-        # Image Handling
         try:
             image_dict = self.transform({'image': row['image_path']})
             image = image_dict['image']
@@ -84,29 +97,27 @@ class MedicalReportDataset(Dataset):
             image_tensor = torch.from_numpy(np.array(image)).float()
             if image_tensor.dim() == 3:
                 image_tensor = image_tensor.unsqueeze(0)
+
+            text = f"{row['findings']} {row['impressions']}"
+            encoding = self.tokenizer(
+                text,
+                max_length=self.max_length,
+                padding='max_length',
+                truncation=True,
+                return_tensors='pt'
+            )
+            labels = encoding['input_ids'].squeeze(0)
+            labels[labels == self.tokenizer.pad_token_id] = -100
+
+            return {'pixel_values': image_tensor, 'labels': labels}
+            
         except Exception as e:
-            logger.error(f"Error loading image {row['image_path']}: {e}")
-            # Return dummy tensor if fail
-            image_tensor = torch.zeros((1, 112, 256, 352))
-
-        # Text Handling
-        text = f"{row['findings']} {row['impressions']}"
-        encoding = self.tokenizer(
-            text,
-            max_length=self.max_length,
-            padding='max_length',
-            truncation=True,
-            return_tensors='pt'
-        )
-        labels = encoding['input_ids'].squeeze(0)
-        labels[labels == self.tokenizer.pad_token_id] = -100 # Ignore padding in loss
-
-        return {'pixel_values': image_tensor, 'labels': labels}
+            logger.error(f"Error processing {row['image_path']}: {e}")
+            return None
 
 def main(args):
     logger.info("Initializing Model...")
     
-    # Initialize model with the Surgical Fine-Tuning logic
     model = MedicalVisionGPT2(
         vision_encoder_path=args.vision_encoder_path,
         decoder_model_name="gpt2"
@@ -114,6 +125,7 @@ def main(args):
 
     transform = build_transforms()
     
+    logger.info("Loading Datasets...")
     train_dataset = MedicalReportDataset(
         csv_file=args.csv_file,
         tokenizer=model.tokenizer,
@@ -132,16 +144,18 @@ def main(args):
         split='validation',
         subset_size=val_subset
     )
+    
+    logger.info(f"Train Size: {len(train_dataset)}")
+    logger.info(f"Val Size: {len(val_dataset)}")
 
     training_args = Seq2SeqTrainingArguments(
         output_dir=args.output_dir,
         num_train_epochs=args.num_epochs,
         per_device_train_batch_size=args.batch_size,
         per_device_eval_batch_size=args.batch_size,
-        gradient_accumulation_steps=8, # High accumulation for stable updates
+        gradient_accumulation_steps=8, 
         
-        # Optimizer settings for fine-tuning
-        learning_rate=5e-5,
+        learning_rate=2e-4, 
         weight_decay=0.01,
         warmup_ratio=0.1,
         
@@ -163,7 +177,7 @@ def main(args):
         train_dataset=train_dataset,
         eval_dataset=val_dataset,
         data_collator=VisionEncoderDecoderCollator(),
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=3)]
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=5)]
     )
 
     logger.info("Starting Training...")
