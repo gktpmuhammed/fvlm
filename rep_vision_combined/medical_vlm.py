@@ -1,10 +1,6 @@
 """
 Unified Medical Vision-Language Model
-Supports: GPT-2, BioGPT, and other Causal LM decoders.
-Features:
-- Custom 3D ViT Encoder
-- Surgical Fine-Tuning (Cross-Attention + LayerNorms + Head)
-- Auto-handling of weight tying issues
+Supports: BART (Recommended), GPT-2, BioGPT
 """
 import sys
 import os
@@ -16,22 +12,19 @@ from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM, 
     AutoConfig,
-    ViTConfig
+    ViTConfig,
+    BartForCausalLM, # BART specific class
+    BartConfig
 )
 from transformers.modeling_outputs import BaseModelOutput
 
 # ------------------------------------------------------------------
-# FIX: Force local import of 'lavis'
+# Fix local import path for lavis
 # ------------------------------------------------------------------
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
-
-try:
-    from lavis.models.blip_models.vit import ViT
-except ImportError:
-    raise ImportError("Could not find 'lavis.models.blip_models.vit'. Please check your directory structure.")
 
 class ViTWrapper(nn.Module):
     """Wrapper to ensure ViT outputs match HuggingFace expectations"""
@@ -39,7 +32,6 @@ class ViTWrapper(nn.Module):
         super().__init__()
         self.vit = vit_model
         self.config = config
-        # FIX: Required for HF generate() to know how to pass inputs
         self.main_input_name = "pixel_values"
 
     def forward(self, pixel_values, **kwargs):
@@ -54,7 +46,7 @@ class MedicalVLM(nn.Module):
     def __init__(
         self,
         vision_encoder_path,
-        decoder_model_name="microsoft/biogpt", 
+        decoder_model_name="facebook/bart-base", 
         image_size=(112, 256, 352),
         patch_size=(16, 16, 32),
     ):
@@ -66,10 +58,14 @@ class MedicalVLM(nn.Module):
         # ------------------------------------------------------------------
         encoder_config = ViTConfig(
             hidden_size=768, num_hidden_layers=12, num_attention_heads=12, 
-            intermediate_size=3072, image_size=224, patch_size=16, num_channels=1
+            intermediate_size=3072, image_size=image_size, patch_size=patch_size, num_channels=1
         )
 
-        vision_encoder = ViT(in_channels=1, img_size=image_size, patch_size=patch_size, num_classes=0)
+        try:
+            from lavis.models.blip_models.vit import ViT
+            vision_encoder = ViT(in_channels=1, img_size=image_size, patch_size=patch_size, num_classes=0)
+        except ImportError:
+            raise ImportError("Could not find 'lavis.models.blip_models.vit'.")
         
         # Load ViT weights
         if os.path.exists(vision_encoder_path):
@@ -82,8 +78,9 @@ class MedicalVLM(nn.Module):
                 elif not k.startswith('text_encoder') and not k.startswith('temp'):
                     vision_state[k] = v
             vision_encoder.load_state_dict(vision_state, strict=False)
+            print("  ViT weights loaded successfully.")
         else:
-            print(f"WARNING: Vision encoder path {vision_encoder_path} not found. Using random init.")
+            print(f"  WARNING: ViT path {vision_encoder_path} not found. Random init.")
         
         wrapped_encoder = ViTWrapper(vision_encoder, encoder_config)
         
@@ -92,83 +89,84 @@ class MedicalVLM(nn.Module):
             param.requires_grad = False
 
         # ------------------------------------------------------------------
-        # 2. SETUP DECODER (AutoModel handles GPT2 & BioGPT)
+        # 2. SETUP DECODER (BART / GPT2)
         # ------------------------------------------------------------------
         self.tokenizer = AutoTokenizer.from_pretrained(decoder_model_name)
+        # BART/RoBERTa do not use a separate pad token usually, or use eos_token
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        decoder_config = AutoConfig.from_pretrained(decoder_model_name)
-        decoder_config.is_decoder = True
-        decoder_config.add_cross_attention = True 
-
-        decoder = AutoModelForCausalLM.from_pretrained(decoder_model_name, config=decoder_config)
+        # HANDLE SPECIFIC MODEL TYPES
+        if "bart" in decoder_model_name:
+            print("  > Configuring BART Decoder...")
+            decoder_config = BartConfig.from_pretrained(decoder_model_name)
+            decoder_config.is_decoder = True
+            decoder_config.add_cross_attention = True 
+            decoder = BartForCausalLM.from_pretrained(decoder_model_name, config=decoder_config)
+        
+        elif "biogpt" in decoder_model_name:
+            print("  > Configuring BioGPT Decoder...")
+            # BioGPT needs special handling via AutoModel usually, but let's stick to standard flow
+            # If standard AutoModel fails (like before), you might need the Wrapper class from previous turn.
+            # But let's assume we are switching to BART now.
+            decoder_config = AutoConfig.from_pretrained(decoder_model_name)
+            decoder_config.is_decoder = True
+            decoder_config.add_cross_attention = True 
+            decoder = AutoModelForCausalLM.from_pretrained(decoder_model_name, config=decoder_config)
+            
+        else: # GPT-2, DistilGPT2, etc.
+            print("  > Configuring Standard Causal Decoder...")
+            decoder_config = AutoConfig.from_pretrained(decoder_model_name)
+            decoder_config.is_decoder = True
+            decoder_config.add_cross_attention = True 
+            decoder = AutoModelForCausalLM.from_pretrained(decoder_model_name, config=decoder_config)
 
         # ------------------------------------------------------------------
-        # 3. UNIFIED SURGICAL FREEZING
+        # 3. SURGICAL FREEZING (BART Edition)
         # ------------------------------------------------------------------
-        # First, freeze the entire decoder
+        # 1. Freeze everything first
         for param in decoder.parameters():
             param.requires_grad = False
             
+        trainable_params = 0
         all_params = sum(p.numel() for p in decoder.parameters())
         
-        # Keywords covering both GPT-2 and BioGPT parameter naming conventions
-        # GPT2: crossattention, ln_
-        # BioGPT: encoder_attn, layer_norm
-        trainable_keywords = ["crossattention", "encoder_attn", "ln_", "layer_norm", "layernorm"]
+        # KEYWORDS for Unfreezing:
+        # 'crossattention' -> GPT-2
+        # 'encoder_attn'   -> BART / BioGPT (The layer that looks at the image)
+        # 'ln_'            -> GPT-2 LayerNorm
+        # 'layer_norm'     -> BART / BioGPT LayerNorm
+        # 'lm_head'        -> Output vocabulary
+        
+        keywords = ["crossattention", "encoder_attn", "ln_", "layer_norm", "layernorm", "lm_head", "output_projection"]
         
         for name, param in decoder.named_parameters():
-            if any(k in name for k in trainable_keywords):
+            if any(k in name for k in keywords):
                 param.requires_grad = True
+                trainable_params += param.numel()
 
-        # ------------------------------------------------------------------
-        # 4. EXPLICITLY UNFREEZE LM HEAD
-        # ------------------------------------------------------------------
-        # GPT-2 ties input embeddings to output head. Freezing input embeds often
-        # accidentally freezes the head. We must forcefully unfreeze the head 
-        # to allow vocabulary adaptation.
-        
-        head_unfrozen = False
-        
-        # Try generic LM head names
+        # Explicit head check (BART's head is 'lm_head')
         if hasattr(decoder, "lm_head"):
             for param in decoder.lm_head.parameters():
                 param.requires_grad = True
-            head_unfrozen = True
-            print("  > Unfrozen 'lm_head'")
-            
-        # Try BioGPT specific head name
-        if hasattr(decoder, "output_projection"):
-            for param in decoder.output_projection.parameters():
-                param.requires_grad = True
-            head_unfrozen = True
-            print("  > Unfrozen 'output_projection'")
-
-        # Safety check: if we couldn't find the head attribute directly, look by name
-        if not head_unfrozen:
-            for name, param in decoder.named_parameters():
-                if "lm_head" in name or "output_projection" in name:
-                    param.requires_grad = True
-
-        # Calculate final stats
-        trainable_params = sum(p.numel() for p in decoder.parameters() if p.requires_grad)
+        
         print(f"  > Trainable Params: {trainable_params:,} / {all_params:,} ({(trainable_params/all_params)*100:.2f}%)")
 
         # ------------------------------------------------------------------
-        # 5. COMPILE MODEL
+        # 4. COMPILE MODEL
         # ------------------------------------------------------------------
         config = VisionEncoderDecoderConfig.from_encoder_decoder_configs(encoder_config, decoder_config)
         self.model = VisionEncoderDecoderModel(config=config)
         self.model.encoder = wrapped_encoder
         self.model.decoder = decoder
         
+        # Generation Config
         self.model.config.decoder_start_token_id = self.tokenizer.bos_token_id or self.tokenizer.eos_token_id
         self.model.config.eos_token_id = self.tokenizer.eos_token_id
         self.model.config.pad_token_id = self.tokenizer.pad_token_id
         self.model.config.vocab_size = self.tokenizer.vocab_size
 
-        # Handle dimension mismatch (e.g. ViT 768 -> BioGPT 1024)
+        # Handle dimension mismatch (ViT 768 vs Decoder Dim)
         if encoder_config.hidden_size != decoder_config.hidden_size:
             if hasattr(self.model, 'enc_to_dec_proj'):
                  for param in self.model.enc_to_dec_proj.parameters():
@@ -176,6 +174,9 @@ class MedicalVLM(nn.Module):
 
     def forward(self, pixel_values, labels=None, **kwargs):
         return self.model(pixel_values=pixel_values, labels=labels, return_dict=True, **kwargs)
+
+    def generate(self, pixel_values, **kwargs):
+        return self.model.generate(pixel_values, **kwargs)
 
     def save_pretrained(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
