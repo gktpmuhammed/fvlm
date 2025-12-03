@@ -21,6 +21,8 @@ lavis/datasets/datasets/__pycache__/*.pyc
 *.pth
 log.txt
 *.log
+**/wandb/
+
 
 report_generations/
 outputs/
