@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 """
 Unified Evaluation Script for Medical VLM
-Features:
-- Supports GPT-2 and BioGPT
-- Metrics: ROUGE, BLEU-1..4, METEOR, GREEN, CIDEr, Accuracy
-- Plots: Results table image + CSV summary
-- Fixes: Path collision for train.py, manual weight loading, patient_id logging
+Fixed: Weight Loading Logic for Q-Former/Combined Models
 """
 
 import sys
@@ -44,22 +40,18 @@ except LookupError:
     nltk.download('omw-1.4')
     nltk.download('punkt')
 
-# Now this will correctly import from the local train.py
 from train import MedicalReportDataset, build_transforms
 from medical_vlm import MedicalVLM
-from transformers import VisionEncoderDecoderModel
 
 # ------------------------------------------------------------------------------
-# METRIC FUNCTIONS
+# METRIC FUNCTIONS (Same as before)
 # ------------------------------------------------------------------------------
 
 def calculate_meteor(predictions, references):
     scores = []
     for pred, ref in zip(predictions, references):
-        try:
-            scores.append(meteor_score([ref.split()], pred.split()))
-        except:
-            scores.append(0.0)
+        try: scores.append(meteor_score([ref.split()], pred.split()))
+        except: scores.append(0.0)
     return np.mean(scores)
 
 def calculate_bleu_scores(predictions, references):
@@ -68,19 +60,15 @@ def calculate_bleu_scores(predictions, references):
     weights = [(1.0, 0, 0, 0), (0.5, 0.5, 0, 0), (1/3, 1/3, 1/3, 0), (0.25, 0.25, 0.25, 0.25)]
     scores = {}
     for i, w in enumerate(weights, start=1):
-        try:
-            scores[f'bleu{i}'] = corpus_bleu(references_tok, hypotheses_tok, weights=w)
-        except:
-            scores[f'bleu{i}'] = 0.0
+        try: scores[f'bleu{i}'] = corpus_bleu(references_tok, hypotheses_tok, weights=w)
+        except: scores[f'bleu{i}'] = 0.0
     return scores
 
 def calculate_greene(predictions, references):
     scores = []
     for pred, ref in zip(predictions, references):
-        try:
-            scores.append(sentence_gleu([ref.split()], pred.split()))
-        except:
-            scores.append(0.0)
+        try: scores.append(sentence_gleu([ref.split()], pred.split()))
+        except: scores.append(0.0)
     return np.mean(scores)
 
 def calculate_accuracy(predictions, references):
@@ -90,7 +78,6 @@ def calculate_accuracy(predictions, references):
 def calculate_cider_approx(predictions, references, ngram=4):
     def ngrams(tokens, n):
         return [' '.join(tokens[i:i+n]) for i in range(len(tokens)-n+1)]
-    
     docs = []
     for p in predictions:
         toks = p.split()
@@ -101,25 +88,21 @@ def calculate_cider_approx(predictions, references, ngram=4):
         toks = r.split()
         ngs = []
         for k in range(1, ngram+1): ngs.extend(ngrams(toks, k))
-        docs.append(ngs)
-        
+        docs.append(ngs) 
     df = defaultdict(int)
     for doc in docs:
         for g in set(doc): df[g] += 1
     N = len(docs)
-    
     def tf_idf(ng_list):
         tf = Counter(ng_list)
         vec = {}
         for k, v in tf.items():
             vec[k] = (v / sum(tf.values())) * math.log((N+1)/(1+df.get(k, 0)))
         return vec
-    
     def cosine(v1, v2):
         dot = sum(v1.get(k,0)*v2.get(k,0) for k in v1)
         norm = math.sqrt(sum(v*v for v in v1.values())) * math.sqrt(sum(v*v for v in v2.values()))
         return dot/norm if norm else 0.0
-
     scores = []
     for p, r in zip(predictions, references):
         p_ng, r_ng = [], []
@@ -127,14 +110,12 @@ def calculate_cider_approx(predictions, references, ngram=4):
             p_ng.extend(ngrams(p.split(), k))
             r_ng.extend(ngrams(r.split(), k))
         scores.append(cosine(tf_idf(p_ng), tf_idf(r_ng)))
-        
     return np.mean(scores) * 10.0 if scores else 0.0
 
 def create_metrics_table_plot(results_list, labels, output_dir):
     os.makedirs(output_dir, exist_ok=True)
     col_labels = ['Encoder', 'ACC', 'GREEN', 'BLEU-1', 'BLEU-2', 'BLEU-3', 'BLEU-4', 'METEOR', 'ROUGE-L', 'CIDEr']
     table_rows, csv_rows = [], []
-
     for label, res in zip(labels, results_list):
         row = [
             label,
@@ -150,85 +131,67 @@ def create_metrics_table_plot(results_list, labels, output_dir):
         ]
         table_rows.append(row)
         csv_rows.append({k:v for k,v in zip(col_labels, row)})
-
     with open(os.path.join(output_dir, 'metrics_summary.csv'), 'w', newline='') as cf:
         writer = csv.DictWriter(cf, fieldnames=col_labels)
         writer.writeheader()
         writer.writerows(csv_rows)
-
     fig, ax = plt.subplots(figsize=(14, max(2, len(table_rows) * 0.8)))
     ax.axis('off')
     table = ax.table(cellText=table_rows, colLabels=col_labels, cellLoc='center', loc='center')
     table.auto_set_font_size(False)
     table.set_fontsize(10)
     table.scale(1, 1.5)
-    
     for (row, col), cell in table.get_celld().items():
         if row == 0:
             cell.set_text_props(weight='bold', color='white')
             cell.set_facecolor('#333333')
-    
     plt.tight_layout()
     fig.savefig(os.path.join(output_dir, 'metrics_table.png'), dpi=200, bbox_inches='tight')
     plt.close(fig)
 
-# ------------------------------------------------------------------------------
-# EVALUATION LOGIC
-# ------------------------------------------------------------------------------
-
-# Override Dataset to return filename
 class EvalDataset(MedicalReportDataset):
     def __getitem__(self, idx):
         row = self.data.iloc[idx]
         item = super().__getitem__(idx)
         if item:
-            # Extract filename from path (e.g. /path/to/valid_730_a_1.nii.gz -> valid_730_a_1)
             filename = os.path.basename(row['image_path'])
-            if filename.endswith('.nii.gz'):
-                filename = filename[:-7]
-            elif filename.endswith('.nii'):
-                filename = filename[:-4]
-            item['patient_id'] = filename
+            item['patient_id'] = filename.split('.')[0]
         return item
 
 def evaluate_model(args):
     print(f"Loading Unified Model Structure ({args.decoder_model})...")
     
-    # 1. Initialize Structure (Custom 3D ViT)
+    # 1. Initialize Outer Class
     full_model = MedicalVLM(
         vision_encoder_path=args.vision_encoder_path, 
-        decoder_model_name=args.decoder_model
+        decoder_model_name=args.decoder_model,
+        use_qformer=args.use_qformer,          
+        num_query_tokens=args.num_query_tokens 
     )
     
-    # 2. Load Weights Manually (Fixes vanilla ViT overwrite)
+    # 2. Load Weights (FIXED)
     print(f"Loading weights from {args.model_path}...")
-    if os.path.isdir(args.model_path):
-        weights_path = os.path.join(args.model_path, "pytorch_model.bin")
-        if not os.path.exists(weights_path):
-             weights_path = os.path.join(args.model_path, "model.safetensors")
-             if os.path.exists(weights_path):
-                 from safetensors.torch import load_file
-                 state_dict = load_file(weights_path)
-             else: raise FileNotFoundError("No weight file found")
-        else:
-            state_dict = torch.load(weights_path, map_location='cpu')
-    else:
-        state_dict = torch.load(args.model_path, map_location='cpu')
-
-    full_model.model.load_state_dict(state_dict, strict=False)
-    full_model.model.eval()
-    full_model.model.cuda()
+    weights_path = os.path.join(args.model_path, "pytorch_model.bin")
+    if not os.path.exists(weights_path): weights_path = args.model_path
+    
+    state_dict = torch.load(weights_path, map_location='cpu')
+    
+    # FIX: Load into full_model.model (The VisionEncoderDecoderModel)
+    # This aligns the keys: 'encoder...' matches 'encoder...' inside the inner model
+    print("Applying state dict to inner model...")
+    missing, unexpected = full_model.model.load_state_dict(state_dict, strict=False)
+    
+    print(f"Missing keys: {len(missing)}")
+    print(f"Unexpected keys: {len(unexpected)}")
+    
+    if len(missing) > 0:
+        print("Example missing:", missing[:3])
+    
+    full_model.eval()
+    full_model.cuda()
 
     transform = build_transforms()
-    # Use the overridden EvalDataset to get patient_id
-    val_dataset = EvalDataset(
-        csv_file=args.csv_file,
-        tokenizer=full_model.tokenizer,
-        transform=transform,
-        max_length=args.max_length,
-        split='validation',
-        subset_size=args.subset_size
-    )
+    val_dataset = EvalDataset(args.csv_file, full_model.tokenizer, transform, args.max_length, args.subset_size, 'validation')
     dataloader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
     
     predictions, references, patient_ids = [], [], []
@@ -240,24 +203,19 @@ def evaluate_model(args):
             
             pixel_values = batch['pixel_values'].cuda()
             labels = batch['labels'].cuda()
-            pids = batch['patient_id'] # Get patient IDs from batch
+            pids = batch['patient_id']
             
-            # Anti-repetition generation
-            generated_ids = full_model.model.generate(
+            generated_ids = full_model.generate(
                 pixel_values,
                 max_length=args.max_length,
                 num_beams=args.num_beams,
                 no_repeat_ngram_size=3,
                 repetition_penalty=2.0,
-                early_stopping=True,
-                length_penalty=1.0,
-                pad_token_id=full_model.tokenizer.pad_token_id,
-                eos_token_id=full_model.tokenizer.eos_token_id,
+                early_stopping=True
             )
             
             pred_batch = full_model.tokenizer.batch_decode(generated_ids, skip_special_tokens=True)
             
-            # Fix: Handle -100 in labels for references
             labels_cpu = labels.cpu().clone()
             labels_cpu[labels_cpu == -100] = full_model.tokenizer.pad_token_id
             ref_batch = full_model.tokenizer.batch_decode(labels_cpu, skip_special_tokens=True)
@@ -267,11 +225,9 @@ def evaluate_model(args):
             patient_ids.extend(pids)
 
     # Metrics
-    # Keep patient_ids aligned during filtering
-    valid_data = [(pid, p, r) for pid, p, r in zip(patient_ids, predictions, references) if len(str(p)) > 1]
+    valid_data = [(p, r) for p, r in zip(predictions, references) if len(str(p)) > 1]
     if not valid_data: return
-    
-    pid_valid, p_valid, r_valid = zip(*valid_data)
+    p_valid, r_valid = zip(*valid_data)
     
     print("\nComputing ROUGE...")
     rouge = ROUGEScore()(list(p_valid), list(r_valid))
@@ -292,24 +248,16 @@ def evaluate_model(args):
         'meteor': meteor, 'green': green, 'accuracy': acc, 'cider': cider
     }
     
-    # Save
-    label = "BioGPT" if "bio" in args.decoder_model.lower() else "GPT2"
+    label = f"{args.decoder_model}_QFormer" if args.use_qformer else args.decoder_model
     create_metrics_table_plot([results], [label], args.output_dir)
+    pd.DataFrame({'patient_id': patient_ids, 'prediction': predictions, 'reference': references}).to_csv(os.path.join(args.output_dir, 'predictions.csv'), index=False)
     
-    # Save predictions with patient_id
-    df = pd.DataFrame({
-        'patient_id': pid_valid,
-        'prediction': p_valid,
-        'reference': r_valid
-    })
-    df.to_csv(os.path.join(args.output_dir, 'predictions.csv'), index=False)
-    
-    print(f"\nSaved results to {args.output_dir}")
+    print(f"\nResults (BLEU-4: {results['bleu4']:.4f}) saved to {args.output_dir}")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_path', type=str, required=True)
-    parser.add_argument('--decoder_model', type=str, default='microsoft/biogpt')
+    parser.add_argument('--decoder_model', type=str, default='gpt2')
     parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/checkpoints/model.pth')
     parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data/image_first_dataset.csv')
     parser.add_argument('--output_dir', type=str, default='./evaluation_results')
@@ -317,6 +265,8 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--num_beams', type=int, default=4)
     parser.add_argument('--subset_size', type=int, default=None)
+    parser.add_argument('--use_qformer', action='store_true')
+    parser.add_argument('--num_query_tokens', type=int, default=32)
     args = parser.parse_args()
     
     os.environ["CUDA_VISIBLE_DEVICES"] = "1"
