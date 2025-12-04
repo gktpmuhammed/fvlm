@@ -23,7 +23,7 @@ from medical_vlm import MedicalVLM
 import wandb
 
 logger = logging.getLogger(__name__)
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 # Restored WandB Settings
 os.environ["WANDB_PROJECT"] = "thesis"
@@ -193,7 +193,7 @@ def main(args):
     train_dataset = OrganReportDataset(args.csv_file, args.json_file, model.tokenizer, transform, args.max_length, args.subset_size, 'training')
     val_dataset = OrganReportDataset(args.csv_file, args.json_file, model.tokenizer, transform, args.max_length, args.subset_size, 'validation')
 
-    run_name = f"{args.decoder_model.split('/')[-1]}_organ_guided"
+    run_name = f"{args.decoder_model.split('/')[-1]}_organ_guided_{'with_qformer' if args.use_qformer else 'no_qformer'}_bs{args.batch_size}_ep{args.num_epochs}"
     
     training_args = Seq2SeqTrainingArguments(
         output_dir=args.output_dir,
@@ -236,7 +236,7 @@ if __name__ == '__main__':
     parser.add_argument('--decoder_model', type=str, default='microsoft/biogpt')
     parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/checkpoints/model.pth')
     parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data/image_first_dataset.csv')
-    parser.add_argument('--json_file', type=str, default='/home/muhammedg/fvlm/data/val_train_combined_desc.json', help="Path to decomposed reports JSON")
+    parser.add_argument('--json_file', type=str, default='/home/muhammedg/fvlm/data/combined_desc_conc.json', help="Path to decomposed reports JSON")
     parser.add_argument('--output_dir', type=str, default='./checkpoints/medical_vlm')
     parser.add_argument('--max_length', type=int, default=300)
     parser.add_argument('--batch_size', type=int, default=4)
