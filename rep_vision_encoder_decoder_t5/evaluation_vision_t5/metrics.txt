@@ -1,5 +1,0 @@
-rouge1_f: 0.5243
-rouge2_f: 0.3432
-rougeL_f: 0.4059
-bleu: 0.1906
-meteor: 0.3562
