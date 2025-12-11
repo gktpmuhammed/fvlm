@@ -290,7 +290,7 @@ if __name__ == '__main__':
     parser.add_argument('--json_file', type=str, default='/home/muhammedg/fvlm/data/combined_desc_conc.json')
     parser.add_argument('--output_dir', type=str, default='./checkpoints/medical_vlm')
     parser.add_argument('--max_length', type=int, default=150)
-    parser.add_argument('--batch_size', type=int, default=4) # Low batch size for One-Pass
+    parser.add_argument('--batch_size', type=int, default=2) # Low batch size for One-Pass
     parser.add_argument('--num_epochs', type=int, default=2)
     parser.add_argument('--subset_size', type=int, default=None)
     

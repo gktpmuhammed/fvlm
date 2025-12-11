@@ -8,6 +8,28 @@ import numpy as np
 from tqdm import tqdm
 import argparse
 import json
+import nltk
+import math
+import csv
+import matplotlib
+matplotlib.use('Agg') # Fix for headless servers
+import matplotlib.pyplot as plt
+from collections import Counter, defaultdict
+
+# NLTK Setup
+try:
+    nltk.data.find('wordnet')
+except LookupError:
+    print("Downloading NLTK data...")
+    nltk.download('wordnet')
+    nltk.download('omw-1.4')
+    nltk.download('punkt')
+
+# Metrics Imports
+from torchmetrics.text.rouge import ROUGEScore
+from nltk.translate.meteor_score import meteor_score
+from nltk.translate.bleu_score import corpus_bleu
+from nltk.translate.gleu_score import sentence_gleu
 from monai.transforms import Compose, LoadImaged, ScaleIntensityRanged, SpatialPadd, CenterSpatialCropd, Transposed, EnsureChannelFirstd
 
 # Add parent directory to path to import modules
@@ -17,13 +39,137 @@ if parent_dir not in sys.path:
     sys.path.insert(1, parent_dir)
 
 from medical_vlm import MedicalVLM
-# Import configuration from training script to ensure consistency
 from train import get_organ_ids_for_key, ALL_TARGET_KEYS, FULL_BODY_ID, build_transforms
 
+# --- METRIC FUNCTIONS ---
+
+def calculate_meteor(predictions, references):
+    scores = []
+    for pred, ref in zip(predictions, references):
+        try: 
+            # Meteor expects tokenized lists
+            scores.append(meteor_score([nltk.word_tokenize(ref)], nltk.word_tokenize(pred)))
+        except: scores.append(0.0)
+    return np.mean(scores)
+
+def calculate_bleu_scores(predictions, references):
+    references_tok = [[nltk.word_tokenize(ref)] for ref in references]
+    hypotheses_tok = [nltk.word_tokenize(pred) for pred in predictions]
+    weights = [(1.0, 0, 0, 0), (0.5, 0.5, 0, 0), (1/3, 1/3, 1/3, 0), (0.25, 0.25, 0.25, 0.25)]
+    scores = {}
+    for i, w in enumerate(weights, start=1):
+        try: scores[f'bleu{i}'] = corpus_bleu(references_tok, hypotheses_tok, weights=w)
+        except: scores[f'bleu{i}'] = 0.0
+    return scores
+
+def calculate_greene(predictions, references):
+    scores = []
+    for pred, ref in zip(predictions, references):
+        try: scores.append(sentence_gleu([nltk.word_tokenize(ref)], nltk.word_tokenize(pred)))
+        except: scores.append(0.0)
+    return np.mean(scores)
+
+def calculate_accuracy(predictions, references):
+    # exact match accuracy (likely low for generated text, but useful sanity check)
+    matches = sum(1 for p, r in zip(predictions, references) if p.strip().lower() == r.strip().lower())
+    return matches / len(predictions) if len(predictions) > 0 else 0.0
+
+def calculate_cider_approx(predictions, references, ngram=4):
+    def ngrams(tokens, n):
+        return [' '.join(tokens[i:i+n]) for i in range(len(tokens)-n+1)]
+    
+    docs = []
+    for p in predictions:
+        toks = nltk.word_tokenize(p)
+        ngs = []
+        for k in range(1, ngram+1): ngs.extend(ngrams(toks, k))
+        docs.append(ngs)
+    
+    for r in references:
+        toks = nltk.word_tokenize(r)
+        ngs = []
+        for k in range(1, ngram+1): ngs.extend(ngrams(toks, k))
+        docs.append(ngs) 
+        
+    df = defaultdict(int)
+    for doc in docs:
+        for g in set(doc): df[g] += 1
+    
+    N = len(docs)
+    
+    def tf_idf(ng_list):
+        tf = Counter(ng_list)
+        vec = {}
+        for k, v in tf.items():
+            vec[k] = (v / sum(tf.values())) * math.log((N+1)/(1+df.get(k, 0)))
+        return vec
+    
+    def cosine(v1, v2):
+        dot = sum(v1.get(k,0)*v2.get(k,0) for k in v1)
+        norm = math.sqrt(sum(v*v for v in v1.values())) * math.sqrt(sum(v*v for v in v2.values()))
+        return dot/norm if norm else 0.0
+    
+    scores = []
+    for p, r in zip(predictions, references):
+        p_tok = nltk.word_tokenize(p)
+        r_tok = nltk.word_tokenize(r)
+        p_ng, r_ng = [], []
+        for k in range(1, ngram+1):
+            p_ng.extend(ngrams(p_tok, k))
+            r_ng.extend(ngrams(r_tok, k))
+        scores.append(cosine(tf_idf(p_ng), tf_idf(r_ng)))
+        
+    return np.mean(scores) * 10.0 if scores else 0.0
+
+def create_metrics_table_plot(results_list, labels, output_dir):
+    os.makedirs(output_dir, exist_ok=True)
+    col_labels = ['Encoder', 'ACC', 'GREEN', 'BLEU-1', 'BLEU-2', 'BLEU-3', 'BLEU-4', 'METEOR', 'ROUGE-L', 'CIDEr']
+    table_rows, csv_rows = [], []
+    for label, res in zip(labels, results_list):
+        row = [
+            label,
+            f"{res.get('accuracy', 0.0)*100:.1f}",
+            f"{res.get('green', 0.0)*100:.1f}",
+            f"{res.get('bleu1', 0.0)*100:.1f}",
+            f"{res.get('bleu2', 0.0)*100:.1f}",
+            f"{res.get('bleu3', 0.0)*100:.1f}",
+            f"{res.get('bleu4', 0.0)*100:.1f}",
+            f"{res.get('meteor', 0.0)*100:.1f}",
+            f"{res.get('rougeL_fmeasure', 0.0)*100:.1f}",
+            f"{res.get('cider', 0.0):.1f}",
+        ]
+        table_rows.append(row)
+        csv_rows.append({k:v for k,v in zip(col_labels, row)})
+    
+    with open(os.path.join(output_dir, 'metrics_summary.csv'), 'w', newline='') as cf:
+        writer = csv.DictWriter(cf, fieldnames=col_labels)
+        writer.writeheader()
+        writer.writerows(csv_rows)
+        
+    fig, ax = plt.subplots(figsize=(14, max(2, len(table_rows) * 0.8)))
+    ax.axis('off')
+    table = ax.table(cellText=table_rows, colLabels=col_labels, cellLoc='center', loc='center')
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(1, 1.5)
+    for (row, col), cell in table.get_celld().items():
+        if row == 0:
+            cell.set_text_props(weight='bold', color='white')
+            cell.set_facecolor('#333333')
+    plt.tight_layout()
+    fig.savefig(os.path.join(output_dir, 'metrics_table.png'), dpi=200, bbox_inches='tight')
+    plt.close(fig)
+
+# --- DATASET ---
+
 class EvalDataset(Dataset):
-    def __init__(self, csv_file, tokenizer, transform):
+    def __init__(self, csv_file, tokenizer, transform, subset_size=None):
         self.df = pd.read_csv(csv_file)
         self.df = self.df[self.df['split'] == 'validation'].reset_index(drop=True)
+        if subset_size:
+            self.df = self.df.head(subset_size)
+            print(f"Subset enabled: Evaluating on {len(self.df)} samples.")
+            
         self.transform = transform
         self.tokenizer = tokenizer
         
@@ -32,10 +178,7 @@ class EvalDataset(Dataset):
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
         try:
-            # Assumes masks are in a parallel 'masks' folder
             mask_path = row['image_path'].replace('images', 'masks')
-            
-            # Use the exact same transforms as training
             data = self.transform({'image': row['image_path'], 'mask': mask_path})
             
             # Handle Monai MetaTensor to PyTorch Tensor conversion
@@ -56,18 +199,21 @@ class EvalDataset(Dataset):
                 'full_mask': mask,
                 'patient_id': os.path.basename(row['image_path']).split('.')[0]
             }
-        except Exception as e: 
+        except Exception as e:
             print(f"Error loading {row['image_path']}: {e}")
             return None
 
+# --- MAIN EVALUATION LOOP ---
+
 def evaluate(args):
-    print(f"--- Starting Evaluation on {args.csv_file} ---")
+    print(f"--- Starting Evaluation ---")
+    print(f"Model: {args.decoder_model}")
+    print(f"Dataset: {args.csv_file}")
     
     # 1. Load Model
-    print(f"Loading MedicalVLM (Decoder: {args.decoder_model})...")
     model = MedicalVLM(args.vision_encoder_path, args.decoder_model)
     
-    # Ensure Tokenizer has pad token for prompt batching
+    # Ensure pad token
     if model.tokenizer.pad_token is None:
         model.tokenizer.pad_token = model.tokenizer.eos_token
         model.model.config.pad_token_id = model.tokenizer.eos_token_id
@@ -79,65 +225,60 @@ def evaluate(args):
         state_dict = torch.load(weights_path, map_location='cpu')
     else:
         state_dict = torch.load(args.model_path, map_location='cpu')
-    
+        
     model.model.load_state_dict(state_dict, strict=False)
-    
     model.cuda()
     model.eval()
     
     # 3. Setup Data
     transform = build_transforms()
-    ds = EvalDataset(args.csv_file, model.tokenizer, transform)
-    
-    # Batch size 1 is required because we expand one patient into N organ queries
+    ds = EvalDataset(args.csv_file, model.tokenizer, transform, args.subset_size)
     dl = DataLoader(ds, batch_size=1, shuffle=False, num_workers=4)
     
-    results = []
+    # 4. Load Reference Text (JSON)
+    # The JSON usually contains { "pid": { "liver": "...", "heart": "..." }, ... }
+    with open(args.json_file, 'r') as f:
+        ref_json = json.load(f)
+
+    full_predictions = []
+    full_references = []
+    patient_ids = []
+    
+    device = next(model.parameters()).device
     
     print("Generating Reports...")
-    # Get device from model parameters
-    device = next(model.parameters()).device
-
     with torch.no_grad():
         for batch in tqdm(dl):
             if batch is None: continue
             
-            # Inputs: (1, 1, D, H, W)
             pixel_values = batch['pixel_values'].to(device)
             full_mask = batch['full_mask'].to(device)
             pid = batch['patient_id'][0]
             
-            # 4. Prepare Multi-Organ Input
+            # --- PREPARE BATCHED INPUTS (One Pass) ---
             mask_stack = []
             prompts = []
             
             for key in ALL_TARGET_KEYS:
-                # A. Construct Prompt
-                if key == "Conclusion":
-                    p_text = "Conclusion: "
-                else:
-                    p_text = f"Describe {key}: "
+                # Prompt
+                p_text = f"Describe {key}: " if key != "Conclusion" else "Conclusion: "
                 prompts.append(p_text)
                 
-                # B. Construct Binary Mask
+                # Mask
                 tids = get_organ_ids_for_key(key)
-                
                 if tids == [FULL_BODY_ID]:
                     m = torch.ones_like(full_mask)
                 elif len(tids) > 0:
                     m = torch.zeros_like(full_mask)
-                    for t in tids:
-                        m[full_mask == t] = 1.0
+                    for t in tids: m[full_mask == t] = 1.0
                 else:
                     m = torch.zeros_like(full_mask)
-                
                 mask_stack.append(m)
             
-            # Stack masks: (1, N_Targets, 1, D, H, W) -> 6D Tensor
+            # (1, N_Targets, D, H, W)
             organ_masks = torch.stack(mask_stack, dim=1).float()
             
-            # Tokenize Prompts: (N_Targets, Seq_Len)
-            # FIX: Use `device` variable instead of `model.device`
+            # Tokenize Prompts
             prompt_inputs = model.tokenizer(
                 prompts, 
                 return_tensors="pt", 
@@ -145,49 +286,124 @@ def evaluate(args):
                 truncation=True
             ).to(device)
             
-            # 5. Generate
+            # --- GENERATE ---
             try:
                 outputs = model.generate(
                     pixel_values=pixel_values,
                     organ_masks=organ_masks,
                     input_ids=prompt_inputs.input_ids,
                     attention_mask=prompt_inputs.attention_mask,
-                    max_length=150,
+                    max_length=120,
                     num_beams=4,
                     repetition_penalty=2.0,
                     no_repeat_ngram_size=3
                 )
                 
-                # 6. Decode
                 decoded = model.tokenizer.batch_decode(outputs, skip_special_tokens=True)
                 
-                # 7. Format Output
-                full_text = f"Patient: {pid}\n"
+                # --- FORMAT RESULTS ---
+                # Retrieve reference data for this patient
+                # Try exact ID or shortened ID (e.g. pid_0000 -> pid)
+                base_id = pid.replace('.nii.gz', '').replace('.nii', '')
+                p_ref = {}
+                if base_id in ref_json: p_ref = ref_json[base_id]
+                elif '_' in base_id:
+                    short = base_id.rsplit('_', 1)[0]
+                    if short in ref_json: p_ref = ref_json[short]
+                
+                patient_pred_text = ""
+                patient_ref_text = ""
                 
                 for key, text, p_text in zip(ALL_TARGET_KEYS, decoded, prompts):
-                    clean_text = text.replace(p_text, "").strip()
-                    full_text += f"[{key.upper()}]: {clean_text}\n"
+                    # Prediction
+                    clean_pred = text.replace(p_text, "").strip()
+                    if clean_pred:
+                        patient_pred_text += f"{key.upper()}: {clean_pred}\n"
+                    
+                    # Reference
+                    # Check JSON for this organ key
+                    # Note: JSON keys might be lowercase or slightly different. 
+                    # Assuming strict match or simple lowercase match here.
+                    ref_sent = p_ref.get(key, "")
+                    if not ref_sent:
+                        # Fallback try lowercase
+                        ref_sent = p_ref.get(key.lower(), "")
+                    
+                    if ref_sent:
+                        patient_ref_text += f"{key.upper()}: {ref_sent}\n"
+
+                full_predictions.append(patient_pred_text.strip())
+                full_references.append(patient_ref_text.strip())
+                patient_ids.append(pid)
                 
-                results.append({"patient_id": pid, "report": full_text})
-                
-            except RuntimeError as e:
+            except Exception as e:
                 print(f"Skipping {pid} due to error: {e}")
                 continue
 
-    # 8. Save Results
-    os.makedirs(args.output_dir, exist_ok=True)
-    out_file = os.path.join(args.output_dir, "generated_full_reports.csv")
-    df = pd.DataFrame(results)
-    df.to_csv(out_file, index=False)
-    print(f"Done! Results saved to {out_file}")
+    # --- METRICS ---
+    print("\nComputing Metrics...")
+    # Filter only valid pairs where reference is not empty
+    valid_pairs = [(p, r) for p, r in zip(full_predictions, full_references) if len(r) > 10]
+    
+    if len(valid_pairs) > 0:
+        p_val, r_val = zip(*valid_pairs)
+        print(f"Evaluating on {len(p_val)} valid patients (with ground truth).")
+
+        print(" > ROUGE...")
+        rouge = ROUGEScore()(list(p_val), list(r_val))
+        print(" > BLEU...")
+        bleu = calculate_bleu_scores(p_val, r_val)
+        print(" > METEOR...")
+        meteor = calculate_meteor(p_val, r_val)
+        print(" > GREEN...")
+        green = calculate_greene(p_val, r_val)
+        print(" > Accuracy (Exact Match)...")
+        acc = calculate_accuracy(p_val, r_val)
+        print(" > CIDEr...")
+        cider = calculate_cider_approx(p_val, r_val)
+        
+        results = {
+            'rougeL_fmeasure': rouge['rougeL_fmeasure'].item(),
+            'bleu1': bleu['bleu1'], 
+            'bleu2': bleu['bleu2'], 
+            'bleu3': bleu['bleu3'], 
+            'bleu4': bleu['bleu4'],
+            'meteor': meteor, 
+            'green': green, 
+            'accuracy': acc, 
+            'cider': cider
+        }
+        
+        print("-" * 30)
+        print(f"BLEU-4:  {results['bleu4']:.4f}")
+        print(f"ROUGE-L: {results['rougeL_fmeasure']:.4f}")
+        print(f"METEOR:  {results['meteor']:.4f}")
+        print(f"CIDEr:   {results['cider']:.4f}")
+        print("-" * 30)
+        
+        create_metrics_table_plot([results], [args.decoder_model], args.output_dir)
+    else:
+        print("Warning: No valid references found (JSON matching failed or empty).")
+
+    # Save Generated Text
+    out_csv = os.path.join(args.output_dir, "generated_reports.csv")
+    df = pd.DataFrame({
+        'patient_id': patient_ids, 
+        'prediction': full_predictions, 
+        'reference': full_references
+    })
+    df.to_csv(out_csv, index=False)
+    print(f"Results saved to {out_csv}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_path', type=str, required=True, help="Path to checkpoint folder or .bin file")
+    parser.add_argument('--model_path', type=str, required=True)
     parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/checkpoints/model.pth')
-    parser.add_argument('--decoder_model', type=str, default='gpt2', help="HuggingFace model name or path for decoder")
-    parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data/image_first_dataset.csv', help="CSV file with image paths and splits")
+    parser.add_argument('--decoder_model', type=str, default='gpt2')
+    parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data/image_first_dataset.csv')
+    parser.add_argument('--json_file', type=str, default='/home/muhammedg/fvlm/data/combined_desc_conc.json')
     parser.add_argument('--output_dir', type=str, default='./results')
+    parser.add_argument('--subset_size', type=int, default=None, help="Debug: Evaluate on first N samples only")
     
     args = parser.parse_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"

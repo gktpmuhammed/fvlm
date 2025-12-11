@@ -166,5 +166,5 @@ if __name__ == "__main__":
     parser.add_argument('--subset_size', type=int, default=None, help="Number of patients to evaluate")
     
     args = parser.parse_args()
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     evaluate(args)

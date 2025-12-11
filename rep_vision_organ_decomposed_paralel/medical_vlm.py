@@ -1,6 +1,7 @@
 """
 Unified Medical Vision-Language Model
 Feature: "One-Pass" ROI Pooling for Multi-Organ Generation
+Optimization: Dynamic Batching (Filters empty organs to speed up training)
 """
 import sys
 import os
@@ -92,7 +93,7 @@ class MedicalVLM(nn.Module):
     def __init__(
         self,
         vision_encoder_path,
-        decoder_model_name="microsoft/biogpt", 
+        decoder_model_name="gpt2", 
         image_size=(112, 256, 352),
         patch_size=(16, 16, 32),
         **kwargs
@@ -161,15 +162,36 @@ class MedicalVLM(nn.Module):
 
     def forward(self, pixel_values, organ_masks=None, labels=None, **kwargs):
         # 1. Encode (B -> B*N)
+        # encoder_outputs.last_hidden_state shape: (B*N, 1, Hidden)
         encoder_outputs = self.model.encoder(pixel_values=pixel_values, organ_masks=organ_masks)
         
-        # 2. Reshape Labels (B, N, Seq) -> (B*N, Seq)
+        # 2. Reshape Labels and Filter Empty Organs (OPTIMIZATION)
         flat_labels = None
         if labels is not None:
             B, N_organs, Seq_Len = labels.shape
+            # Reshape to (B*N, Seq_Len)
             flat_labels = labels.view(B * N_organs, Seq_Len)
             
-        # 3. Decode
+            # --- DYNAMIC BATCHING ---
+            # Identify rows where at least one token is NOT -100
+            valid_rows = (flat_labels != -100).any(dim=1)
+            
+            if valid_rows.any():
+                # Filter Embeddings
+                # Access embeddings: (B*N, 1, Hidden)
+                original_embeds = encoder_outputs.last_hidden_state
+                filtered_embeds = original_embeds[valid_rows]
+                
+                # Update the encoder output object
+                encoder_outputs.last_hidden_state = filtered_embeds
+                
+                # Filter Labels
+                flat_labels = flat_labels[valid_rows]
+            else:
+                # Edge case: All are -100 (unlikely but safe to handle)
+                pass
+
+        # 3. Decode (Runs only on valid organs)
         return self.model(
             encoder_outputs=encoder_outputs,
             labels=flat_labels, 
