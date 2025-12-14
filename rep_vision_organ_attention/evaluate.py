@@ -39,7 +39,7 @@ if parent_dir not in sys.path:
     sys.path.insert(1, parent_dir)
 
 from medical_vlm import MedicalVLM
-from train import get_organ_ids_for_key, ALL_TARGET_KEYS, FULL_BODY_ID, build_transforms
+from train import get_organ_ids_for_key, ALL_TARGET_KEYS, build_transforms
 
 # --- METRIC FUNCTIONS ---
 
@@ -47,7 +47,6 @@ def calculate_meteor(predictions, references):
     scores = []
     for pred, ref in zip(predictions, references):
         try: 
-            # Meteor expects tokenized lists
             scores.append(meteor_score([nltk.word_tokenize(ref)], nltk.word_tokenize(pred)))
         except: scores.append(0.0)
     return np.mean(scores)
@@ -55,7 +54,12 @@ def calculate_meteor(predictions, references):
 def calculate_bleu_scores(predictions, references):
     references_tok = [[nltk.word_tokenize(ref)] for ref in references]
     hypotheses_tok = [nltk.word_tokenize(pred) for pred in predictions]
-    weights = [(1.0, 0, 0, 0), (0.5, 0.5, 0, 0), (1/3, 1/3, 1/3, 0), (0.25, 0.25, 0.25, 0.25)]
+    weights = [
+        (1.0, 0, 0, 0),          # BLEU-1
+        (0.5, 0.5, 0, 0),        # BLEU-2
+        (1/3, 1/3, 1/3, 0),      # BLEU-3
+        (0.25, 0.25, 0.25, 0.25) # BLEU-4
+    ]
     scores = {}
     for i, w in enumerate(weights, start=1):
         try: scores[f'bleu{i}'] = corpus_bleu(references_tok, hypotheses_tok, weights=w)
@@ -63,6 +67,7 @@ def calculate_bleu_scores(predictions, references):
     return scores
 
 def calculate_greene(predictions, references):
+    # Approximation using Sentence GLEU (Google-BLEU)
     scores = []
     for pred, ref in zip(predictions, references):
         try: scores.append(sentence_gleu([nltk.word_tokenize(ref)], nltk.word_tokenize(pred)))
@@ -70,7 +75,7 @@ def calculate_greene(predictions, references):
     return np.mean(scores)
 
 def calculate_accuracy(predictions, references):
-    # exact match accuracy (likely low for generated text, but useful sanity check)
+    # Exact match accuracy
     matches = sum(1 for p, r in zip(predictions, references) if p.strip().lower() == r.strip().lower())
     return matches / len(predictions) if len(predictions) > 0 else 0.0
 
@@ -78,24 +83,25 @@ def calculate_cider_approx(predictions, references, ngram=4):
     def ngrams(tokens, n):
         return [' '.join(tokens[i:i+n]) for i in range(len(tokens)-n+1)]
     
-    docs = []
+    docs_p, docs_r = [], []
     for p in predictions:
         toks = nltk.word_tokenize(p)
         ngs = []
         for k in range(1, ngram+1): ngs.extend(ngrams(toks, k))
-        docs.append(ngs)
+        docs_p.append(ngs)
     
     for r in references:
         toks = nltk.word_tokenize(r)
         ngs = []
         for k in range(1, ngram+1): ngs.extend(ngrams(toks, k))
-        docs.append(ngs) 
+        docs_r.append(ngs) 
         
+    # Document Frequency from References
     df = defaultdict(int)
-    for doc in docs:
+    for doc in docs_r:
         for g in set(doc): df[g] += 1
     
-    N = len(docs)
+    N = len(docs_r)
     
     def tf_idf(ng_list):
         tf = Counter(ng_list)
@@ -110,47 +116,47 @@ def calculate_cider_approx(predictions, references, ngram=4):
         return dot/norm if norm else 0.0
     
     scores = []
-    for p, r in zip(predictions, references):
-        p_tok = nltk.word_tokenize(p)
-        r_tok = nltk.word_tokenize(r)
-        p_ng, r_ng = [], []
-        for k in range(1, ngram+1):
-            p_ng.extend(ngrams(p_tok, k))
-            r_ng.extend(ngrams(r_tok, k))
+    for p_ng, r_ng in zip(docs_p, docs_r):
         scores.append(cosine(tf_idf(p_ng), tf_idf(r_ng)))
         
     return np.mean(scores) * 10.0 if scores else 0.0
 
-def create_metrics_table_plot(results_list, labels, output_dir):
+def create_metrics_table_plot(results_list, output_dir):
     os.makedirs(output_dir, exist_ok=True)
-    col_labels = ['Encoder', 'ACC', 'GREEN', 'BLEU-1', 'BLEU-2', 'BLEU-3', 'BLEU-4', 'METEOR', 'ROUGE-L', 'CIDEr']
+    # Define Column Order
+    col_labels = ['Organ', 'N', 'ACC', 'GREEN', 'BLEU-1', 'BLEU-2', 'BLEU-3', 'BLEU-4', 'METEOR', 'ROUGE-L', 'CIDEr']
+    
     table_rows, csv_rows = [], []
-    for label, res in zip(labels, results_list):
+    
+    for row_data in results_list:
         row = [
-            label,
-            f"{res.get('accuracy', 0.0)*100:.1f}",
-            f"{res.get('green', 0.0)*100:.1f}",
-            f"{res.get('bleu1', 0.0)*100:.1f}",
-            f"{res.get('bleu2', 0.0)*100:.1f}",
-            f"{res.get('bleu3', 0.0)*100:.1f}",
-            f"{res.get('bleu4', 0.0)*100:.1f}",
-            f"{res.get('meteor', 0.0)*100:.1f}",
-            f"{res.get('rougeL_fmeasure', 0.0)*100:.1f}",
-            f"{res.get('cider', 0.0):.1f}",
+            str(row_data['Organ']).upper(),
+            f"{row_data['N']}",
+            f"{row_data['ACC']:.3f}",
+            f"{row_data['GREEN']:.3f}",
+            f"{row_data['BLEU-1']:.3f}",
+            f"{row_data['BLEU-2']:.3f}",
+            f"{row_data['BLEU-3']:.3f}",
+            f"{row_data['BLEU-4']:.3f}",
+            f"{row_data['METEOR']:.3f}",
+            f"{row_data['ROUGE-L']:.3f}",
+            f"{row_data['CIDEr']:.3f}",
         ]
         table_rows.append(row)
         csv_rows.append({k:v for k,v in zip(col_labels, row)})
     
-    with open(os.path.join(output_dir, 'metrics_summary.csv'), 'w', newline='') as cf:
+    # Save CSV
+    with open(os.path.join(output_dir, 'metrics_breakdown.csv'), 'w', newline='') as cf:
         writer = csv.DictWriter(cf, fieldnames=col_labels)
         writer.writeheader()
         writer.writerows(csv_rows)
         
-    fig, ax = plt.subplots(figsize=(14, max(2, len(table_rows) * 0.8)))
+    # Save Image
+    fig, ax = plt.subplots(figsize=(14, len(table_rows) * 0.5 + 2))
     ax.axis('off')
     table = ax.table(cellText=table_rows, colLabels=col_labels, cellLoc='center', loc='center')
     table.auto_set_font_size(False)
-    table.set_fontsize(10)
+    table.set_fontsize(9)
     table.scale(1, 1.5)
     for (row, col), cell in table.get_celld().items():
         if row == 0:
@@ -165,6 +171,7 @@ def create_metrics_table_plot(results_list, labels, output_dir):
 class EvalDataset(Dataset):
     def __init__(self, csv_file, tokenizer, transform, subset_size=None):
         self.df = pd.read_csv(csv_file)
+        # Assuming we evaluate on the validation set
         self.df = self.df[self.df['split'] == 'validation'].reset_index(drop=True)
         if subset_size:
             self.df = self.df.head(subset_size)
@@ -181,18 +188,13 @@ class EvalDataset(Dataset):
             mask_path = row['image_path'].replace('images', 'masks')
             data = self.transform({'image': row['image_path'], 'mask': mask_path})
             
-            # Handle Monai MetaTensor to PyTorch Tensor conversion
             img = data['image']
-            if hasattr(img, 'as_tensor'): 
-                img = img.as_tensor().float()
-            elif not isinstance(img, torch.Tensor):
-                img = torch.from_numpy(img).float()
+            if hasattr(img, 'as_tensor'): img = img.as_tensor().float()
+            elif not isinstance(img, torch.Tensor): img = torch.from_numpy(img).float()
             
             mask = data['mask']
-            if hasattr(mask, 'as_tensor'): 
-                mask = mask.as_tensor()
-            elif not isinstance(mask, torch.Tensor):
-                mask = torch.from_numpy(mask)
+            if hasattr(mask, 'as_tensor'): mask = mask.as_tensor()
+            elif not isinstance(mask, torch.Tensor): mask = torch.from_numpy(mask)
             
             return {
                 'pixel_values': img,
@@ -203,7 +205,30 @@ class EvalDataset(Dataset):
             print(f"Error loading {row['image_path']}: {e}")
             return None
 
-# --- MAIN EVALUATION LOOP ---
+# --- EVALUATION LOGIC ---
+
+def compute_all_metrics(preds, refs):
+    """Helper to run all metric functions on a list of pairs."""
+    if not preds: return {}
+    
+    bleu = calculate_bleu_scores(preds, refs)
+    rouge = ROUGEScore()(preds, refs)
+    meteor = calculate_meteor(preds, refs)
+    green = calculate_greene(preds, refs)
+    acc = calculate_accuracy(preds, refs)
+    cider = calculate_cider_approx(preds, refs)
+    
+    return {
+        'BLEU-1': bleu['bleu1'],
+        'BLEU-2': bleu['bleu2'],
+        'BLEU-3': bleu['bleu3'],
+        'BLEU-4': bleu['bleu4'],
+        'ROUGE-L': rouge['rougeL_fmeasure'].item(),
+        'METEOR': meteor,
+        'GREEN': green,
+        'ACC': acc,
+        'CIDEr': cider
+    }
 
 def evaluate(args):
     print(f"--- Starting Evaluation ---")
@@ -212,8 +237,6 @@ def evaluate(args):
     
     # 1. Load Model
     model = MedicalVLM(args.vision_encoder_path, args.decoder_model)
-    
-    # Ensure pad token
     if model.tokenizer.pad_token is None:
         model.tokenizer.pad_token = model.tokenizer.eos_token
         model.model.config.pad_token_id = model.tokenizer.eos_token_id
@@ -236,13 +259,18 @@ def evaluate(args):
     dl = DataLoader(ds, batch_size=1, shuffle=False, num_workers=4)
     
     # 4. Load Reference Text (JSON)
-    # The JSON usually contains { "pid": { "liver": "...", "heart": "..." }, ... }
+    # This is where the Ground Truth comes from
     with open(args.json_file, 'r') as f:
         ref_json = json.load(f)
 
+    # Storage
+    # Global: Concatenated strings per patient
     full_predictions = []
     full_references = []
     patient_ids = []
+    
+    # Organ-Specific: Lists of individual organ strings
+    organ_specific_data = defaultdict(lambda: {'preds': [], 'refs': []})
     
     device = next(model.parameters()).device
     
@@ -255,30 +283,24 @@ def evaluate(args):
             full_mask = batch['full_mask'].to(device)
             pid = batch['patient_id'][0]
             
-            # --- PREPARE BATCHED INPUTS (One Pass) ---
+            # Prepare inputs
             mask_stack = []
             prompts = []
             
             for key in ALL_TARGET_KEYS:
-                # Prompt
-                p_text = f"Describe {key}: " if key != "Conclusion" else "Conclusion: "
+                p_text = f"Describe {key}: "
                 prompts.append(p_text)
                 
-                # Mask
                 tids = get_organ_ids_for_key(key)
-                if tids == [FULL_BODY_ID]:
-                    m = torch.ones_like(full_mask)
-                elif len(tids) > 0:
+                if len(tids) > 0:
                     m = torch.zeros_like(full_mask)
                     for t in tids: m[full_mask == t] = 1.0
                 else:
                     m = torch.zeros_like(full_mask)
                 mask_stack.append(m)
             
-            # (1, N_Targets, D, H, W)
             organ_masks = torch.stack(mask_stack, dim=1).float()
             
-            # Tokenize Prompts
             prompt_inputs = model.tokenizer(
                 prompts, 
                 return_tensors="pt", 
@@ -286,7 +308,7 @@ def evaluate(args):
                 truncation=True
             ).to(device)
             
-            # --- GENERATE ---
+            # Generate
             try:
                 outputs = model.generate(
                     pixel_values=pixel_values,
@@ -301,89 +323,89 @@ def evaluate(args):
                 
                 decoded = model.tokenizer.batch_decode(outputs, skip_special_tokens=True)
                 
-                # --- FORMAT RESULTS ---
-                # Retrieve reference data for this patient
-                # Try exact ID or shortened ID (e.g. pid_0000 -> pid)
+                # --- DATA COLLECTION ---
+                # Retrieve Reference for this specific patient ID
                 base_id = pid.replace('.nii.gz', '').replace('.nii', '')
-                p_ref = {}
-                if base_id in ref_json: p_ref = ref_json[base_id]
+                p_ref_dict = {}
+                
+                # Try exact match or substring match for ID
+                if base_id in ref_json: 
+                    p_ref_dict = ref_json[base_id]
                 elif '_' in base_id:
                     short = base_id.rsplit('_', 1)[0]
-                    if short in ref_json: p_ref = ref_json[short]
+                    if short in ref_json: 
+                        p_ref_dict = ref_json[short]
                 
-                patient_pred_text = ""
-                patient_ref_text = ""
+                patient_pred_concat = ""
+                patient_ref_concat = ""
                 
                 for key, text, p_text in zip(ALL_TARGET_KEYS, decoded, prompts):
-                    # Prediction
+                    # Clean Prediction (Remove Prompt)
                     clean_pred = text.replace(p_text, "").strip()
-                    if clean_pred:
-                        patient_pred_text += f"{key.upper()}: {clean_pred}\n"
                     
-                    # Reference
-                    # Check JSON for this organ key
-                    # Note: JSON keys might be lowercase or slightly different. 
-                    # Assuming strict match or simple lowercase match here.
-                    ref_sent = p_ref.get(key, "")
+                    # Get specific organ reference from JSON
+                    ref_sent = p_ref_dict.get(key, "")
                     if not ref_sent:
-                        # Fallback try lowercase
-                        ref_sent = p_ref.get(key.lower(), "")
+                        ref_sent = p_ref_dict.get(key.lower(), "")
                     
-                    if ref_sent:
-                        patient_ref_text += f"{key.upper()}: {ref_sent}\n"
+                    # Store if Valid Reference Exists
+                    if ref_sent and len(ref_sent) > 2:
+                        organ_specific_data[key]['preds'].append(clean_pred)
+                        organ_specific_data[key]['refs'].append(ref_sent)
+                        
+                        # Build Concatenated Report
+                        if clean_pred:
+                            patient_pred_concat += f"{key.upper()}: {clean_pred}\n"
+                        patient_ref_concat += f"{key.upper()}: {ref_sent}\n"
 
-                full_predictions.append(patient_pred_text.strip())
-                full_references.append(patient_ref_text.strip())
-                patient_ids.append(pid)
+                # Store Full Report
+                if patient_ref_concat.strip():
+                    full_predictions.append(patient_pred_concat.strip())
+                    full_references.append(patient_ref_concat.strip())
+                    patient_ids.append(pid)
                 
             except Exception as e:
-                print(f"Skipping {pid} due to error: {e}")
+                print(f"Skipping {pid} error: {e}")
                 continue
 
-    # --- METRICS ---
-    print("\nComputing Metrics...")
-    # Filter only valid pairs where reference is not empty
-    valid_pairs = [(p, r) for p, r in zip(full_predictions, full_references) if len(r) > 10]
+    # --- METRICS CALCULATION ---
+    print("\n" + "="*50)
+    print("   EVALUATION RESULTS")
+    print("="*50)
     
-    if len(valid_pairs) > 0:
-        p_val, r_val = zip(*valid_pairs)
-        print(f"Evaluating on {len(p_val)} valid patients (with ground truth).")
+    metrics_summary_list = []
+    
+    # 1. Global (Concatenated)
+    if len(full_predictions) > 0:
+        print("\nComputing Global Metrics (Concatenated)...")
+        g_metrics = compute_all_metrics(full_predictions, full_references)
+        
+        # Add metadata for table
+        g_metrics['Organ'] = 'GLOBAL_REPORT'
+        g_metrics['N'] = len(full_predictions)
+        metrics_summary_list.append(g_metrics)
+        
+        print(f"Global BLEU-4: {g_metrics['BLEU-4']:.4f} | ROUGE-L: {g_metrics['ROUGE-L']:.4f} | CIDEr: {g_metrics['CIDEr']:.4f}")
+    
+    # 2. Per-Organ
+    print("\nComputing Per-Organ Metrics...")
+    for organ in ALL_TARGET_KEYS:
+        data = organ_specific_data[organ]
+        preds = data['preds']
+        refs = data['refs']
+        
+        if len(refs) < 5:
+            continue
+            
+        o_metrics = compute_all_metrics(preds, refs)
+        o_metrics['Organ'] = organ
+        o_metrics['N'] = len(refs)
+        metrics_summary_list.append(o_metrics)
+        
+        print(f" > {organ.upper():<12}: BLEU-4 {o_metrics['BLEU-4']:.4f}")
 
-        print(" > ROUGE...")
-        rouge = ROUGEScore()(list(p_val), list(r_val))
-        print(" > BLEU...")
-        bleu = calculate_bleu_scores(p_val, r_val)
-        print(" > METEOR...")
-        meteor = calculate_meteor(p_val, r_val)
-        print(" > GREEN...")
-        green = calculate_greene(p_val, r_val)
-        print(" > Accuracy (Exact Match)...")
-        acc = calculate_accuracy(p_val, r_val)
-        print(" > CIDEr...")
-        cider = calculate_cider_approx(p_val, r_val)
-        
-        results = {
-            'rougeL_fmeasure': rouge['rougeL_fmeasure'].item(),
-            'bleu1': bleu['bleu1'], 
-            'bleu2': bleu['bleu2'], 
-            'bleu3': bleu['bleu3'], 
-            'bleu4': bleu['bleu4'],
-            'meteor': meteor, 
-            'green': green, 
-            'accuracy': acc, 
-            'cider': cider
-        }
-        
-        print("-" * 30)
-        print(f"BLEU-4:  {results['bleu4']:.4f}")
-        print(f"ROUGE-L: {results['rougeL_fmeasure']:.4f}")
-        print(f"METEOR:  {results['meteor']:.4f}")
-        print(f"CIDEr:   {results['cider']:.4f}")
-        print("-" * 30)
-        
-        create_metrics_table_plot([results], [args.decoder_model], args.output_dir)
-    else:
-        print("Warning: No valid references found (JSON matching failed or empty).")
+    # Save Results
+    create_metrics_table_plot(metrics_summary_list, args.output_dir)
 
     # Save Generated Text
     out_csv = os.path.join(args.output_dir, "generated_reports.csv")
@@ -393,7 +415,11 @@ def evaluate(args):
         'reference': full_references
     })
     df.to_csv(out_csv, index=False)
-    print(f"Results saved to {out_csv}")
+    
+    print("\n" + "-"*50)
+    print(f"Full reports saved to: {out_csv}")
+    print(f"Metrics table saved to: {os.path.join(args.output_dir, 'metrics_breakdown.csv')}")
+    print("-"*50)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -403,7 +429,7 @@ if __name__ == "__main__":
     parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data/image_first_dataset.csv')
     parser.add_argument('--json_file', type=str, default='/home/muhammedg/fvlm/data/combined_desc_conc.json')
     parser.add_argument('--output_dir', type=str, default='./results')
-    parser.add_argument('--subset_size', type=int, default=None, help="Debug: Evaluate on first N samples only")
+    parser.add_argument('--subset_size', type=int, default=None)
     
     args = parser.parse_args()
     os.environ["CUDA_VISIBLE_DEVICES"] = "0"

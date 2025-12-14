@@ -28,53 +28,33 @@ os.environ["WANDB_PROJECT"] = "thesis"
 os.environ["WANDB_ENTITY"] = "gktp-thesis"
 
 # --- CONFIGURATION ---
-FULL_BODY_ID = -999
 
-# The fixed list of targets (Organs + Conclusion)
-# The model will output N embeddings per patient in one pass.
+# The refined list of targets based on high representation (>900 text reports)
+# Removed: Conclusion, Brain, Face, Colon, Bones, Muscles, Reproductive organs
 ALL_TARGET_KEYS = [
-    'Conclusion', # The "Whole Body" Summary
-    'brain', 'face', 'lung', 'heart', 'aorta', 
-    'esophagus', 'trachea', 'spine', 'rib', 'sternum',
-    'liver', 'gallbladder', 'stomach', 'pancreas', 'spleen', 'kidney', 'adrenal',
-    'colon', 'intestine', 'bladder', 'prostate', 'uterus',
-    'humerus', 'scapula', 'clavicula', 'femur', 'hip', 'sacrum',
-    'gluteus', 'iliopsoas', 'autochthon'
+    'lung', 'heart', 'aorta', 'esophagus', 'trachea', 'rib',
+    'liver', 'gallbladder', 'stomach', 'pancreas', 'spleen', 'kidney'
 ]
 
 # --- MAPPING LOGIC ---
 def get_organ_ids_for_key(report_key):
     key = report_key.lower().strip()
     
-    if "conclusion" in key or "impression" in key: return [FULL_BODY_ID]
-
+    # Thorax / Vessels / Airway
     if "lung" in key: return [10, 11, 12, 13, 14] 
     if "heart" in key: return [51, 61] 
-    if "kidney" in key: return [2, 3] 
-    if "liver" in key: return [5]
-    if "gallbladder" in key: return [4]
-    if "pancreas" in key: return [7]
-    if "spleen" in key: return [1]
-    if "stomach" in key: return [6]
+    if "aorta" in key: return [52]
     if "esophagus" in key: return [15]
     if "trachea" in key: return [16]
-    if "colon" in key: return [20]
-    if "aorta" in key: return [52]
-    if "brain" in key: return [90]
-    
-    if "face" in key or "skull" in key: return [91]
-    if "humerus" in key: return [69, 70] 
-    if "scapula" in key: return [71, 72] 
-    if "clavicula" in key: return [73, 74] 
-    if "femur" in key: return [75, 76] 
-    if "hip" in key: return [77, 78] 
-    if "sacrum" in key: return [25]
     if "rib" in key: return list(range(92, 116)) 
-    if "sternum" in key: return [116]
-    
-    if "gluteus" in key: return [80, 81, 82, 83, 84, 85]
-    if "iliopsoas" in key: return [88, 89]
-    if "autochthon" in key: return [86, 87]
+
+    # Abdomen
+    if "liver" in key: return [5]
+    if "gallbladder" in key: return [4]
+    if "stomach" in key: return [6]
+    if "pancreas" in key: return [7]
+    if "spleen" in key: return [1]
+    if "kidney" in key: return [2, 3] 
 
     return []
 
@@ -157,7 +137,7 @@ class OnePassOrganDataset(Dataset):
             # 1. Load Image & Mask (ONCE per patient)
             data = self.transform({'image': item['image_path'], 'mask': item['mask_path']})
             
-            # Tensor Conversion (MetaTensor Fix)
+            # Tensor Conversion
             img_data = data['image']
             if hasattr(img_data, 'as_tensor'): image_tensor = img_data.as_tensor().float()
             elif isinstance(img_data, torch.Tensor): image_tensor = img_data.float()
@@ -178,16 +158,13 @@ class OnePassOrganDataset(Dataset):
                 target_ids = get_organ_ids_for_key(key)
                 
                 # A. Prepare MASK
-                if len(target_ids) == 0:
-                    binary_mask = torch.zeros_like(full_mask_tensor)
-                elif target_ids == [FULL_BODY_ID]:
-                    # Conclusion -> Full Mask
-                    binary_mask = torch.ones_like(full_mask_tensor)
-                else:
-                    # Specific Organ
+                if len(target_ids) > 0:
                     binary_mask = torch.zeros_like(full_mask_tensor)
                     for tid in target_ids:
                         binary_mask[full_mask_tensor == tid] = 1.0
+                else:
+                    # Should not happen given our cleaner list, but safe fallback
+                    binary_mask = torch.zeros_like(full_mask_tensor)
                 
                 mask_stack.append(binary_mask)
                 
@@ -196,7 +173,7 @@ class OnePassOrganDataset(Dataset):
                 
                 # C. Tokenize
                 if len(text) > 3:
-                    prompt = f"Describe {key}: " if key != "Conclusion" else "Conclusion: "
+                    prompt = f"Describe {key}: "
                     full_input = prompt + text
                     
                     tokens = self.tokenizer(
@@ -244,14 +221,14 @@ def main(args):
         args.max_length, args.subset_size, 'validation'
     )
 
-    run_name = f"{args.decoder_model.split('/')[-1]}_onepass_organ_guided_attention"
+    run_name = f"{args.decoder_model.split('/')[-1]}_refined_organs_batch"
     
     training_args = Seq2SeqTrainingArguments(
         output_dir=args.output_dir,
         run_name=run_name,
         report_to="wandb",
         num_train_epochs=args.num_epochs,
-        per_device_train_batch_size=args.batch_size, # Recommended: 1
+        per_device_train_batch_size=args.batch_size,
         per_device_eval_batch_size=1,
         gradient_accumulation_steps=8, 
         learning_rate=2e-4,
@@ -290,7 +267,7 @@ if __name__ == '__main__':
     parser.add_argument('--json_file', type=str, default='/home/muhammedg/fvlm/data/combined_desc_conc.json')
     parser.add_argument('--output_dir', type=str, default='./checkpoints/medical_vlm')
     parser.add_argument('--max_length', type=int, default=150)
-    parser.add_argument('--batch_size', type=int, default=2) # Low batch size for One-Pass
+    parser.add_argument('--batch_size', type=int, default=2) 
     parser.add_argument('--num_epochs', type=int, default=2)
     parser.add_argument('--subset_size', type=int, default=None)
     

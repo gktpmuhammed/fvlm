@@ -14,11 +14,7 @@ from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM, 
     AutoConfig,
-    ViTConfig,
-    BartForCausalLM,
-    BartConfig,
-    BertConfig,
-    BertModel
+    ViTConfig
 )
 from transformers.modeling_outputs import BaseModelOutput
 
@@ -31,10 +27,8 @@ if parent_dir not in sys.path:
 class Attentive_ROI_Wrapper(nn.Module):
     """
     ViT -> Masked Cross-Attention -> Decoder
-    Replicates the fVLM approach: Learns a 'Query' for each organ that attends
-    only to the relevant pixels of that organ.
     """
-    def __init__(self, vit_model, config, num_organs=32):
+    def __init__(self, vit_model, config, num_organs=12):
         super().__init__()
         self.vit = vit_model
         self.config = config
@@ -44,6 +38,7 @@ class Attentive_ROI_Wrapper(nn.Module):
         self.main_input_name = "pixel_values"
         
         # 1. Learnable Queries (The "Interviewer" for each organ)
+        # Updated to 12 based on the refined list
         self.organ_queries = nn.Parameter(torch.randn(num_organs, self.hidden_size))
         
         # 2. Cross Attention Layer
@@ -63,7 +58,6 @@ class Attentive_ROI_Wrapper(nn.Module):
         # 1. Run Vision Encoder
         outputs = self.vit(pixel_values)
         
-        # Handle specific LAVIS/BLIP output format
         if isinstance(outputs, tuple):
             image_feats = outputs[0]
         elif hasattr(outputs, "last_hidden_state"):
@@ -159,8 +153,8 @@ class MedicalVLM(nn.Module):
             param.requires_grad = False
 
         # 2. WRAP ENCODER (ROI Attention)
-        # Ensure num_organs matches your dataset (31 or 32)
-        wrapped_encoder = Attentive_ROI_Wrapper(vision_encoder, encoder_config, num_organs=32)
+        # UPDATED: Set num_organs to 12 to match the training list
+        wrapped_encoder = Attentive_ROI_Wrapper(vision_encoder, encoder_config, num_organs=12)
 
         # 3. SETUP DECODER
         self.tokenizer = AutoTokenizer.from_pretrained(decoder_model_name)
@@ -191,16 +185,13 @@ class MedicalVLM(nn.Module):
         self.model.config.vocab_size = self.tokenizer.vocab_size
 
     def forward(self, pixel_values, organ_masks=None, labels=None, **kwargs):
-        # 1. Encode (B -> B*N)
         encoder_outputs = self.model.encoder(pixel_values=pixel_values, organ_masks=organ_masks)
         
-        # 2. Reshape Labels (B, N, Seq) -> (B*N, Seq)
         flat_labels = None
         if labels is not None:
             B, N_organs, Seq_Len = labels.shape
             flat_labels = labels.view(B * N_organs, Seq_Len)
             
-        # 3. Decode
         return self.model(
             encoder_outputs=encoder_outputs,
             labels=flat_labels, 
@@ -208,12 +199,9 @@ class MedicalVLM(nn.Module):
             **kwargs
         )
 
-    # FIX: Correctly mapping input_ids to decoder_input_ids for VisionEncoderDecoder
     def generate(self, pixel_values, organ_masks=None, input_ids=None, attention_mask=None, **kwargs):
         encoder_outputs = self.model.encoder(pixel_values=pixel_values, organ_masks=organ_masks)
         
-        # We MUST pass the prompts as 'decoder_input_ids'
-        # 'input_ids' argument in generate() is interpreted as Encoder inputs, which we don't want.
         return self.model.generate(
             encoder_outputs=encoder_outputs,
             decoder_input_ids=input_ids,
