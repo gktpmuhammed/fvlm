@@ -3,11 +3,13 @@ import os
 import argparse
 import logging
 import wandb
+import torch # Needed for AdamW
 from transformers import Seq2SeqTrainingArguments, Seq2SeqTrainer, EarlyStoppingCallback
 from data import UnifiedMedicalDataset, ModularCollator, build_transforms
 from model import MedicalVLM
 
 def main(args):
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     logging.basicConfig(level=logging.INFO)
     os.environ["WANDB_PROJECT"] = "thesis"
     
@@ -37,8 +39,56 @@ def main(args):
         mode=data_mode, split='validation', max_length=args.max_length, subset_size=args.subset_size
     )
 
-    run_name = f"{args.decoder_model.split('/')[-1]}_{args.strategy}_12organs"
+    run_name = f"{args.decoder_model.split('/')[-1]}_{args.strategy}_12organs_diffLR"
     
+    # --- 1. CUSTOM OPTIMIZER LOGIC ---
+    # Goal: High LR for Q-Former (New), Low LR for Decoder (Pre-trained)
+    
+    # Hyperparameters
+    lr_qformer = 1e-4   # Fast learning for new weights
+    lr_decoder = 5e-5   # Slow fine-tuning for GPT-2
+    weight_decay = 0.05
+
+    # Separate parameters by name
+    qformer_params = []
+    decoder_params = []
+    
+    # We iterate all named parameters to sort them
+    for name, param in model.named_parameters():
+        if not param.requires_grad:
+            continue # Skip frozen weights (like ViT)
+            
+        # "encoder" in the HF VisionEncoderDecoderModel refers to our Adapter/Q-Former
+        # "organ_queries", "qformer", "output_proj" are all inside the encoder
+        if "encoder" in name or "qformer" in name or "organ_queries" in name:
+            qformer_params.append(param)
+        else:
+            # "decoder", "lm_head" etc. go here
+            decoder_params.append(param)
+
+    print(f"\n--- Optimizer Groups ---")
+    print(f"Q-Former/Adapter Params (LR={lr_qformer}): {len(qformer_params)} tensors")
+    print(f"GPT-2/Decoder Params    (LR={lr_decoder}): {len(decoder_params)} tensors")
+
+    # Create Grouped List
+    optimizer_grouped_parameters = [
+        {
+            "params": qformer_params, 
+            "lr": lr_qformer, 
+            "weight_decay": weight_decay
+        },
+        {
+            "params": decoder_params, 
+            "lr": lr_decoder, 
+            "weight_decay": weight_decay
+        }
+    ]
+
+    # Initialize AdamW manually
+    optimizer = torch.optim.AdamW(optimizer_grouped_parameters)
+    
+    # ---------------------------------
+
     training_args = Seq2SeqTrainingArguments(
         output_dir=args.output_dir,
         run_name=run_name,
@@ -46,8 +96,8 @@ def main(args):
         num_train_epochs=args.num_epochs,
         per_device_train_batch_size=args.batch_size,
         gradient_accumulation_steps=8, 
-        learning_rate=2e-4,
-        weight_decay=0.01,
+        # learning_rate=2e-4, <-- REMOVED (Overridden by optimizer)
+        weight_decay=weight_decay,
         warmup_ratio=0.1,
         logging_steps=5,
         evaluation_strategy="steps",
@@ -67,13 +117,16 @@ def main(args):
         train_dataset=train_dataset,
         eval_dataset=val_dataset,
         data_collator=ModularCollator(),
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=5)]
+        callbacks=[EarlyStoppingCallback(early_stopping_patience=5)],
+        # PASS THE CUSTOM OPTIMIZER HERE
+        # We pass (optimizer, None) so Trainer creates the standard Scheduler for us automatically
+        optimizers=(optimizer, None) 
     )
 
-    print("\n--- Trainable Parameters ---")
+    # Sanity Check print
+    print("\n--- Trainable Parameters Check ---")
     for name, param in model.named_parameters():
         if param.requires_grad:
-            # We want to see 'qformer' and 'crossattention' here
             if "crossattention" in name or "qformer" in name or "ln_2" in name:
                 print(f"Training: {name}")
                 break 
@@ -97,4 +150,6 @@ if __name__ == '__main__':
     parser.add_argument('--use_qformer', action='store_true')
     
     args = parser.parse_args()
+    # Clean up any potential conflicts with CLI args regarding LR
+    # (Though optimizer override usually takes precedence)
     main(args)

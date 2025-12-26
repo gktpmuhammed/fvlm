@@ -211,28 +211,28 @@ def evaluate(args):
                     all_refs_concat.append(p_concat_ref.strip())
                     patient_ids.append(pid)
 
-    # 3. COMPUTE METRICS
-    summary = []
+    # # 3. COMPUTE METRICS
+    # summary = []
     
-    if all_preds_concat:
-        print("\nComputing Global Metrics...")
-        g_stats = metrics.compute_all_metrics(all_preds_concat, all_refs_concat)
-        g_stats['Organ'] = 'GLOBAL'
-        g_stats['N'] = len(all_preds_concat)
-        summary.append(g_stats)
-        print(f"Global BLEU-4: {g_stats['BLEU-4']:.4f}")
+    # if all_preds_concat:
+    #     print("\nComputing Global Metrics...")
+    #     g_stats = metrics.compute_all_metrics(all_preds_concat, all_refs_concat)
+    #     g_stats['Organ'] = 'GLOBAL'
+    #     g_stats['N'] = len(all_preds_concat)
+    #     summary.append(g_stats)
+    #     print(f"Global BLEU-4: {g_stats['BLEU-4']:.4f}")
 
-    if args.strategy != 'global':
-        print("Computing Per-Organ Metrics...")
-        for organ in ALL_TARGET_KEYS:
-            data = organ_breakdown[organ]
-            if len(data['refs']) > 5:
-                o_stats = metrics.compute_all_metrics(data['preds'], data['refs'])
-                o_stats['Organ'] = organ
-                o_stats['N'] = len(data['refs'])
-                summary.append(o_stats)
+    # if args.strategy != 'global':
+    #     print("Computing Per-Organ Metrics...")
+    #     for organ in ALL_TARGET_KEYS:
+    #         data = organ_breakdown[organ]
+    #         if len(data['refs']) > 5:
+    #             o_stats = metrics.compute_all_metrics(data['preds'], data['refs'])
+    #             o_stats['Organ'] = organ
+    #             o_stats['N'] = len(data['refs'])
+    #             summary.append(o_stats)
 
-    metrics.create_metrics_table_plot(summary, args.output_dir)
+    # metrics.create_metrics_table_plot(summary, args.output_dir)
     
     pd.DataFrame({'patient_id': patient_ids, 'pred': all_preds_concat, 'ref': all_refs_concat})\
       .to_csv(os.path.join(args.output_dir, "generated_reports.csv"), index=False)
@@ -251,5 +251,5 @@ if __name__ == "__main__":
     parser.add_argument('--use_qformer', action='store_true')
     
     args = parser.parse_args()
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     evaluate(args)

@@ -58,7 +58,7 @@ class MedicalVLM(nn.Module):
             self.adapter = AttentionAdapter(vision_encoder, enc_config, num_organs=12)
         elif strategy == "attention_qformer":  # <--- NEW STRATEGY
             # Uses Q-Former + Masks + Queries
-            self.adapter = RobustQFormerAdapter(vision_encoder, enc_config, num_organs=12)
+            self.adapter = RobustQFormerAdapter(vision_encoder, enc_config, num_organs=12, num_query_tokens=4)
         else:
             raise ValueError(f"Unknown strategy: {strategy}")
 
