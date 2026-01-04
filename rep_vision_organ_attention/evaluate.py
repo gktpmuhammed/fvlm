@@ -234,6 +234,7 @@ def evaluate(args):
     print(f"--- Starting Evaluation ---")
     print(f"Model: {args.decoder_model}")
     print(f"Dataset: {args.csv_file}")
+    os.makedirs(args.output_dir, exist_ok=True)
     
     # 1. Load Model
     model = MedicalVLM(args.vision_encoder_path, args.decoder_model)
@@ -368,44 +369,44 @@ def evaluate(args):
                 print(f"Skipping {pid} error: {e}")
                 continue
 
-    # --- METRICS CALCULATION ---
-    print("\n" + "="*50)
-    print("   EVALUATION RESULTS")
-    print("="*50)
+    # # --- METRICS CALCULATION ---
+    # print("\n" + "="*50)
+    # print("   EVALUATION RESULTS")
+    # print("="*50)
     
-    metrics_summary_list = []
+    # metrics_summary_list = []
     
-    # 1. Global (Concatenated)
-    if len(full_predictions) > 0:
-        print("\nComputing Global Metrics (Concatenated)...")
-        g_metrics = compute_all_metrics(full_predictions, full_references)
+    # # 1. Global (Concatenated)
+    # if len(full_predictions) > 0:
+    #     print("\nComputing Global Metrics (Concatenated)...")
+    #     g_metrics = compute_all_metrics(full_predictions, full_references)
         
-        # Add metadata for table
-        g_metrics['Organ'] = 'GLOBAL_REPORT'
-        g_metrics['N'] = len(full_predictions)
-        metrics_summary_list.append(g_metrics)
+    #     # Add metadata for table
+    #     g_metrics['Organ'] = 'GLOBAL_REPORT'
+    #     g_metrics['N'] = len(full_predictions)
+    #     metrics_summary_list.append(g_metrics)
         
-        print(f"Global BLEU-4: {g_metrics['BLEU-4']:.4f} | ROUGE-L: {g_metrics['ROUGE-L']:.4f} | CIDEr: {g_metrics['CIDEr']:.4f}")
+    #     print(f"Global BLEU-4: {g_metrics['BLEU-4']:.4f} | ROUGE-L: {g_metrics['ROUGE-L']:.4f} | CIDEr: {g_metrics['CIDEr']:.4f}")
     
-    # 2. Per-Organ
-    print("\nComputing Per-Organ Metrics...")
-    for organ in ALL_TARGET_KEYS:
-        data = organ_specific_data[organ]
-        preds = data['preds']
-        refs = data['refs']
+    # # 2. Per-Organ
+    # print("\nComputing Per-Organ Metrics...")
+    # for organ in ALL_TARGET_KEYS:
+    #     data = organ_specific_data[organ]
+    #     preds = data['preds']
+    #     refs = data['refs']
         
-        if len(refs) < 5:
-            continue
+    #     if len(refs) < 5:
+    #         continue
             
-        o_metrics = compute_all_metrics(preds, refs)
-        o_metrics['Organ'] = organ
-        o_metrics['N'] = len(refs)
-        metrics_summary_list.append(o_metrics)
+    #     o_metrics = compute_all_metrics(preds, refs)
+    #     o_metrics['Organ'] = organ
+    #     o_metrics['N'] = len(refs)
+    #     metrics_summary_list.append(o_metrics)
         
-        print(f" > {organ.upper():<12}: BLEU-4 {o_metrics['BLEU-4']:.4f}")
+    #     print(f" > {organ.upper():<12}: BLEU-4 {o_metrics['BLEU-4']:.4f}")
 
-    # Save Results
-    create_metrics_table_plot(metrics_summary_list, args.output_dir)
+    # # Save Results
+    # create_metrics_table_plot(metrics_summary_list, args.output_dir)
 
     # Save Generated Text
     out_csv = os.path.join(args.output_dir, "generated_reports.csv")
