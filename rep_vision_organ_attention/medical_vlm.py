@@ -14,7 +14,8 @@ from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM, 
     AutoConfig,
-    ViTConfig
+    ViTConfig,
+    AutoModel  # ### NEW: Required for loading BERT
 )
 from transformers.modeling_outputs import BaseModelOutput
 
@@ -119,6 +120,7 @@ class MedicalVLM(nn.Module):
         decoder_model_name="gpt2", 
         image_size=(112, 256, 352),
         patch_size=(16, 16, 32),
+        bert_model_path="/home/muhammedg/fvlm/BiomedVLP-CXR-BERT-specialized", # ### NEW: Argument for BERT path
         **kwargs 
     ):
         super().__init__()
@@ -148,12 +150,11 @@ class MedicalVLM(nn.Module):
             vision_encoder.load_state_dict(vision_state, strict=False)
             print("  ViT weights loaded successfully.")
         
-        # Freeze ViT
+        # Unfreeze ViT Encoder
         for param in vision_encoder.parameters():
-            param.requires_grad = False
+            param.requires_grad = True
 
         # 2. WRAP ENCODER (ROI Attention)
-        # UPDATED: Set num_organs to 12 to match the training list
         wrapped_encoder = Attentive_ROI_Wrapper(vision_encoder, encoder_config, num_organs=12)
 
         # 3. SETUP DECODER
@@ -184,7 +185,75 @@ class MedicalVLM(nn.Module):
         self.model.config.pad_token_id = self.tokenizer.pad_token_id
         self.model.config.vocab_size = self.tokenizer.vocab_size
 
+        # ### NEW: Load CXR-BERT Teacher (If path provided)
+        if bert_model_path and os.path.exists(bert_model_path):
+            print(f"  Loading CXR-BERT Teacher from: {bert_model_path}")
+            self.bert_tokenizer = AutoTokenizer.from_pretrained(bert_model_path, trust_remote_code=True)
+            self.bert_model = AutoModel.from_pretrained(bert_model_path, trust_remote_code=True)
+            
+            # Freeze BERT (Teacher only)
+            for param in self.bert_model.parameters():
+                param.requires_grad = False
+            
+            # Projection Layer: ViT (768) -> BERT Hidden Size (usually 128 or 768)
+            # We assume CXR-BERT-specialized uses 128 dim projection in original paper, 
+            # but the raw HuggingFace model usually outputs 768. 
+            # We project to match the BERT hidden size.
+            bert_dim = self.bert_model.config.hidden_size
+            self.visual_projection = nn.Linear(768, bert_dim)
+        else:
+            print("  No BERT path provided or path invalid. Semantic Loss disabled.")
+            self.bert_model = None
+
+    # ### NEW: Semantic Loss Calculation Helper
+    def get_semantic_loss(self, visual_features, label_ids):
+        """
+        visual_features: (Batch * N_Organs, Hidden_Size)
+        label_ids: (Batch * N_Organs, Seq_Len)
+        """
+        device = visual_features.device
+        
+        # 1. Decode Labels to Text (Batch Decode)
+        # We replace -100 with pad_token_id to decode correctly
+        clean_labels = label_ids.clone()
+        clean_labels[clean_labels == -100] = self.tokenizer.pad_token_id
+        
+        decoded_texts = self.tokenizer.batch_decode(clean_labels, skip_special_tokens=True)
+        
+        # Filter out empty strings (missing organs) to avoid BERT errors
+        # Create a mask for valid texts
+        valid_indices = [i for i, t in enumerate(decoded_texts) if len(t.strip()) > 3]
+        if not valid_indices:
+            return torch.tensor(0.0, device=device)
+            
+        valid_texts = [decoded_texts[i] for i in valid_indices]
+        valid_visuals = visual_features[valid_indices]
+        
+        # 2. Get Text Embeddings from BERT
+        with torch.no_grad():
+            inputs = self.bert_tokenizer(
+                valid_texts, padding=True, truncation=True, max_length=128, return_tensors="pt"
+            ).to(device)
+            bert_outputs = self.bert_model(**inputs)
+            # Use [CLS] token (index 0)
+            text_embeds = bert_outputs.last_hidden_state[:, 0, :]
+            
+        # 3. Project Visual Embeddings
+        vis_proj = self.visual_projection(valid_visuals)
+        
+        # 4. Normalize
+        vis_norm = F.normalize(vis_proj, dim=-1)
+        text_norm = F.normalize(text_embeds, dim=-1)
+        
+        # 5. Cosine Similarity Loss (Maximize similarity -> Minimize 1 - Sim)
+        similarity = (vis_norm * text_norm).sum(dim=-1)
+        loss = 1.0 - similarity.mean()
+        
+        return loss
+
+    # ### MODIFIED: Forward to include Semantic Loss
     def forward(self, pixel_values, organ_masks=None, labels=None, **kwargs):
+        # 1. Run Encoder explicitly to get embeddings
         encoder_outputs = self.model.encoder(pixel_values=pixel_values, organ_masks=organ_masks)
         
         flat_labels = None
@@ -192,12 +261,27 @@ class MedicalVLM(nn.Module):
             B, N_organs, Seq_Len = labels.shape
             flat_labels = labels.view(B * N_organs, Seq_Len)
             
-        return self.model(
+        # 2. Run Decoder (Standard generation loss)
+        outputs = self.model(
             encoder_outputs=encoder_outputs,
             labels=flat_labels, 
             return_dict=True, 
             **kwargs
         )
+        
+        # 3. Add Semantic Loss if BERT is loaded and we are training
+        if labels is not None and self.bert_model is not None and self.training:
+            # encoder_outputs.last_hidden_state is (Batch * N, 1, 768)
+            # Squeeze to (Batch * N, 768)
+            vis_feats = encoder_outputs.last_hidden_state.squeeze(1)
+            
+            sem_loss = self.get_semantic_loss(vis_feats, flat_labels)
+            
+            # Combine Losses (Weight semantic loss)
+            # 0.5 is a conservative weight; can be increased to 1.0 if hallucinations persist
+            outputs.loss += (0.5 * sem_loss)
+            
+        return outputs
 
     def generate(self, pixel_values, organ_masks=None, input_ids=None, attention_mask=None, **kwargs):
         encoder_outputs = self.model.encoder(pixel_values=pixel_values, organ_masks=organ_masks)

@@ -236,6 +236,8 @@ def evaluate_metrics_sequentially(args):
         'do_srr_bert': run_all or 'srr_bert' in args.metrics,
         'do_ratescore': 'ratescore' in args.metrics,
         'do_temporal': 'temporal' in args.metrics,
+        # 'do_radeval_bertscore': run_all or 'radeval_bertscore' in args.metrics,
+        # 'do_detail': True,  # Always get detailed outputs
     }
     
     # Fallback metrics (not in RadEval)
