@@ -5,6 +5,7 @@ Optimization: Dynamic Batching (Filters empty organs to speed up training)
 """
 import sys
 import os
+import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -15,9 +16,16 @@ from transformers import (
     AutoModelForCausalLM, 
     AutoConfig,
     ViTConfig,
-    AutoModel  
+    AutoModel
 )
-from transformers.modeling_outputs import BaseModelOutput
+# Attempt to import BioGpt classes; handle errors if not present
+try:
+    from transformers import BioGptForCausalLM, BioGptModel
+    HAS_BIOGPT = True
+except ImportError:
+    HAS_BIOGPT = False
+
+from transformers.modeling_outputs import BaseModelOutput, CausalLMOutputWithCrossAttentions
 
 # Fix local import path for lavis
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -25,38 +33,124 @@ parent_dir = os.path.dirname(current_dir)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
+# ### FIX: BioGPT Wrapper for Visual Prefix Injection ###
+if HAS_BIOGPT:
+    class BioGptLM_Fixed(BioGptForCausalLM):
+        def forward(
+            self,
+            input_ids=None,
+            attention_mask=None,
+            token_type_ids=None,
+            position_ids=None,
+            head_mask=None,
+            inputs_embeds=None,
+            encoder_hidden_states=None, # This contains our Visual Features!
+            encoder_attention_mask=None,
+            past_key_values=None,
+            labels=None,
+            use_cache=None,
+            output_attentions=None,
+            output_hidden_states=None,
+            return_dict=None,
+            **kwargs,
+        ):
+            # 1. Get Text Embeddings
+            if inputs_embeds is None:
+                inputs_embeds = self.biogpt.embed_tokens(input_ids)
+
+            # 2. Inject Visual Prefix (Only if we have visual feats and no history yet)
+            visual_len = 0
+            if encoder_hidden_states is not None:
+                if past_key_values is None:
+                    # Capture length to trim later
+                    visual_len = encoder_hidden_states.shape[1]
+                    
+                    # Concatenate [Visual_Feats, Text_Feats]
+                    inputs_embeds = torch.cat([encoder_hidden_states, inputs_embeds], dim=1)
+                    
+                    # Extend Attention Mask
+                    if attention_mask is not None:
+                        B, N_Vis = encoder_hidden_states.shape[:2]
+                        vis_mask = torch.ones((B, N_Vis), device=attention_mask.device, dtype=attention_mask.dtype)
+                        attention_mask = torch.cat([vis_mask, attention_mask], dim=1)
+            
+            # 3. Call Internal BioGPT Model
+            outputs = self.biogpt(
+                input_ids=None, 
+                inputs_embeds=inputs_embeds,
+                attention_mask=attention_mask,
+                head_mask=head_mask,
+                past_key_values=past_key_values,
+                use_cache=use_cache,
+                output_attentions=output_attentions,
+                output_hidden_states=output_hidden_states,
+                return_dict=return_dict,
+                **kwargs,
+            )
+
+            hidden_states = outputs[0]
+            lm_logits = self.output_projection(hidden_states)
+
+            # ### CRITICAL FIX: Trim Visual Prefix from Logits ###
+            # VisionEncoderDecoderModel calculates loss using 'labels' which correspond ONLY to text.
+            # We must remove the visual logits so shapes match.
+            if visual_len > 0 and past_key_values is None:
+                lm_logits = lm_logits[:, visual_len:, :]
+
+            loss = None
+            if not return_dict:
+                output = (lm_logits,) + outputs[1:]
+                return ((loss,) + output) if loss is not None else output
+
+            return CausalLMOutputWithCrossAttentions(
+                loss=loss,
+                logits=lm_logits,
+                past_key_values=outputs.past_key_values,
+                hidden_states=outputs.hidden_states,
+                attentions=outputs.attentions,
+                cross_attentions=outputs.cross_attentions,
+            )
+
 class Attentive_ROI_Wrapper(nn.Module):
     """
     ViT -> Masked Cross-Attention -> Decoder
     """
-    def __init__(self, vit_model, config, num_organs=12):
+    def __init__(self, vit_model, config, num_organs=12, decoder_hidden_size=768):
         super().__init__()
         self.vit = vit_model
-        self.config = config
-        self.hidden_size = config.hidden_size
         
-        # Required by Hugging Face VisionEncoderDecoderModel
+        # Update internal config to match Decoder Size
+        self.config = copy.deepcopy(config)
+        self.hidden_size = config.hidden_size 
+        self.config.hidden_size = decoder_hidden_size 
+        
         self.main_input_name = "pixel_values"
         
-        # 1. Learnable Queries (The "Interviewer" for each organ)
-        # Updated to 12 based on the refined list
-        self.organ_queries = nn.Parameter(torch.randn(num_organs, self.hidden_size))
+        # Project Vision Features
+        self.decoder_hidden_size = decoder_hidden_size
+        if self.hidden_size != self.decoder_hidden_size:
+            self.vis_project = nn.Linear(self.hidden_size, self.decoder_hidden_size)
+        else:
+            self.vis_project = nn.Identity()
+
+        self.organ_queries = nn.Parameter(torch.randn(num_organs, self.decoder_hidden_size))
         
-        # 2. Cross Attention Layer
         self.cross_attn = nn.MultiheadAttention(
-            embed_dim=self.hidden_size, 
+            embed_dim=self.decoder_hidden_size, 
             num_heads=8, 
             batch_first=True
         )
         
-        # 3. Layer Norm for stability
-        self.layer_norm = nn.LayerNorm(self.hidden_size)
-
-        # Initialize
+        self.layer_norm = nn.LayerNorm(self.decoder_hidden_size)
         nn.init.normal_(self.organ_queries, std=0.02)
 
+    def get_output_embeddings(self):
+        return None
+
+    def set_output_embeddings(self, new_embeddings):
+        pass
+
     def forward(self, pixel_values, organ_masks=None, **kwargs):
-        # 1. Run Vision Encoder
         outputs = self.vit(pixel_values)
         
         if isinstance(outputs, tuple):
@@ -66,37 +160,29 @@ class Attentive_ROI_Wrapper(nn.Module):
         else:
             image_feats = outputs
             
+        image_feats = self.vis_project(image_feats)
+            
         if organ_masks is not None:
-            # Handle 6D input (Batch, N, C, D, H, W) -> Squeeze C
             if organ_masks.dim() == 6:
                 organ_masks = organ_masks.squeeze(2)
 
-            # organ_masks: (Batch, N_organs, D, H, W)
             B, N_organs, D_m, H_m, W_m = organ_masks.shape
             
-            # --- A. Prepare the Mask for Attention ---
             f_d, f_h, f_w = 7, 16, 11 
             flat_masks = organ_masks.view(B * N_organs, 1, D_m, H_m, W_m)
             masks_down = F.interpolate(flat_masks, size=(f_d, f_h, f_w), mode='area')
             masks_flat = masks_down.view(B, N_organs, -1)
             
-            # --- SAFEGUARD: Prevent NaNs from empty masks ---
             attn_bias = torch.zeros_like(masks_flat)
-            # Set background to -inf
             attn_bias[masks_flat < 0.1] = float('-inf') 
-            
-            # If an organ is completely missing (all -inf), attend to everything (0.0)
             is_all_inf = (attn_bias == float('-inf')).all(dim=-1, keepdim=True)
             attn_bias = attn_bias.masked_fill(is_all_inf, 0.0)
             
-            # Expand Mask for MultiHeadAttention
             num_heads = self.cross_attn.num_heads
             attn_bias = attn_bias.repeat_interleave(num_heads, dim=0)
             
-            # --- B. Prepare Queries ---
             queries = self.organ_queries.unsqueeze(0).expand(B, -1, -1)
             
-            # --- C. Cross Attention ---
             organ_embeddings, _ = self.cross_attn(
                 query=queries,
                 key=image_feats,
@@ -104,13 +190,11 @@ class Attentive_ROI_Wrapper(nn.Module):
                 attn_mask=attn_bias
             )
             
-            # --- D. Flatten for Decoder ---
             organ_embeddings = self.layer_norm(organ_embeddings)
             final_embeddings = organ_embeddings.view(B * N_organs, 1, -1)
             
             return BaseModelOutput(last_hidden_state=final_embeddings)
 
-        # Fallback
         return BaseModelOutput(last_hidden_state=image_feats)
 
 class MedicalVLM(nn.Module):
@@ -120,12 +204,12 @@ class MedicalVLM(nn.Module):
         decoder_model_name="gpt2", 
         image_size=(112, 256, 352),
         patch_size=(16, 16, 32),
-        bert_model_path="/home/muhammedg/fvlm/BiomedVLP-CXR-BERT-specialized",
+        bert_model_path="/home/muhammedg/fvlm/BiomedVLP-CXR-BERT-specialized", 
         **kwargs 
     ):
         super().__init__()
         
-        # 1. SETUP ENCODER (3D ViT)
+        # 1. SETUP ENCODER
         hidden_size = 768 
         encoder_config = ViTConfig(
             hidden_size=hidden_size, num_hidden_layers=12, num_attention_heads=12, 
@@ -150,148 +234,104 @@ class MedicalVLM(nn.Module):
             vision_encoder.load_state_dict(vision_state, strict=False)
             print("  ViT weights loaded successfully.")
         
-        # Unfreeze ViT Encoder
         for param in vision_encoder.parameters():
             param.requires_grad = True
-
-        # 2. WRAP ENCODER (ROI Attention)
-        wrapped_encoder = Attentive_ROI_Wrapper(vision_encoder, encoder_config, num_organs=12)
 
         # 3. SETUP DECODER
         self.tokenizer = AutoTokenizer.from_pretrained(decoder_model_name)
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
-
+        
         decoder_config = AutoConfig.from_pretrained(decoder_model_name)
         decoder_config.is_decoder = True
         decoder_config.add_cross_attention = True 
-        decoder = AutoModelForCausalLM.from_pretrained(decoder_model_name, config=decoder_config)
+        
+        if HAS_BIOGPT and ("biogpt" in decoder_model_name.lower()):
+            print("  Using Fixed BioGPT Decoder class.")
+            decoder = BioGptLM_Fixed.from_pretrained(decoder_model_name, config=decoder_config)
+        else:
+            decoder = AutoModelForCausalLM.from_pretrained(decoder_model_name, config=decoder_config)
+        
+        dec_hidden_size = decoder_config.hidden_size
 
-        # Surgical Freezing
+        # 2. WRAP ENCODER
+        wrapped_encoder = Attentive_ROI_Wrapper(
+            vision_encoder, 
+            encoder_config, 
+            num_organs=12, 
+            decoder_hidden_size=dec_hidden_size
+        )
+
         for param in decoder.parameters(): param.requires_grad = False
-        keywords = ["crossattention", "ln_", "layer_norm", "lm_head", "output_projection"]
+        
+        keywords = ["crossattention", "encoder_attn", "ln_", "layer_norm", "lm_head", "output_projection"]
+        print("  Unfreezing Decoder Layers:")
         for name, param in decoder.named_parameters():
             if any(k in name for k in keywords):
                 param.requires_grad = True
 
         # 4. COMPILE
-        config = VisionEncoderDecoderConfig.from_encoder_decoder_configs(encoder_config, decoder_config)
-        self.model = VisionEncoderDecoderModel(config=config)
-        self.model.encoder = wrapped_encoder
-        self.model.decoder = decoder
+        ved_enc_config = copy.deepcopy(encoder_config)
+        ved_enc_config.hidden_size = dec_hidden_size 
         
+        config = VisionEncoderDecoderConfig.from_encoder_decoder_configs(ved_enc_config, decoder_config)
+        
+        self.model = VisionEncoderDecoderModel(config=config, encoder=wrapped_encoder, decoder=decoder)
         self.model.config.decoder_start_token_id = self.tokenizer.bos_token_id or self.tokenizer.eos_token_id
         self.model.config.eos_token_id = self.tokenizer.eos_token_id
         self.model.config.pad_token_id = self.tokenizer.pad_token_id
         self.model.config.vocab_size = self.tokenizer.vocab_size
 
-        # ### NEW: Load CXR-BERT Teacher (If path provided)
         if bert_model_path and os.path.exists(bert_model_path):
             print(f"  Loading CXR-BERT Teacher from: {bert_model_path}")
             self.bert_tokenizer = AutoTokenizer.from_pretrained(bert_model_path, trust_remote_code=True)
             self.bert_model = AutoModel.from_pretrained(bert_model_path, trust_remote_code=True)
             
-            # Freeze BERT (Teacher only)
             for param in self.bert_model.parameters():
                 param.requires_grad = False
             
-            # Projection Layer: ViT (768) -> BERT Hidden Size (usually 128 or 768)
-            # We assume CXR-BERT-specialized uses 128 dim projection in original paper, 
-            # but the raw HuggingFace model usually outputs 768. 
-            # We project to match the BERT hidden size.
             bert_dim = self.bert_model.config.hidden_size
-            self.visual_projection = nn.Linear(768, bert_dim)
+            self.visual_projection = nn.Linear(dec_hidden_size, bert_dim)
         else:
             print("  No BERT path provided or path invalid. Semantic Loss disabled.")
             self.bert_model = None
 
-    # Semantic Loss Calculation Helper
     def get_semantic_loss(self, visual_features, label_ids):
-        """
-        visual_features: (Batch * N_Organs, Hidden_Size)
-        label_ids: (Batch * N_Organs, Seq_Len)
-        """
         device = visual_features.device
-        
-        # 1. Decode Labels to Text (Batch Decode)
-        # We replace -100 with pad_token_id to decode correctly
         clean_labels = label_ids.clone()
         clean_labels[clean_labels == -100] = self.tokenizer.pad_token_id
-        
         decoded_texts = self.tokenizer.batch_decode(clean_labels, skip_special_tokens=True)
-        
-        # Filter out empty strings (missing organs) to avoid BERT errors
-        # Create a mask for valid texts
         valid_indices = [i for i, t in enumerate(decoded_texts) if len(t.strip()) > 3]
-        if not valid_indices:
-            return torch.tensor(0.0, device=device)
-            
+        if not valid_indices: return torch.tensor(0.0, device=device)
         valid_texts = [decoded_texts[i] for i in valid_indices]
         valid_visuals = visual_features[valid_indices]
-        
-        # 2. Get Text Embeddings from BERT
         with torch.no_grad():
-            inputs = self.bert_tokenizer(
-                valid_texts, padding=True, truncation=True, max_length=128, return_tensors="pt"
-            ).to(device)
+            inputs = self.bert_tokenizer(valid_texts, padding=True, truncation=True, max_length=128, return_tensors="pt").to(device)
             bert_outputs = self.bert_model(**inputs)
-            # Use [CLS] token (index 0)
             text_embeds = bert_outputs.last_hidden_state[:, 0, :]
-            
-        # 3. Project Visual Embeddings
         vis_proj = self.visual_projection(valid_visuals)
-        
-        # 4. Normalize
         vis_norm = F.normalize(vis_proj, dim=-1)
         text_norm = F.normalize(text_embeds, dim=-1)
-        
-        # 5. Cosine Similarity Loss (Maximize similarity -> Minimize 1 - Sim)
         similarity = (vis_norm * text_norm).sum(dim=-1)
         loss = 1.0 - similarity.mean()
-        
         return loss
 
-    # Forward to include Semantic Loss
     def forward(self, pixel_values, organ_masks=None, labels=None, **kwargs):
-        # 1. Run Encoder explicitly to get embeddings
         encoder_outputs = self.model.encoder(pixel_values=pixel_values, organ_masks=organ_masks)
-        
         flat_labels = None
         if labels is not None:
             B, N_organs, Seq_Len = labels.shape
             flat_labels = labels.view(B * N_organs, Seq_Len)
-            
-        # 2. Run Decoder (Standard generation loss)
-        outputs = self.model(
-            encoder_outputs=encoder_outputs,
-            labels=flat_labels, 
-            return_dict=True, 
-            **kwargs
-        )
-        
-        # 3. Add Semantic Loss if BERT is loaded and we are training
+        outputs = self.model(encoder_outputs=encoder_outputs, labels=flat_labels, return_dict=True, **kwargs)
         if labels is not None and self.bert_model is not None and self.training:
-            # encoder_outputs.last_hidden_state is (Batch * N, 1, 768)
-            # Squeeze to (Batch * N, 768)
             vis_feats = encoder_outputs.last_hidden_state.squeeze(1)
-            
             sem_loss = self.get_semantic_loss(vis_feats, flat_labels)
-            
-            # Combine Losses (Weight semantic loss)
-            # 0.5 is a conservative weight; can be increased to 1.0 if hallucinations persist
             outputs.loss += (0.5 * sem_loss)
-            
         return outputs
 
     def generate(self, pixel_values, organ_masks=None, input_ids=None, attention_mask=None, **kwargs):
         encoder_outputs = self.model.encoder(pixel_values=pixel_values, organ_masks=organ_masks)
-        
-        return self.model.generate(
-            encoder_outputs=encoder_outputs,
-            decoder_input_ids=input_ids,
-            decoder_attention_mask=attention_mask,
-            **kwargs
-        )
+        return self.model.generate(encoder_outputs=encoder_outputs, decoder_input_ids=input_ids, decoder_attention_mask=attention_mask, **kwargs)
 
     def save_pretrained(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)

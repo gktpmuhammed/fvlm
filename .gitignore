@@ -39,3 +39,4 @@ rep_vision_organ_attention/gpt2_base_attention_maxpool/
 rep_vision_organ_attention/gpt2__mae_vit/
 rep_vision_organ_attention/alignment_checks/
 rep_vision_organ_attention/gpt2_mae_vit_sementic_loss/
+rep_vision_organ_attention/biogpt_mae_vit_sementic_loss/
