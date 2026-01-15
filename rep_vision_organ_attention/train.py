@@ -32,8 +32,9 @@ os.environ["WANDB_ENTITY"] = "gktp-thesis"
 # The refined list of targets based on high representation (>900 text reports)
 # Removed: Conclusion, Brain, Face, Colon, Bones, Muscles, Reproductive organs
 ALL_TARGET_KEYS = [
-    'lung', 'heart', 'aorta', 'esophagus', 'trachea', 'rib',
-    'liver', 'gallbladder', 'stomach', 'pancreas', 'spleen', 'kidney'
+    'lung', 'heart', 'esophagus', 
+    'liver', 'gallbladder', 'stomach', 'pancreas', 'spleen', 'kidney',
+    # 'aorta', 'trachea', 'rib'
 ]
 
 # --- MAPPING LOGIC ---

@@ -132,10 +132,10 @@ def evaluate(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--checkpoint_dir', type=str, required=True)
-    parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/checkpoints/model.pth')
+    parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/mae_pretrain_vit_base.pth')
     parser.add_argument('--decoder_model', type=str, default='google/medgemma-4b-it')
-    parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data/image_first_dataset.csv')
-    parser.add_argument('--output_dir', type=str, default='./results')
+    parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv')
+    parser.add_argument('--output_dir', type=str, default='./results/medgemma_vlm')
     parser.add_argument('--subset_size', type=int, default=None)
     args = parser.parse_args()
     evaluate(args)

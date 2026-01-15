@@ -20,8 +20,11 @@ from medical_vlm import MedicalVLM
 import wandb
 
 logger = logging.getLogger(__name__)
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 os.environ["WANDB_PROJECT"] = "thesis"
+os.environ["NCCL_P2P_DISABLE"] = "1"
+os.environ["NCCL_IB_DISABLE"] = "1"
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 ALL_TARGET_KEYS = [
     'lung', 'heart', 'aorta', 'esophagus', 'trachea', 'rib',
@@ -167,6 +170,8 @@ class OnePassOrganDataset(Dataset):
                 
                 # Mask out padding
                 labels[labels == self.tokenizer.pad_token_id] = -100
+                labels[labels == 0] = -100 # Explicitly mask <pad> (id 0) just in case
+
                 # Mask out the prompt (Instruction)
                 labels[:prompt_len] = -100
 
@@ -190,10 +195,10 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--decoder_model', type=str, default='google/medgemma-4b-it')
     parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/mae_pretrain_vit_base.pth')
-    parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data/image_first_dataset.csv')
-    parser.add_argument('--json_file', type=str, default='/home/muhammedg/fvlm/data/combined_desc_conc.json')
+    parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv')
+    parser.add_argument('--json_file', type=str, default='/home/muhammedg/fvlm/data_sym/combined_desc_conc.json')
     parser.add_argument('--output_dir', type=str, default='./checkpoints/medgemma_vlm')
-    parser.add_argument('--batch_size', type=int, default=2) 
+    parser.add_argument('--batch_size', type=int, default=1) 
     parser.add_argument('--num_epochs', type=int, default=3)
     args = parser.parse_args()
     
@@ -209,14 +214,15 @@ def main():
         output_dir=args.output_dir,
         num_train_epochs=args.num_epochs,
         per_device_train_batch_size=args.batch_size,
-        gradient_accumulation_steps=4,
+        gradient_accumulation_steps=8,
         learning_rate=1e-4, # Higher LR for Vision+Projector since LLM is frozen
         weight_decay=0.01,
         warmup_ratio=0.05,
         logging_steps=10,
         save_strategy="epoch",
-        evaluation_strategy="epoch",
-        fp16=True,
+        eval_strategy="epoch",
+        bf16=True, # Use BF16 for stability
+        fp16=False,
         dataloader_num_workers=4,
         remove_unused_columns=False, # Essential for custom forward pass
         report_to="wandb"

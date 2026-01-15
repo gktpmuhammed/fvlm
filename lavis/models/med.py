@@ -23,7 +23,7 @@ import torch.nn.functional as F
 from transformers import BatchEncoding, PreTrainedTokenizer
 
 from transformers.activations import ACT2FN
-from transformers.file_utils import (
+from transformers.modeling_outputs import (
     ModelOutput,
 )
 from transformers.modeling_outputs import (
@@ -39,7 +39,8 @@ from transformers.modeling_outputs import (
 )
 from transformers.modeling_utils import (
     PreTrainedModel,
-    apply_chunking_to_forward,
+)
+from transformers.pytorch_utils import (
     find_pruneable_heads_and_indices,
     prune_linear_layer,
 )
@@ -48,6 +49,32 @@ from transformers.models.bert.configuration_bert import BertConfig
 from lavis.common.utils import get_abs_path
 
 from lavis.models.base_model import BaseEncoder
+
+def apply_chunking_to_forward(forward_fn, chunk_size, chunk_dim, *input_tensors):
+    """
+    This function chunks the `input_tensors` into smaller input tensor parts of size `chunk_size` along `chunk_dim`.
+    It then applies a layer `forward_fn` to each chunk independently to save memory.
+    """
+    assert len(input_tensors) > 0
+    if chunk_size > 0:
+        if input_tensors[0].shape[chunk_dim] % chunk_size != 0:
+            raise ValueError(
+                f"The dimension to be chunked {chunk_dim} corresponds to the size of the input tensor "
+                f"({input_tensors[0].shape[chunk_dim]}) which is not divisible by the chunk size ({chunk_size})."
+            )
+
+        num_chunks = input_tensors[0].shape[chunk_dim] // chunk_size
+
+        # Chunk input tensors
+        chunked_tensors = [torch.chunk(input_tensor, num_chunks, dim=chunk_dim) for input_tensor in input_tensors]
+
+        # Apply forward_fn to each chunk
+        output_chunks = [forward_fn(*input_chunk) for input_chunk in zip(*chunked_tensors)]
+
+        # Concatenate output chunks
+        return torch.cat(output_chunks, dim=chunk_dim)
+
+    return forward_fn(*input_tensors)
 
 logging.set_verbosity_error()
 logger = logging.get_logger(__name__)

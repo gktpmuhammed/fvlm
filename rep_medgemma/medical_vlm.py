@@ -44,7 +44,9 @@ class Attentive_ROI_Wrapper(nn.Module):
 
     def forward(self, pixel_values, organ_masks=None):
         # 1. Run Vision Encoder
-        outputs = self.vit(pixel_values)
+        pixel_values = pixel_values.to(dtype=torch.float32) # Force FP32 for ViT
+        with torch.cuda.amp.autocast(enabled=False):
+            outputs = self.vit(pixel_values)
         
         if isinstance(outputs, tuple):
             image_feats = outputs[0]
@@ -147,19 +149,19 @@ class MedicalVLM(nn.Module):
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
         
-        # Load in 4-bit to save VRAM
-        quantization_config = BitsAndBytesConfig(
+        # Load in 4-bit (Quantization)
+        print("Loading Decoder in 4-bit...")
+        bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
-            bnb_4bit_compute_dtype=torch.float16,
             bnb_4bit_quant_type="nf4",
-            bnb_4bit_use_double_quant=True
+            bnb_4bit_compute_dtype=torch.bfloat16,
         )
 
         self.decoder = AutoModelForCausalLM.from_pretrained(
             decoder_model_name,
-            quantization_config=quantization_config,
+            quantization_config=bnb_config,
             device_map="auto",
-            attn_implementation="sdpa" # Use Flash Attention if available
+            attn_implementation="eager" # SDPA sometimes issues with 4bit
         )
 
         # Freeze LLM
@@ -169,8 +171,19 @@ class MedicalVLM(nn.Module):
             
         # --- 3. PROJECTOR (Trainable) ---
         # Projects ViT (768) -> Gemma Hidden Size (e.g., 2048, 3072, etc)
-        self.llm_hidden_size = self.decoder.config.hidden_size
+        if hasattr(self.decoder.config, "hidden_size"):
+            self.llm_hidden_size = self.decoder.config.hidden_size
+        elif hasattr(self.decoder.config, "text_config") and hasattr(self.decoder.config.text_config, "hidden_size"):
+            self.llm_hidden_size = self.decoder.config.text_config.hidden_size
+        else:
+            print(f"WARNING: Could not determine hidden_size from config. Using default 768.")
+            self.llm_hidden_size = getattr(self.decoder.config, "d_model", 768)
         self.visual_projection = nn.Linear(vit_hidden_size, self.llm_hidden_size)
+        
+        # Move Trainable Components to GPU (Required since is_model_parallel=True prevents Trainer from doing it)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.vision_encoder.to(device)
+        self.visual_projection.to(device)
         
         # Ensure Projector is Trainable
         for param in self.visual_projection.parameters():
@@ -180,6 +193,10 @@ class MedicalVLM(nn.Module):
         print(f"  Vision Encoder: Trainable (ROI Masked)")
         print(f"  Projector:      Trainable (768 -> {self.llm_hidden_size})")
         print(f"  MedGemma:       FROZEN (4-bit)")
+        
+        # Helper to tell Trainer NOT to wrap in DataParallel
+        self.is_parallelizable = True
+        self.model_parallel = True
 
     def forward(self, pixel_values, organ_masks=None, input_ids=None, attention_mask=None, labels=None, **kwargs):
         """
@@ -195,6 +212,7 @@ class MedicalVLM(nn.Module):
         # 2. Project to LLM Space (Trainable)
         # Output: (Batch, N_Organs, LLM_Dim)
         visual_embeds = self.visual_projection(visual_feats)
+        visual_embeds = visual_embeds.to(self.decoder.dtype)
         
         # 3. Reshape for Processing
         # We process (Batch * N_Organs) as independent sequences
@@ -211,12 +229,17 @@ class MedicalVLM(nn.Module):
 
             # 4. Get Text Embeddings (Frozen LLM)
             # Use model's embedding layer
+            # Ensure inputs are on the same device as the embedding weights
+            embed_device = self.decoder.get_input_embeddings().weight.device
+            input_ids = input_ids.to(embed_device)
+            
             with torch.no_grad():
                 text_embeds = self.decoder.get_input_embeddings()(input_ids)
             
             # 5. Concatenate: [Visual, Text]
-            # Shape: (B*N, 1+S, LLM_Dim)
-            inputs_embeds = torch.cat([visual_embeds, token_embeds], dim=1)
+            # Move visual embeds to the same device as text embeds
+            visual_embeds = visual_embeds.to(text_embeds.device)
+            inputs_embeds = torch.cat([visual_embeds, text_embeds], dim=1)
             
             # 6. Adjust Labels and Mask
             # Prepend -100 to labels (ignore loss on visual token)
@@ -232,8 +255,14 @@ class MedicalVLM(nn.Module):
                 inputs_embeds=inputs_embeds,
                 attention_mask=concat_mask,
                 labels=concat_labels,
-                return_dict=True
+                return_dict=True,
+                use_cache=False # Critical for memory saving during training
             )
+            
+            # Ensure loss is on the Input Device (Fix for Trainer multi-gpu check)
+            # Trainer expects loss to be on the same device as the input batch
+            if outputs.loss is not None:
+                outputs.loss = outputs.loss.to(pixel_values.device)
             
             return outputs
 
