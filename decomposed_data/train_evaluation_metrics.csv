@@ -1,0 +1,8 @@
+Disease,Accuracy,F1 Score,Precision,Recall,GT Positives,TP,FP,FN
+Hiatal hernia,0.996,0.985,0.99,0.98,6747,6612,66,135
+Cardiomegaly,0.972,0.863,0.944,0.795,5303,4215,252,1088
+Pericardial effusion,0.991,0.937,0.929,0.946,3409,3224,245,185
+Atelectasis,0.927,0.876,0.785,0.99,12258,12138,3330,120
+Emphysema,0.974,0.936,0.898,0.978,9120,8916,1009,204
+Pleural effusion,0.964,0.848,0.866,0.831,5701,4737,730,964
+Bronchiectasis,0.975,0.886,0.81,0.978,4732,4630,1084,102
