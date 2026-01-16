@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from torch.utils.data import Dataset
 from transformers import Trainer, TrainingArguments, EarlyStoppingCallback
 from monai.transforms import Compose, LoadImaged, ScaleIntensityRanged, SpatialPadd, CenterSpatialCropd, Transposed, EnsureChannelFirstd
+import traceback
 
 # Path setup
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -27,8 +28,9 @@ os.environ["NCCL_IB_DISABLE"] = "1"
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 ALL_TARGET_KEYS = [
-    'lung', 'heart', 'aorta', 'esophagus', 'trachea', 'rib',
-    'liver', 'gallbladder', 'stomach', 'pancreas', 'spleen', 'kidney'
+    'lung', 'heart', 'esophagus', 
+    'liver', 'gallbladder', 'stomach', 'pancreas', 'spleen', 'kidney',
+    'aorta', 'trachea', 'rib'
 ]
 
 def get_organ_ids_for_key(report_key):
@@ -119,8 +121,10 @@ class OnePassOrganDataset(Dataset):
         row = self.valid_patients[idx]
         try:
             # Load Images
-            mask_path = row['image_path'].replace('images', 'masks')
-            data = self.transform({'image': row['image_path'], 'mask': mask_path})
+            # Fix potential path path issue
+            image_path = row['image_path'].replace('/data_sym_sym/', '/data_sym/')
+            mask_path = image_path.replace('images', 'masks')
+            data = self.transform({'image': image_path, 'mask': mask_path})
             
             img_tensor = data['image'].as_tensor().float() if hasattr(data['image'], 'as_tensor') else torch.tensor(data['image']).float()
             mask_tensor = data['mask'].as_tensor() if hasattr(data['mask'], 'as_tensor') else torch.tensor(data['mask'])
@@ -188,7 +192,8 @@ class OnePassOrganDataset(Dataset):
             }
 
         except Exception as e:
-            print(f"Error loading {row['image_path']}: {e}")
+            print(f"Error loading {image_path}: {e}")
+            traceback.print_exc()
             return None
 
 def main():

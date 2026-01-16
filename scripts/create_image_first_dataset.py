@@ -16,10 +16,10 @@ def create_image_first_dataset():
     print("=" * 60)
     
     # Paths
-    val_csv_path = "/home/muhammedg/fvlm/data/dataset/radiology_text_reports/validation_reports.csv"
-    train_csv_path = "/home/muhammedg/fvlm/data/dataset/radiology_text_reports/train_reports.csv"
-    val_img_dir = "/home/muhammedg/fvlm/data/valid/images/valid"
-    train_img_dir = "/home/muhammedg/fvlm/data/train/images/train"
+    val_csv_path = "/home/muhammedg/fvlm/data_sym/radiology_text_reports/validation_reports.csv"
+    train_csv_path = "/home/muhammedg/fvlm/data_sym/radiology_text_reports/train_reports.csv"
+    val_img_dir = "/home/muhammedg/fvlm/data_sym/valid/images/valid"
+    train_img_dir = "/home/muhammedg/fvlm/data_sym/train/images/train"
     
     # Load CSV files
     print("Loading CSV files...")
@@ -170,14 +170,14 @@ def create_image_first_dataset():
             print(f"      {pid}: {len(scans)} scans ({', '.join(scans)})")
     
     # Save the mapped dataset
-    output_file = "/home/muhammedg/fvlm/data/image_first_dataset.json"
+    output_file = "/home/muhammedg/fvlm/data_sym/image_first_dataset.json"
     print(f"\nSaving image-first dataset to: {output_file}")
     
     with open(output_file, 'w') as f:
         json.dump(all_mapped_data, f, indent=2)
     
     # Create CSV version for easy viewing
-    csv_output_file = "/home/muhammedg/fvlm/data/image_first_dataset.csv"
+    csv_output_file = "/home/muhammedg/fvlm/data_sym/image_first_dataset.csv"
     df_output = pd.DataFrame(all_mapped_data)
     df_output.to_csv(csv_output_file, index=False)
     
@@ -224,7 +224,7 @@ def create_image_first_dataset():
         print(f"   New validation set: {len(new_val_data)} images from {len(val_patients)} patients")
         
         # Save the new splits
-        with open("/home/muhammedg/fvlm/data/image_first_dataset_split.json", 'w') as f:
+        with open("/home/muhammedg/fvlm/data_sym/image_first_dataset_split.json", 'w') as f:
             json.dump({
                 'train': new_train_data,
                 'validation': new_val_data,
@@ -342,7 +342,7 @@ if __name__ == "__main__":
     print(f"Sample text: {sample['text'][:100]}...")
 '''
     
-    with open("/home/muhammedg/fvlm/data/image_first_dataset_class.py", 'w') as f:
+    with open("/home/muhammedg/fvlm/data_sym/image_first_dataset_class.py", 'w') as f:
         f.write(dataset_code)
     
     print(f"Created example dataset class: image_first_dataset_class.py")
