@@ -17,15 +17,16 @@ parent_dir = os.path.dirname(current_dir)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
-from medical_vlm import MedicalVLM
-import wandb
-
-logger = logging.getLogger(__name__)
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 os.environ["WANDB_PROJECT"] = "thesis"
 os.environ["NCCL_P2P_DISABLE"] = "1"
 os.environ["NCCL_IB_DISABLE"] = "1"
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+
+from medical_vlm import MedicalVLM
+import wandb
+
+logger = logging.getLogger(__name__)
 
 ALL_TARGET_KEYS = [
     'lung', 'heart', 'esophagus', 
@@ -60,6 +61,8 @@ def build_transforms():
         CenterSpatialCropd(keys=['image', 'mask'], roi_size=(112, 256, 352)),
     ])
 
+from disease_classifier import DISEASE_CONFIG
+
 @dataclass
 class OrganCollator:
     def __call__(self, features):
@@ -73,13 +76,22 @@ class OrganCollator:
         input_ids = torch.stack([f['input_ids'] for f in features])
         attention_mask = torch.stack([f['attention_mask'] for f in features])
         labels = torch.stack([f['labels'] for f in features])
+
+        # Stack Disease Labels (Dict of Tensors)
+        # Each f['disease_labels'] is { 'lung': Tensor(...), ... }
+        disease_labels = {}
+        if 'disease_labels' in features[0]:
+            keys = features[0]['disease_labels'].keys()
+            for k in keys:
+                disease_labels[k] = torch.stack([f['disease_labels'][k] for f in features])
         
         return {
             'pixel_values': pixel_values, 
             'organ_masks': organ_masks,
             'input_ids': input_ids,
             'attention_mask': attention_mask,
-            'labels': labels
+            'labels': labels,
+            'disease_labels': disease_labels
         }
 
 class OnePassOrganDataset(Dataset):
@@ -96,6 +108,22 @@ class OnePassOrganDataset(Dataset):
         self.max_length = max_length
         self.target_keys = ALL_TARGET_KEYS
         
+        # Load Disease Labels
+        self.disease_lookup = {}
+        label_dir = "/home/muhammedg/fvlm/decomposed_data"
+        label_file = "train_disease_labels.csv" if split == 'training' else "val_disease_labels.csv"
+        label_path = os.path.join(label_dir, label_file)
+        
+        if os.path.exists(label_path):
+            print(f"Loading disease labels from {label_path}")
+            df_lbl = pd.read_csv(label_path)
+            # Create lookup: PatientID -> Series of 0/1
+            # We assume PatientID is unique
+            df_lbl = df_lbl.set_index('PatientID')
+            self.disease_lookup = df_lbl
+        else:
+            print(f"WARNING: Label file {label_path} not found. using dummy labels.")
+
         # Filter patients
         self.valid_patients = []
         for _, row in self.df.iterrows():
@@ -134,6 +162,36 @@ class OnePassOrganDataset(Dataset):
             base_id = fname.replace('.nii.gz', '').replace('.nii', '')
             pid = base_id if base_id in self.reports_json else base_id.rsplit('_', 1)[0]
             patient_data = self.reports_json.get(pid, {})
+
+            # Prepare Disease Labels
+            # vol_name = os.path.basename(image_path) # e.g. train_1_a_1.nii.gz
+            batch_disease_labels = {}
+            
+            # Check if we have labels for this volume
+            # Use `pid` extracted above which handles extension removal and suffix splitting
+            lookup_key = pid 
+            
+            if lookup_key in self.disease_lookup.index:
+                row_labels = self.disease_lookup.loc[lookup_key]
+                for organ, diseases in DISEASE_CONFIG.items():
+                    # values = [row_labels[d] for d in diseases if d in row_labels]
+                    # Be robust to missing columns
+                    vals = []
+                    for d in diseases:
+                        col_name = f"{organ}_{d}" # New CSV format: organ_disease
+                        if col_name in row_labels:
+                            vals.append(float(row_labels[col_name]))
+                        else:
+                            # It's possible the CSV key is just the disease name if coming from older logic?
+                            # But we saw the head of CSV, it is organ_disease.
+                            # Fallback or strict? Let's just append 0.0 but maybe warn?
+                            # For safety, let's assume 0.0.
+                            vals.append(0.0)
+                    batch_disease_labels[organ] = torch.tensor(vals, dtype=torch.float)
+            else:
+                # Fill with zeros if missing
+                for organ, diseases in DISEASE_CONFIG.items():
+                     batch_disease_labels[organ] = torch.zeros(len(diseases), dtype=torch.float)
 
             mask_stack, input_ids_stack, att_stack, label_stack = [], [], [], []
 
@@ -188,7 +246,8 @@ class OnePassOrganDataset(Dataset):
                 'organ_masks': torch.stack(mask_stack).float(),
                 'input_ids': torch.stack(input_ids_stack),
                 'attention_mask': torch.stack(att_stack),
-                'labels': torch.stack(label_stack)
+                'labels': torch.stack(label_stack),
+                'disease_labels': batch_disease_labels
             }
 
         except Exception as e:
@@ -204,7 +263,7 @@ def main():
     parser.add_argument('--json_file', type=str, default='/home/muhammedg/fvlm/data_sym/combined_desc_conc.json')
     parser.add_argument('--output_dir', type=str, default='./checkpoints/medgemma_vlm')
     parser.add_argument('--batch_size', type=int, default=1) 
-    parser.add_argument('--num_epochs', type=int, default=2)
+    parser.add_argument('--num_epochs', type=int, default=3)
     args = parser.parse_args()
     
     # Init Model
@@ -219,18 +278,13 @@ def main():
         output_dir=args.output_dir,
         num_train_epochs=args.num_epochs,
         per_device_train_batch_size=args.batch_size,
-        per_device_eval_batch_size=args.batch_size, # Fix OOM: Match train batch size
         gradient_accumulation_steps=8,
         learning_rate=1e-4, # Higher LR for Vision+Projector since LLM is frozen
         weight_decay=0.01,
         warmup_ratio=0.05,
         logging_steps=10,
-        save_strategy="steps",
-        eval_strategy="steps",
-        save_steps=200,
-        eval_steps=200,
-        eval_accumulation_steps=1, # Fix OOM: Offload predictions to CPU immediately
-        gradient_checkpointing=True, # Fix OOM: Save memory during training
+        save_strategy="epoch",
+        eval_strategy="epoch",
         bf16=True, # Use BF16 for stability
         fp16=False,
         dataloader_num_workers=4,

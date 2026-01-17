@@ -180,10 +180,16 @@ class MedicalVLM(nn.Module):
             self.llm_hidden_size = getattr(self.decoder.config, "d_model", 768)
         self.visual_projection = nn.Linear(vit_hidden_size, self.llm_hidden_size)
         
+        # --- 4. Disease Classifier Head (Auxiliary Loss) ---
+        from disease_classifier import DiseaseAuxiliaryLoss
+        self.disease_loss_fn = DiseaseAuxiliaryLoss(embedding_dim=vit_hidden_size)
+        self.disease_loss_fn.to(torch.device("cuda" if torch.cuda.is_available() else "cpu"))
+        
         # Move Trainable Components to GPU (Required since is_model_parallel=True prevents Trainer from doing it)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.vision_encoder.to(device)
         self.visual_projection.to(device)
+        self.disease_loss_fn.to(device)
         
         # Ensure Projector is Trainable
         for param in self.visual_projection.parameters():
@@ -193,12 +199,13 @@ class MedicalVLM(nn.Module):
         print(f"  Vision Encoder: Trainable (ROI Masked)")
         print(f"  Projector:      Trainable (768 -> {self.llm_hidden_size})")
         print(f"  MedGemma:       FROZEN (4-bit)")
+        print(f"  Disease Heads:  Trainable (Auxiliary Loss)")
         
         # Helper to tell Trainer NOT to wrap in DataParallel
         self.is_parallelizable = True
         self.model_parallel = True
 
-    def forward(self, pixel_values, organ_masks=None, input_ids=None, attention_mask=None, labels=None, **kwargs):
+    def forward(self, pixel_values, organ_masks=None, input_ids=None, attention_mask=None, labels=None, disease_labels=None, **kwargs):
         """
         Forward pass for Training.
         Data flow: Image -> ViT -> Projector -> [Visual_Embed] + [Text_Embed] -> Decoder -> Loss
@@ -208,6 +215,11 @@ class MedicalVLM(nn.Module):
         # 1. Get Visual Features (Trainable)
         # Output: (Batch, N_Organs, ViT_Dim)
         visual_feats = self.vision_encoder(pixel_values, organ_masks) 
+        
+        # --- Auxiliary Disease Loss ---
+        aux_loss = 0.0
+        if disease_labels is not None:
+             aux_loss, loss_details = self.disease_loss_fn(visual_feats, disease_labels)
         
         # 2. Project to LLM Space (Trainable)
         # Output: (Batch, N_Organs, LLM_Dim)
@@ -263,6 +275,9 @@ class MedicalVLM(nn.Module):
             # Trainer expects loss to be on the same device as the input batch
             if outputs.loss is not None:
                 outputs.loss = outputs.loss.to(pixel_values.device)
+                
+                # Add Auxiliary Loss
+                outputs.loss += aux_loss
             
             return outputs
 
@@ -301,13 +316,6 @@ class MedicalVLM(nn.Module):
         )
         
         return outputs
-
-    def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
-            """
-            Activates gradient checkpointing for the current model.
-            Wrapper to enable it on the decoder (LLM) which is the heaviest part.
-            """
-            self.decoder.gradient_checkpointing_enable(gradient_checkpointing_kwargs=gradient_checkpointing_kwargs)
 
     def save_pretrained(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
