@@ -18,7 +18,7 @@ from transformers import (
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
+    sys.path.insert(1, parent_dir)
 
 class Attentive_ROI_Wrapper(nn.Module):
     """
@@ -150,16 +150,19 @@ class MedicalVLM(nn.Module):
             self.tokenizer.pad_token = self.tokenizer.eos_token
         
         # Load in 4-bit (Quantization)
-        print("Loading Decoder in 4-bit...")
-        bnb_config = BitsAndBytesConfig(
-            load_in_4bit=True,
-            bnb_4bit_quant_type="nf4",
-            bnb_4bit_compute_dtype=torch.bfloat16,
-        )
+        # print("Loading Decoder in 4-bit...")
+        # bnb_config = BitsAndBytesConfig(
+        #     load_in_4bit=True,
+        #     bnb_4bit_quant_type="nf4",
+        #     bnb_4bit_compute_dtype=torch.bfloat16,
+        # )
+        
+        print("Loading Decoder in BF16 (No Quantization)...")
 
         self.decoder = AutoModelForCausalLM.from_pretrained(
             decoder_model_name,
-            quantization_config=bnb_config,
+            # quantization_config=bnb_config,
+            torch_dtype=torch.bfloat16, # Use BF16 directly
             device_map="auto",
             attn_implementation="eager" # SDPA sometimes issues with 4bit
         )
@@ -180,13 +183,24 @@ class MedicalVLM(nn.Module):
             self.llm_hidden_size = getattr(self.decoder.config, "d_model", 768)
         self.visual_projection = nn.Linear(vit_hidden_size, self.llm_hidden_size)
         
+        # --- NEW: Added LayerNorm for stability ---
+        self.projector_layernorm = nn.LayerNorm(self.llm_hidden_size)
+        
+        # --- NEW: Better Weight Initialization ---
+        # Initialize projector to small values so it starts as a "neutral" input
+        nn.init.normal_(self.visual_projection.weight, std=0.01)
+        nn.init.zeros_(self.visual_projection.bias)
+        
         # Move Trainable Components to GPU (Required since is_model_parallel=True prevents Trainer from doing it)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.vision_encoder.to(device)
         self.visual_projection.to(device)
+        self.projector_layernorm.to(device)
         
         # Ensure Projector is Trainable
         for param in self.visual_projection.parameters():
+            param.requires_grad = True
+        for param in self.projector_layernorm.parameters():
             param.requires_grad = True
 
         print(f"Model Summary:")
@@ -212,7 +226,16 @@ class MedicalVLM(nn.Module):
         # 2. Project to LLM Space (Trainable)
         # Output: (Batch, N_Organs, LLM_Dim)
         visual_embeds = self.visual_projection(visual_feats)
+        
+        # 2. STABILIZATION: Apply LayerNorm and Scale Matching
+        # This keeps visual embeddings in the same numerical range as MedGemma's vocabulary
+        visual_embeds = self.projector_layernorm(visual_embeds)
         visual_embeds = visual_embeds.to(self.decoder.dtype)
+        
+        # Match variance to text embeddings to prevent "Embedding Shock"
+        with torch.no_grad():
+            text_std = self.decoder.get_input_embeddings().weight.std()
+        visual_embeds = visual_embeds * (text_std / (visual_embeds.std() + 1e-6))
         
         # 3. Reshape for Processing
         # We process (Batch * N_Organs) as independent sequences
@@ -228,23 +251,34 @@ class MedicalVLM(nn.Module):
             attention_mask = attention_mask.view(B * N, S)
 
             # 4. Get Text Embeddings (Frozen LLM)
-            # Use model's embedding layer
-            # Ensure inputs are on the same device as the embedding weights
             embed_device = self.decoder.get_input_embeddings().weight.device
             input_ids = input_ids.to(embed_device)
             
             with torch.no_grad():
                 text_embeds = self.decoder.get_input_embeddings()(input_ids)
+                
+            # 5. BOS-AWARE CONCATENATION
+            # MedGemma expects BOS (id 2) at index 0. We insert visual tokens at index 1.
+            # Sequence: [BOS] + [Visual_Token] + [Instruction...]
+            inputs_embeds = torch.cat([
+                text_embeds[:, :1, :],   # The BOS token
+                visual_embeds,           # The Visual ROI token
+                text_embeds[:, 1:, :]    # The rest of the prompt
+            ], dim=1)
             
-            # 5. Concatenate: [Visual, Text]
-            # Move visual embeds to the same device as text embeds
-            visual_embeds = visual_embeds.to(text_embeds.device)
-            inputs_embeds = torch.cat([visual_embeds, text_embeds], dim=1)
+            # Adjust Labels: ignore loss on BOS and Visual Token (-100)
+            # labels[:, :1] is BOS label
+            ignore_vis = torch.full((B * N, 1), -100, dtype=labels.dtype, device=labels.device)
+            concat_labels = torch.cat([labels[:, :1], ignore_vis, labels[:, 1:]], dim=1)
             
-            # 6. Adjust Labels and Mask
-            # Prepend -100 to labels (ignore loss on visual token)
-            ignore_pad = torch.full((B * N, 1), -100, dtype=labels.dtype, device=labels.device)
-            concat_labels = torch.cat([ignore_pad, labels], dim=1)
+            # Adjust Mask: add '1' for the visual token
+            att_vis = torch.ones((B * N, 1), dtype=attention_mask.dtype, device=attention_mask.device)
+            concat_mask = torch.cat([attention_mask[:, :1], att_vis, attention_mask[:, 1:]], dim=1)
+            
+            # DEBUG: Print stats
+            # if True: 
+            #     print(f"DEBUG TRAIN: Vis Mean: {visual_embeds.mean().item():.4f}, Std: {visual_embeds.std().item():.4f}", flush=True)
+            #     print(f"DEBUG TRAIN: Txt Mean: {text_embeds.mean().item():.4f}, Std: {text_embeds.std().item():.4f}", flush=True)
             
             # Prepend 1 to attention mask (attend to visual token)
             att_pad = torch.ones((B * N, 1), dtype=attention_mask.dtype, device=attention_mask.device)
@@ -274,6 +308,13 @@ class MedicalVLM(nn.Module):
         visual_feats = self.vision_encoder(pixel_values, organ_masks)
         visual_embeds = self.visual_projection(visual_feats)
         
+        # STABILIZATION
+        visual_embeds = self.projector_layernorm(visual_embeds)
+        visual_embeds = visual_embeds.to(self.decoder.dtype)
+        with torch.no_grad():
+            text_std = self.decoder.get_input_embeddings().weight.std()
+        visual_embeds = visual_embeds * (text_std / (visual_embeds.std() + 1e-6))
+        
         B, N, _ = visual_embeds.shape
         visual_embeds = visual_embeds.view(B * N, 1, -1)
         
@@ -284,11 +325,17 @@ class MedicalVLM(nn.Module):
             
             with torch.no_grad():
                 text_embeds = self.decoder.get_input_embeddings()(input_ids)
+                text_embeds = text_embeds.to(self.decoder.dtype)
             
-            inputs_embeds = torch.cat([visual_embeds, text_embeds], dim=1)
+            # BOS-Aware Insertion: [BOS] + [Visual] + [Rest]
+            inputs_embeds = torch.cat([
+                text_embeds[:, :1, :],
+                visual_embeds,
+                text_embeds[:, 1:, :]
+            ], dim=1)
             
-            att_pad = torch.ones((B * N, 1), dtype=attention_mask.dtype, device=attention_mask.device)
-            concat_mask = torch.cat([att_pad, attention_mask], dim=1)
+            att_vis = torch.ones((B * N, 1), dtype=attention_mask.dtype, device=attention_mask.device)
+            concat_mask = torch.cat([attention_mask[:, :1], att_vis, attention_mask[:, 1:]], dim=1)
         else:
             inputs_embeds = visual_embeds
             concat_mask = torch.ones((B * N, 1), device=visual_embeds.device)
@@ -301,7 +348,7 @@ class MedicalVLM(nn.Module):
         )
         
         return outputs
-
+        
     def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
             """
             Activates gradient checkpointing for the current model.
@@ -314,4 +361,5 @@ class MedicalVLM(nn.Module):
         # We only save the trainable parts to save space
         torch.save(self.vision_encoder.state_dict(), os.path.join(output_dir, "vision_encoder.bin"))
         torch.save(self.visual_projection.state_dict(), os.path.join(output_dir, "projector.bin"))
+        torch.save(self.projector_layernorm.state_dict(), os.path.join(output_dir, "projector_layernorm.bin"))
         self.tokenizer.save_pretrained(output_dir)

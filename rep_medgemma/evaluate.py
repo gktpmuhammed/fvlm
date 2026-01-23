@@ -12,8 +12,15 @@ from monai.transforms import Compose, LoadImaged, ScaleIntensityRanged, SpatialP
 # Add parent directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
-if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
+
+# Fix Import Conflict:
+# 1. Ensure current_dir is FIRST so `import train` picks up local train.py
+# 2. Ensure parent_dir is DIRECTLY AFTER so `import lavis` picks up custom lavis (before site-packages)
+if parent_dir in sys.path: sys.path.remove(parent_dir)
+if current_dir in sys.path: sys.path.remove(current_dir)
+
+sys.path.insert(0, parent_dir)
+sys.path.insert(0, current_dir)
 
 from medical_vlm import MedicalVLM
 from train import get_organ_ids_for_key, ALL_TARGET_KEYS, build_transforms
@@ -58,6 +65,11 @@ def evaluate(args):
         model.vision_encoder.load_state_dict(torch.load(enc_path, map_location='cpu'))
     if os.path.exists(proj_path):
         model.visual_projection.load_state_dict(torch.load(proj_path, map_location='cpu'))
+    
+    ln_path = os.path.join(args.checkpoint_dir, "projector_layernorm.bin")
+    if os.path.exists(ln_path):
+        print("Loading Projector LayerNorm...")
+        model.projector_layernorm.load_state_dict(torch.load(ln_path, map_location='cpu'))
         
     model.cuda()
     model.eval()
@@ -84,7 +96,7 @@ def evaluate(args):
             
             for key in ALL_TARGET_KEYS:
                 # Format: Chat Template (User turn only)
-                p = f"<start_of_turn>user\nAnalyze the specific image feature. Describe the findings for the {key}.<end_of_turn>\n<start_of_turn>model\n"
+                p = f"<start_of_turn>user\nAnalyze the specific image feature. Describe the findings for the {key}.<end_of_turn>\n<start_of_turn>model"
                 prompts.append(p)
                 
                 # Mask
@@ -96,17 +108,18 @@ def evaluate(args):
             organ_masks = torch.stack(mask_stack, dim=1).float()
             
             # Tokenize Prompts
+            # Tokenize Prompts
             inputs = model.tokenizer(prompts, return_tensors="pt", padding=True).to('cuda')
-            
-            # Generate
             outputs = model.generate(
                 pixel_values=pixel_values,
                 organ_masks=organ_masks,
                 input_ids=inputs.input_ids,
                 attention_mask=inputs.attention_mask,
                 max_new_tokens=100,
-                do_sample=False, # Deterministic for evaluation
-                num_beams=1
+                do_sample=False, 
+                num_beams=3,            # Standard for medical reports
+                repetition_penalty=1.2, # Penalize repetition
+                no_repeat_ngram_size=3  # Stop 3-gram loops
             )
             
             decoded = model.tokenizer.batch_decode(outputs, skip_special_tokens=True)
@@ -114,6 +127,7 @@ def evaluate(args):
             # Parse results
             report = ""
             for key, text in zip(ALL_TARGET_KEYS, decoded):
+                # Clean up the prompt from the output if necessary
                 # Clean up the prompt from the output if necessary
                 # Gemma typically outputs the full string, so we split by 'model\n'
                 if "model\n" in text:
@@ -126,6 +140,7 @@ def evaluate(args):
             results.append({'patient_id': pid, 'prediction': report})
             
     # Save
+    os.makedirs(args.output_dir, exist_ok=True)
     pd.DataFrame(results).to_csv(os.path.join(args.output_dir, "generated_reports_gemma.csv"), index=False)
     print("Done.")
 

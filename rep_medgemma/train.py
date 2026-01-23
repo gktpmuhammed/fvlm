@@ -21,7 +21,7 @@ from medical_vlm import MedicalVLM
 import wandb
 
 logger = logging.getLogger(__name__)
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0,1" # Moved to main()
 os.environ["WANDB_PROJECT"] = "thesis"
 os.environ["NCCL_P2P_DISABLE"] = "1"
 os.environ["NCCL_IB_DISABLE"] = "1"
@@ -197,6 +197,7 @@ class OnePassOrganDataset(Dataset):
             return None
 
 def main():
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
     parser = argparse.ArgumentParser()
     parser.add_argument('--decoder_model', type=str, default='google/medgemma-4b-it')
     parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/mae_pretrain_vit_base.pth')
@@ -205,6 +206,7 @@ def main():
     parser.add_argument('--output_dir', type=str, default='./checkpoints/medgemma_vlm')
     parser.add_argument('--batch_size', type=int, default=1) 
     parser.add_argument('--num_epochs', type=int, default=2)
+    parser.add_argument('--subset_size', type=int, default=None, help='Train on a small subset for debugging')
     args = parser.parse_args()
     
     # Init Model
@@ -212,8 +214,8 @@ def main():
 
     # Init Data
     transform = build_transforms()
-    train_ds = OnePassOrganDataset(args.csv_file, args.json_file, model.tokenizer, transform, split='training')
-    val_ds = OnePassOrganDataset(args.csv_file, args.json_file, model.tokenizer, transform, split='validation')
+    train_ds = OnePassOrganDataset(args.csv_file, args.json_file, model.tokenizer, transform, split='training', subset_size=args.subset_size)
+    val_ds = OnePassOrganDataset(args.csv_file, args.json_file, model.tokenizer, transform, split='validation', subset_size=args.subset_size)
 
     training_args = TrainingArguments(
         output_dir=args.output_dir,
@@ -229,6 +231,7 @@ def main():
         eval_strategy="steps",
         save_steps=200,
         eval_steps=200,
+        save_total_limit=3, # Keep only the last 3 checkpoints to save space
         eval_accumulation_steps=1, # Fix OOM: Offload predictions to CPU immediately
         gradient_checkpointing=True, # Fix OOM: Save memory during training
         bf16=True, # Use BF16 for stability
@@ -238,7 +241,17 @@ def main():
         report_to="wandb"
     )
 
-    trainer = Trainer(
+    class MedicalTrainer(Trainer):
+        def save_model(self, output_dir=None, _internal_call=False):
+            """
+            Override to explicitly save only the trainable parts using our custom method.
+            This avoids the 'safetensors' shared memory error with tied weights in Gemma.
+            """
+            if output_dir is None:
+                output_dir = self.args.output_dir
+            self.model.save_pretrained(output_dir)
+
+    trainer = MedicalTrainer(
         model=model,
         args=training_args,
         train_dataset=train_ds,
