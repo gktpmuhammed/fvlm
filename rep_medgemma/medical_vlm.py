@@ -11,8 +11,10 @@ from transformers import (
     AutoTokenizer,
     AutoModelForCausalLM, 
     ViTConfig,
+    ViTConfig,
     BitsAndBytesConfig
 )
+from peft import get_peft_model, LoraConfig, TaskType
 
 # Fix local import path for lavis
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -167,10 +169,24 @@ class MedicalVLM(nn.Module):
             attn_implementation="eager" # SDPA sometimes issues with 4bit
         )
 
-        # Freeze LLM
+        # Freeze LLM Base
         self.decoder.eval()
         for param in self.decoder.parameters():
             param.requires_grad = False
+
+        # --- APPLY LORA (Trainable Adapters) ---
+        print("Applying LoRA to Decoder...")
+        peft_config = LoraConfig(
+            task_type=TaskType.CAUSAL_LM, 
+            inference_mode=False, 
+            r=16, 
+            lora_alpha=32, 
+            lora_dropout=0.05,
+            # Target ALL linear layers for maximum plasticity (helps break the "normalcy bias")
+            target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+        )
+        self.decoder = get_peft_model(self.decoder, peft_config)
+        self.decoder.print_trainable_parameters()
             
         # --- 3. PROJECTOR (Trainable) ---
         # Projects ViT (768) -> Gemma Hidden Size (e.g., 2048, 3072, etc)
@@ -363,3 +379,5 @@ class MedicalVLM(nn.Module):
         torch.save(self.visual_projection.state_dict(), os.path.join(output_dir, "projector.bin"))
         torch.save(self.projector_layernorm.state_dict(), os.path.join(output_dir, "projector_layernorm.bin"))
         self.tokenizer.save_pretrained(output_dir)
+        # Save LoRA Adapters
+        self.decoder.save_pretrained(output_dir)

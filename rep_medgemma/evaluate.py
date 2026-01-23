@@ -66,10 +66,20 @@ def evaluate(args):
     if os.path.exists(proj_path):
         model.visual_projection.load_state_dict(torch.load(proj_path, map_location='cpu'))
     
+    from peft import PeftModel
+    
     ln_path = os.path.join(args.checkpoint_dir, "projector_layernorm.bin")
     if os.path.exists(ln_path):
         print("Loading Projector LayerNorm...")
         model.projector_layernorm.load_state_dict(torch.load(ln_path, map_location='cpu'))
+
+    # Load LoRA Adapters if they exist
+    adapter_path = args.checkpoint_dir # Default to checkpoint root, PEFT looks for adapter_model.bin
+    if os.path.exists(os.path.join(adapter_path, "adapter_model.bin")):
+        print(f"Loading LoRA Adapters from {adapter_path}...")
+        model.decoder = PeftModel.from_pretrained(model.decoder, adapter_path)
+    else:
+        print("WARNING: No LoRA adapters found. Using frozen base LLM.")
         
     model.cuda()
     model.eval()
