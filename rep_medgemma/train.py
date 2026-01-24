@@ -207,6 +207,8 @@ def main():
     parser.add_argument('--batch_size', type=int, default=1) 
     parser.add_argument('--num_epochs', type=int, default=2)
     parser.add_argument('--subset_size', type=int, default=None, help='Train on a small subset for debugging')
+    parser.add_argument('--eval_steps', type=int, default=200)
+    parser.add_argument('--logging_steps', type=int, default=10)
     args = parser.parse_args()
     
     # Init Model
@@ -226,13 +228,13 @@ def main():
         learning_rate=1e-4, # Higher LR for Vision+Projector since LLM is frozen
         weight_decay=0.01,
         warmup_ratio=0.05,
-        logging_steps=10,
+        logging_steps=args.logging_steps,
         save_strategy="steps",
         eval_strategy="steps",
         save_steps=200,
-        eval_steps=200,
+        eval_steps=args.eval_steps,
         save_total_limit=3, # Keep only the last 3 checkpoints to save space
-        eval_accumulation_steps=1, # Fix OOM: Offload predictions to CPU immediately
+        eval_accumulation_steps=None, # Fix: Disable accumulation to ensure correct scalar loss reporting
         gradient_checkpointing=True, # Fix OOM: Save memory during training
         bf16=True, # Use BF16 for stability
         fp16=False,

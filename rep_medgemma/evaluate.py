@@ -73,6 +73,13 @@ def evaluate(args):
         print("Loading Projector LayerNorm...")
         model.projector_layernorm.load_state_dict(torch.load(ln_path, map_location='cpu'))
 
+    pos_path = os.path.join(args.checkpoint_dir, "visual_pos_embed.bin")
+    if os.path.exists(pos_path):
+        print(f"Loading Visual Positional Embeddings from {pos_path}...")
+        model.visual_pos_embed.data = torch.load(pos_path, map_location='cpu')
+    else:
+        print("WARNING: No Visual Positional Embeddings found in checkpoint! (Using random init)")
+
     # Load LoRA Adapters if they exist
     adapter_path = args.checkpoint_dir 
     # Check for either bin or safetensors

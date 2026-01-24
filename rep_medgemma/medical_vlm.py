@@ -253,6 +253,10 @@ class MedicalVLM(nn.Module):
         nn.init.normal_(self.visual_projection.weight, std=0.01)
         nn.init.zeros_(self.visual_projection.bias)
         
+        # --- NEW: Learned Visual Position Embeddings ---
+        # (1, 12, D) to allow broadcasting across batch
+        self.visual_pos_embed = nn.Parameter(torch.randn(1, 12, self.llm_hidden_size) * 0.02)
+        
         # Move Trainable Components to GPU (Required since is_model_parallel=True prevents Trainer from doing it)
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.vision_encoder.to(device)
@@ -264,6 +268,7 @@ class MedicalVLM(nn.Module):
             param.requires_grad = True
         for param in self.projector_layernorm.parameters():
             param.requires_grad = True
+        self.visual_pos_embed.requires_grad = True
 
         print(f"Model Summary:")
         print(f"  Vision Encoder: Trainable (ROI Masked)")
@@ -288,6 +293,10 @@ class MedicalVLM(nn.Module):
         # 2. Project to LLM Space (Trainable)
         # Output: (Batch, N_Organs, LLM_Dim)
         visual_embeds = self.visual_projection(visual_feats)
+        
+        # Add Learned Position Embeddings (Broadcasts to Batch)
+        # visual_embeds: (B, 12, D)
+        visual_embeds = visual_embeds + self.visual_pos_embed.to(visual_embeds.device).to(visual_embeds.dtype)
         
         # 2. STABILIZATION: Apply LayerNorm and Scale Matching
         # This keeps visual embeddings in the same numerical range as MedGemma's vocabulary
@@ -381,6 +390,9 @@ class MedicalVLM(nn.Module):
         visual_feats = self.vision_encoder(pixel_values, organ_masks)
         visual_embeds = self.visual_projection(visual_feats)
         
+        # Add Learned Position Embeddings
+        visual_embeds = visual_embeds + self.visual_pos_embed.to(visual_embeds.device).to(visual_embeds.dtype)
+        
         # STABILIZATION
         visual_embeds = self.projector_layernorm(visual_embeds)
         visual_embeds = visual_embeds.to(self.decoder.dtype)
@@ -449,6 +461,7 @@ class MedicalVLM(nn.Module):
         torch.save(self.vision_encoder.state_dict(), os.path.join(output_dir, "vision_encoder.bin"))
         torch.save(self.visual_projection.state_dict(), os.path.join(output_dir, "projector.bin"))
         torch.save(self.projector_layernorm.state_dict(), os.path.join(output_dir, "projector_layernorm.bin"))
+        torch.save(self.visual_pos_embed, os.path.join(output_dir, "visual_pos_embed.bin"))
         self.tokenizer.save_pretrained(output_dir)
         # Save LoRA Adapters
         self.decoder.save_pretrained(output_dir)
