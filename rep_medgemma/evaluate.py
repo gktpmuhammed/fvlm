@@ -74,10 +74,57 @@ def evaluate(args):
         model.projector_layernorm.load_state_dict(torch.load(ln_path, map_location='cpu'))
 
     # Load LoRA Adapters if they exist
-    adapter_path = args.checkpoint_dir # Default to checkpoint root, PEFT looks for adapter_model.bin
-    if os.path.exists(os.path.join(adapter_path, "adapter_model.bin")):
+    adapter_path = args.checkpoint_dir 
+    # Check for either bin or safetensors
+    if os.path.exists(os.path.join(adapter_path, "adapter_model.bin")) or os.path.exists(os.path.join(adapter_path, "adapter_model.safetensors")):
         print(f"Loading LoRA Adapters from {adapter_path}...")
-        model.decoder = PeftModel.from_pretrained(model.decoder, adapter_path)
+        
+        from peft import PeftModel
+        if isinstance(model.decoder, PeftModel):
+            print("Model is already a PeftModel. Attempting robust weight loading...")
+            
+            # 1. Try standard load
+            try:
+                model.decoder.load_adapter(adapter_path, adapter_name="default")
+            except Exception as e:
+                # 2. Fallback: Manual Key Matching
+                print(f"Standard load failed ({e}), attempting manual key matching...")
+                from safetensors.torch import load_file
+                
+                safe_path = os.path.join(adapter_path, "adapter_model.safetensors")
+                if os.path.exists(safe_path):
+                    state_dict = load_file(safe_path)
+                else:
+                    state_dict = torch.load(os.path.join(adapter_path, "adapter_model.bin"), map_location='cpu')
+
+                # DEBUG: Print keys to understand mismatch
+                # print("Checkpoint Keys (First 5):", list(state_dict.keys())[:5])
+                
+                # Scrub Keys: Remove "base_model.model." etc prefixes
+                new_state_dict = {}
+                for k, v in state_dict.items():
+                    # We are loading into the PeftModel directly, so we need to match its expected keys
+                    # OR we can unwrap and load into the base model.
+                    # Strategy: Try to strip 'base_model.model.' and load into model.decoder.base_model
+                    
+                    clean_k = k
+                    if clean_k.startswith("base_model.model."):
+                        clean_k = clean_k.replace("base_model.model.", "")
+                    
+                    # Sometimes extra 'model.' might be present or missing depending on how it was saved
+                    new_state_dict[clean_k] = v
+                
+                # Try loading into the underlying base model (unwrapped)
+                # This bypasses the PeftModel wrapper strictness
+                if hasattr(model.decoder, "base_model") and hasattr(model.decoder.base_model, "model"):
+                     msg = model.decoder.base_model.model.load_state_dict(new_state_dict, strict=False)
+                else:
+                     msg = model.decoder.load_state_dict(new_state_dict, strict=False)
+                     
+                print(f"Manual load result: {msg}")
+                
+        else:
+            model.decoder = PeftModel.from_pretrained(model.decoder, adapter_path)
     else:
         print("WARNING: No LoRA adapters found. Using frozen base LLM.")
         
@@ -157,7 +204,7 @@ def evaluate(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--checkpoint_dir', type=str, required=True)
-    parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/mae_pretrain_vit_base.pth')
+    parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/checkpoints/medical_vlm/model.pth')
     parser.add_argument('--decoder_model', type=str, default='google/medgemma-4b-it')
     parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv')
     parser.add_argument('--output_dir', type=str, default='./results/medgemma_vlm')

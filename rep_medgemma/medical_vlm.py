@@ -128,15 +128,30 @@ class MedicalVLM(nn.Module):
         if os.path.exists(vision_encoder_path):
             print(f"  Loading ViT weights from {vision_encoder_path}")
             checkpoint = torch.load(vision_encoder_path, map_location='cpu')
-            vision_state = {}
-            source = checkpoint.get('model', checkpoint.get('state_dict', checkpoint))
-            for k, v in source.items():
-                if k.startswith('visual_encoder.'):
-                    vision_state[k.replace('visual_encoder.', '')] = v
-                elif not k.startswith('text_encoder') and not k.startswith('temp'):
-                    vision_state[k] = v
-            vision_encoder.load_state_dict(vision_state, strict=False)
-
+            if 'model' in checkpoint:
+                state_dict = checkpoint['model']
+            elif 'state_dict' in checkpoint:
+                state_dict = checkpoint['state_dict']
+            else:
+                state_dict = checkpoint
+                
+            # Key Mapping for Contrastive Encoder (which has 'visual_encoder.' prefix)
+            # We need to map `visual_encoder.blocks...` -> `blocks...`
+            new_state_dict = {}
+            for k, v in state_dict.items():
+                if k.startswith("visual_encoder."):
+                    # Strip prefix
+                    new_k = k.replace("visual_encoder.", "")
+                    new_state_dict[new_k] = v
+                elif k.startswith("module."): # Common DDP prefix
+                    new_k = k.replace("module.", "")
+                    new_state_dict[new_k] = v
+                else:
+                    new_state_dict[k] = v
+            
+            # Load weights (strict=False because the checkpoint might contain extra heads like text_encoder, queues etc)
+            msg = vision_encoder.load_state_dict(new_state_dict, strict=False)
+            print(f"Vision Encoder Loaded with msg: {msg}")
         self.vision_encoder = Attentive_ROI_Wrapper(vision_encoder, encoder_config, num_organs=12)
 
         # Ensure ViT is Trainable
@@ -168,6 +183,16 @@ class MedicalVLM(nn.Module):
             device_map="auto",
             attn_implementation="eager" # SDPA sometimes issues with 4bit
         )
+        
+        # --- 2b. SENTINEL TOKENS ---
+        # Add <vis> and <end_vis> to tokenizer
+        special_tokens_dict = {'additional_special_tokens': ['<vis>', '<end_vis>']}
+        self.tokenizer.add_special_tokens(special_tokens_dict)
+        self.vis_token_id = self.tokenizer.convert_tokens_to_ids('<vis>')
+        self.end_vis_token_id = self.tokenizer.convert_tokens_to_ids('<end_vis>')
+        
+        # Resize LLM embeddings to accommodate new tokens
+        self.decoder.resize_token_embeddings(len(self.tokenizer))
 
         # Freeze LLM Base
         self.decoder.eval()
@@ -183,9 +208,30 @@ class MedicalVLM(nn.Module):
             lora_alpha=32, 
             lora_dropout=0.05,
             # Target ALL linear layers for maximum plasticity (helps break the "normalcy bias")
-            target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+            target_modules=["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
         )
         self.decoder = get_peft_model(self.decoder, peft_config)
+        
+        # --- SMART INITIALIZATION OF SENTINEL TOKENS ---
+        # Since we are NOT training valid embeddings, we must initialize them to something meaningful
+        # instead of random noise.
+        with torch.no_grad():
+            # Get IDs for "image" and "end" to use as proxies
+            proxy_ids = self.tokenizer(["image", "end"], add_special_tokens=False).input_ids
+            # Ensure we have valid IDs
+            img_id = proxy_ids[0][0] if proxy_ids and len(proxy_ids[0]) > 0 else 2
+            end_id = proxy_ids[1][0] if len(proxy_ids) > 1 and len(proxy_ids[1]) > 0 else 2
+            
+            # Copy weights: <vis> <= "image", <end_vis> <= "end"
+            input_embeddings = self.decoder.get_input_embeddings().weight
+            input_embeddings[self.vis_token_id] = input_embeddings[img_id]
+            input_embeddings[self.end_vis_token_id] = input_embeddings[end_id]
+            
+            # Also sync output embeddings (lm_head) if separate
+            output_embeddings = self.decoder.get_output_embeddings().weight
+            output_embeddings[self.vis_token_id] = output_embeddings[img_id]
+            output_embeddings[self.end_vis_token_id] = output_embeddings[end_id]
+            
         self.decoder.print_trainable_parameters()
             
         # --- 3. PROJECTOR (Trainable) ---
@@ -273,32 +319,43 @@ class MedicalVLM(nn.Module):
             with torch.no_grad():
                 text_embeds = self.decoder.get_input_embeddings()(input_ids)
                 
-            # 5. BOS-AWARE CONCATENATION
-            # MedGemma expects BOS (id 2) at index 0. We insert visual tokens at index 1.
-            # Sequence: [BOS] + [Visual_Token] + [Instruction...]
+            # 5. VISUAL SENTINEL TOKENS
+            # We insert <vis> (id) before and <end_vis> (id) after the visual token
+            # Sequence: [BOS] + <vis> + [Visual_Token] + <end_vis> + [Instruction...]
+            
+            # Create embedding for <vis> and <end_vis>
+            # Shape: (1, 1, D) -> (B*N, 1, D)
+            embed_device = self.decoder.get_input_embeddings().weight.device
+            
+            vis_embed = self.decoder.get_input_embeddings()(
+                torch.tensor([[self.vis_token_id]], device=embed_device)
+            ).expand(B * N, -1, -1)
+            
+            end_vis_embed = self.decoder.get_input_embeddings()(
+                torch.tensor([[self.end_vis_token_id]], device=embed_device)
+            ).expand(B * N, -1, -1)
+            
             inputs_embeds = torch.cat([
-                text_embeds[:, :1, :],   # The BOS token
-                visual_embeds,           # The Visual ROI token
-                text_embeds[:, 1:, :]    # The rest of the prompt
+                text_embeds[:, :1, :],   # [BOS]
+                vis_embed,               # <vis>
+                visual_embeds,           # [Visual]
+                end_vis_embed,           # <end_vis>
+                text_embeds[:, 1:, :]    # [Instruction...]
             ], dim=1)
             
-            # Adjust Labels: ignore loss on BOS and Visual Token (-100)
-            # labels[:, :1] is BOS label
-            ignore_vis = torch.full((B * N, 1), -100, dtype=labels.dtype, device=labels.device)
-            concat_labels = torch.cat([labels[:, :1], ignore_vis, labels[:, 1:]], dim=1)
+            # Adjust Labels: ignore loss on <vis>, <end_vis>, and Visual Token (-100)
+            # We added 2 new tokens (<vis>, <end_vis>), so we need 2 more -100s
+            ignore_vis_block = torch.full((B * N, 3), -100, dtype=labels.dtype, device=labels.device)
+            concat_labels = torch.cat([labels[:, :1], ignore_vis_block, labels[:, 1:]], dim=1)
             
-            # Adjust Mask: add '1' for the visual token
-            att_vis = torch.ones((B * N, 1), dtype=attention_mask.dtype, device=attention_mask.device)
-            concat_mask = torch.cat([attention_mask[:, :1], att_vis, attention_mask[:, 1:]], dim=1)
+            # Adjust Mask: add '1' for the visual block (<vis>, Visual, <end_vis>)
+            att_vis_block = torch.ones((B * N, 3), dtype=attention_mask.dtype, device=attention_mask.device)
+            concat_mask = torch.cat([attention_mask[:, :1], att_vis_block, attention_mask[:, 1:]], dim=1)
             
-            # DEBUG: Print stats
-            # if True: 
-            #     print(f"DEBUG TRAIN: Vis Mean: {visual_embeds.mean().item():.4f}, Std: {visual_embeds.std().item():.4f}", flush=True)
-            #     print(f"DEBUG TRAIN: Txt Mean: {text_embeds.mean().item():.4f}, Std: {text_embeds.std().item():.4f}", flush=True)
-            
-            # Prepend 1 to attention mask (attend to visual token)
-            att_pad = torch.ones((B * N, 1), dtype=attention_mask.dtype, device=attention_mask.device)
-            concat_mask = torch.cat([att_pad, attention_mask], dim=1)
+            # Prepend 1 to attention mask (attend to visual block)
+            # Correction: The above concat_mask handles the insertion. 
+            # We just need to make sure we don't double-pad. 
+            pass # (Logic handled above)
 
             # 7. Calculate Loss
             outputs = self.decoder(
@@ -343,15 +400,29 @@ class MedicalVLM(nn.Module):
                 text_embeds = self.decoder.get_input_embeddings()(input_ids)
                 text_embeds = text_embeds.to(self.decoder.dtype)
             
-            # BOS-Aware Insertion: [BOS] + [Visual] + [Rest]
+            # BOS-Aware Insertion with Sentinels: [BOS] + <vis> + [Visual] + <end_vis> + [Rest]
+            
+            embed_device = self.decoder.get_input_embeddings().weight.device
+            
+            vis_embed = self.decoder.get_input_embeddings()(
+                torch.tensor([[self.vis_token_id]], device=embed_device)
+            ).expand(B * N, -1, -1)
+            
+            end_vis_embed = self.decoder.get_input_embeddings()(
+                torch.tensor([[self.end_vis_token_id]], device=embed_device)
+            ).expand(B * N, -1, -1)
+            
             inputs_embeds = torch.cat([
                 text_embeds[:, :1, :],
+                vis_embed,
                 visual_embeds,
+                end_vis_embed,
                 text_embeds[:, 1:, :]
             ], dim=1)
             
-            att_vis = torch.ones((B * N, 1), dtype=attention_mask.dtype, device=attention_mask.device)
-            concat_mask = torch.cat([attention_mask[:, :1], att_vis, attention_mask[:, 1:]], dim=1)
+            # Mask: +3 tokens (<vis>, Vis, <end_vis>)
+            att_vis_block = torch.ones((B * N, 3), dtype=attention_mask.dtype, device=attention_mask.device)
+            concat_mask = torch.cat([attention_mask[:, :1], att_vis_block, attention_mask[:, 1:]], dim=1)
         else:
             inputs_embeds = visual_embeds
             concat_mask = torch.ones((B * N, 1), device=visual_embeds.device)
