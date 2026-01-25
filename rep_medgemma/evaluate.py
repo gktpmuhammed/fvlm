@@ -180,8 +180,9 @@ def evaluate(args):
                 input_ids=inputs.input_ids,
                 attention_mask=inputs.attention_mask,
                 max_new_tokens=100,
-                do_sample=False, 
-                num_beams=3,            # Standard for medical reports
+                do_sample=True,         # Enable Sampling
+                temperature=0.8,        # Control randomness (0.8 is balanced)
+                top_p=0.9,             # Nucleus sampling
                 repetition_penalty=1.2, # Penalize repetition
                 no_repeat_ngram_size=3  # Stop 3-gram loops
             )
