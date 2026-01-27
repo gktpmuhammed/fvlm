@@ -322,4 +322,6 @@ class MedicalVLM(nn.Module):
         # We only save the trainable parts to save space
         torch.save(self.vision_encoder.state_dict(), os.path.join(output_dir, "vision_encoder.bin"))
         torch.save(self.visual_projection.state_dict(), os.path.join(output_dir, "projector.bin"))
+        torch.save(self.disease_loss_fn.state_dict(), os.path.join(output_dir, "disease_head.bin"))
+
         self.tokenizer.save_pretrained(output_dir)
