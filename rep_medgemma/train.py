@@ -70,17 +70,18 @@ class OrganCollator:
         pixel_values = torch.stack([f['pixel_values'] for f in features])
         organ_masks = torch.stack([f['organ_masks'] for f in features])
         
-        # New: Stack input_ids and attention_mask
         input_ids = torch.stack([f['input_ids'] for f in features])
         attention_mask = torch.stack([f['attention_mask'] for f in features])
         labels = torch.stack([f['labels'] for f in features])
+        sample_weights = torch.stack([f['sample_weights'] for f in features])
         
         return {
             'pixel_values': pixel_values, 
             'organ_masks': organ_masks,
             'input_ids': input_ids,
             'attention_mask': attention_mask,
-            'labels': labels
+            'labels': labels,
+            'sample_weights': sample_weights
         }
 
 class OnePassOrganDataset(Dataset):
@@ -91,6 +92,17 @@ class OnePassOrganDataset(Dataset):
         
         with open(json_file, 'r') as f: 
             self.reports_json = json.load(f)
+
+        # Load Weights (Only for training)
+        self.organ_weights = None
+        if split == 'training':
+            weights_path = os.path.join(os.path.dirname(csv_file), 'organ_loss_weights.json')
+            if os.path.exists(weights_path):
+                with open(weights_path, 'r') as f:
+                    self.organ_weights = json.load(f)
+                print(f"Loaded organ loss weights from {weights_path}")
+            else:
+                print("WARNING: No organ loss weights found for training. Using default 1.0.")
 
         self.tokenizer = tokenizer
         self.transform = transform
@@ -137,6 +149,7 @@ class OnePassOrganDataset(Dataset):
             patient_data = self.reports_json.get(pid, {})
 
             mask_stack, input_ids_stack, att_stack, label_stack = [], [], [], []
+            weights_stack = []
 
             for key in self.target_keys:
                 # 1. Mask
@@ -145,12 +158,24 @@ class OnePassOrganDataset(Dataset):
                 for t in tids: m[mask_tensor == t] = 1.0
                 mask_stack.append(m)
                 
-                # 2. Text
+                # 2. Text & Weighting
                 text = patient_data.get(key, "").strip()
-                if len(text) < 3: 
-                    # If empty, teach model to say "No findings." or mask loss
-                    text = "No significant findings." 
+                is_default = False
                 
+                if len(text) < 3: 
+                    # If empty, teach model to say "No findings."
+                    text = "No significant findings." 
+                    is_default = True
+                
+                # Get Weight
+                weight = 1.0
+                if self.organ_weights and key in self.organ_weights:
+                    w_dict = self.organ_weights[key]
+                    # Use Softened weights if available, otherwise pure
+                    weight = w_dict.get('weight_default' if is_default else 'weight_explicit', 1.0)
+                
+                weights_stack.append(weight)
+
                 # 3. Tokenize with Chat Template
                 full_text, prompt_text = self.apply_chat_template(key, text)
                 
@@ -189,7 +214,8 @@ class OnePassOrganDataset(Dataset):
                 'organ_masks': torch.stack(mask_stack).float(),
                 'input_ids': torch.stack(input_ids_stack),
                 'attention_mask': torch.stack(att_stack),
-                'labels': torch.stack(label_stack)
+                'labels': torch.stack(label_stack),
+                'sample_weights': torch.tensor(weights_stack, dtype=torch.float32)
             }
 
         except Exception as e:
@@ -198,7 +224,7 @@ class OnePassOrganDataset(Dataset):
             return None
 
 def main():
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1" # Allow shell override
     parser = argparse.ArgumentParser()
     parser.add_argument('--decoder_model', type=str, default='google/medgemma-4b-it')
     parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/checkpoints/model.pth')
@@ -208,7 +234,7 @@ def main():
     parser.add_argument('--batch_size', type=int, default=1) 
     parser.add_argument('--num_epochs', type=int, default=2)
     parser.add_argument('--subset_size', type=int, default=None, help='Train on a small subset for debugging')
-    parser.add_argument('--eval_steps', type=int, default=200)
+    parser.add_argument('--eval_steps', type=int, default=10)
     parser.add_argument('--logging_steps', type=int, default=10)
     args = parser.parse_args()
     

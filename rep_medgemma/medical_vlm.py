@@ -279,7 +279,7 @@ class MedicalVLM(nn.Module):
         # self.is_parallelizable = True
         # self.model_parallel = True
 
-    def forward(self, pixel_values, organ_masks=None, input_ids=None, attention_mask=None, labels=None, **kwargs):
+    def forward(self, pixel_values, organ_masks=None, input_ids=None, attention_mask=None, labels=None, sample_weights=None, **kwargs):
         """
         Forward pass for Training.
         Data flow: Image -> ViT -> Projector -> [Visual_Embed] + [Text_Embed] -> Decoder -> Loss
@@ -321,6 +321,10 @@ class MedicalVLM(nn.Module):
             labels = labels.view(B * N, S)
             attention_mask = attention_mask.view(B * N, S)
 
+            # Flatten Weights: (B*N)
+            if sample_weights is not None:
+                sample_weights = sample_weights.view(B * N)
+
             # 4. Get Text Embeddings (Frozen LLM)
             embed_device = self.decoder.get_input_embeddings().weight.device
             input_ids = input_ids.to(embed_device)
@@ -361,26 +365,60 @@ class MedicalVLM(nn.Module):
             att_vis_block = torch.ones((B * N, 3), dtype=attention_mask.dtype, device=attention_mask.device)
             concat_mask = torch.cat([attention_mask[:, :1], att_vis_block, attention_mask[:, 1:]], dim=1)
             
-            # Prepend 1 to attention mask (attend to visual block)
-            # Correction: The above concat_mask handles the insertion. 
-            # We just need to make sure we don't double-pad. 
-            pass # (Logic handled above)
-
-            # 7. Calculate Loss
+            # 7. Calculate Loss Manually for Weighting
             outputs = self.decoder(
                 inputs_embeds=inputs_embeds,
                 attention_mask=concat_mask,
-                labels=concat_labels,
+                labels=None, # Don't calculating loss inside model
                 return_dict=True,
-                use_cache=False # Critical for memory saving during training
+                use_cache=False 
             )
+
+            # Logits: (B*N, SeqLen, Vocab)
+            logits = outputs.logits
             
-            # Ensure loss is on the Input Device (Fix for Trainer multi-gpu check)
-            # Trainer expects loss to be on the same device as the input batch
-            # if outputs.loss is not None:
-            #     outputs.loss = outputs.loss.to(pixel_values.device)
+            # Shift Logits and Labels
+            # labels are already shifted inside CausalLM value usually, BUT since we passed Labels=None, 
+            # we must do shift manually.
+            # Shift: logits[..., :-1, :], labels[..., 1:]
             
-            return outputs
+            shift_logits = logits[..., :-1, :].contiguous()
+            shift_labels = concat_labels[..., 1:].contiguous()
+            
+            # Flatten to (Batch * Seq, Vocab)
+            flat_logits = shift_logits.view(-1, shift_logits.size(-1))
+            flat_labels = shift_labels.view(-1)
+            
+            # Calculate Cross Entropy (Reduction=None to keep per-token loss)
+            loss_fct = torch.nn.CrossEntropyLoss(reduction='none', ignore_index=-100)
+            token_losses = loss_fct(flat_logits, flat_labels)
+            
+            # Reshape back to (B*N, SeqLen-1)
+            token_losses = token_losses.view(B * N, -1)
+            
+            # Mean loss per sample (ignoring masked tokens)
+            # Find non-mask tokens count
+            # Use shift_labels != -100
+            non_pad_mask = (shift_labels != -100).float()
+            sample_loss_sum = (token_losses * non_pad_mask).sum(dim=1)
+            sample_tokens = non_pad_mask.sum(dim=1)
+            
+            # Avoid division by zero
+            sample_loss = sample_loss_sum / (sample_tokens + 1e-8)
+            
+            # Apply Organ Weights
+            if sample_weights is not None:
+                sample_weights = sample_weights.to(sample_loss.device)
+                sample_loss = sample_loss * sample_weights
+                
+            # Final Mean Loss
+            loss = sample_loss.mean()
+            
+            # Use dict return for Trainer compatibility
+            return {
+                "loss": loss,
+                "logits": logits
+            }
 
     def generate(self, pixel_values, organ_masks=None, input_ids=None, attention_mask=None, **kwargs):
         """
