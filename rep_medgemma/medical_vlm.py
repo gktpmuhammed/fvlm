@@ -180,7 +180,7 @@ class MedicalVLM(nn.Module):
             decoder_model_name,
             # quantization_config=bnb_config,
             torch_dtype=torch.bfloat16, # Use BF16 directly
-            device_map="auto",
+            # device_map="auto", # REMOVED: Conflicts with Trainer DataParallel
             attn_implementation="eager" # SDPA sometimes issues with 4bit
         )
         
@@ -258,10 +258,10 @@ class MedicalVLM(nn.Module):
         self.visual_pos_embed = nn.Parameter(torch.randn(1, 12, self.llm_hidden_size) * 0.02)
         
         # Move Trainable Components to GPU (Required since is_model_parallel=True prevents Trainer from doing it)
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.vision_encoder.to(device)
-        self.visual_projection.to(device)
-        self.projector_layernorm.to(device)
+        # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        # self.vision_encoder.to(device)
+        # self.visual_projection.to(device)
+        # self.projector_layernorm.to(device)
         
         # Ensure Projector is Trainable
         for param in self.visual_projection.parameters():
@@ -276,8 +276,8 @@ class MedicalVLM(nn.Module):
         print(f"  MedGemma:       FROZEN (4-bit)")
         
         # Helper to tell Trainer NOT to wrap in DataParallel
-        self.is_parallelizable = True
-        self.model_parallel = True
+        # self.is_parallelizable = True
+        # self.model_parallel = True
 
     def forward(self, pixel_values, organ_masks=None, input_ids=None, attention_mask=None, labels=None, **kwargs):
         """
@@ -296,7 +296,7 @@ class MedicalVLM(nn.Module):
         
         # Add Learned Position Embeddings (Broadcasts to Batch)
         # visual_embeds: (B, 12, D)
-        visual_embeds = visual_embeds + self.visual_pos_embed.to(visual_embeds.device).to(visual_embeds.dtype)
+        visual_embeds = visual_embeds + self.visual_pos_embed.to(visual_embeds.device)
         
         # 2. STABILIZATION: Apply LayerNorm and Scale Matching
         # This keeps visual embeddings in the same numerical range as MedGemma's vocabulary
@@ -377,8 +377,8 @@ class MedicalVLM(nn.Module):
             
             # Ensure loss is on the Input Device (Fix for Trainer multi-gpu check)
             # Trainer expects loss to be on the same device as the input batch
-            if outputs.loss is not None:
-                outputs.loss = outputs.loss.to(pixel_values.device)
+            # if outputs.loss is not None:
+            #     outputs.loss = outputs.loss.to(pixel_values.device)
             
             return outputs
 
@@ -391,7 +391,7 @@ class MedicalVLM(nn.Module):
         visual_embeds = self.visual_projection(visual_feats)
         
         # Add Learned Position Embeddings
-        visual_embeds = visual_embeds + self.visual_pos_embed.to(visual_embeds.device).to(visual_embeds.dtype)
+        visual_embeds = visual_embeds + self.visual_pos_embed.to(visual_embeds.device)
         
         # STABILIZATION
         visual_embeds = self.projector_layernorm(visual_embeds)

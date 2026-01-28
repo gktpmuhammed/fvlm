@@ -1,0 +1,131 @@
+patient_id,prediction
+valid_730_a_1,"LUNG: In the evaluation of both lung parenchyma; No mass nodule infiltration was detected in either aerated hemithorax.
+HEART: Heart contour size is natural.
+ESOPHAGUS: No pathological wall thickness increase was observed in the esophagus within the sections.
+LIVER: No significant findings.
+GALLBLADDER: No significant findings.
+STOMACH: No significant findings.
+PANCREAS: No significant findings.
+SPLEEN: No significant findings.
+KIDNEY: No significant findings.
+AORTA: No significant findings.
+TRACHEA: Trachea, both main bronchi are open and no occlusive pathology is detected.
+RIB: No significant findings.
+"
+valid_75_a_1,"LUNG: A few millimetric nonspecific nodules are observed in both lungs. No mass or infiltrative lesion was detected that could be evaluated primarily for pneumonia on this floor, and a decrease is noted when the previous examination of other organs included with MICT abdomen sections were compared (resolution-sequelae?). Millimetrically sized stable parenchymal air cysts
+HEART: No significant findings.
+ESOPHAGUS: Thoracic esophagus calibration was normal and no significant pathological wall thickening.
+LIVER: No significant findings.
+GALLBLADDER: No significant findings.
+STOMACH: No significant findings.
+PANCREAS: No significant findings.
+SPLEEN: No significant findings.
+KIDNEY: No significant findings.
+AORTA: No significant findings.
+TRACHEA: Trachea, both main bronchi are open.
+RIB: No significant findings.
+"
+valid_999_a_1,"LUNG: Aeration of both lung parenchyma is normal and no nodular or infiltrative lesion, pneumonic infiltration area was detected in the lungs.
+HEART: Heart contour, size are normal. Pericardial effusion-thickening was not observed
+ESOPHAGUS: Thoracic esophagus calibration was normal and no significant tumoral wall thickening.
+LIVER: No significant findings.
+GALLBLADDER: No significant findings.
+STOMACH: No significant findings.
+PANCREAS: No significant findings.
+SPLEEN: No significant findings.
+KIDNEY: No significant findings.
+AORTA: No significant findings.
+TRACHEA: Trachea, both main bronchi are open and no occlusive pathology is detected.
+RIB: No significant findings.
+"
+valid_572_a_1,"LUNG: The left lung is hypovolemic. In the lower lobe of both lungs, especially in a patchy manner extending to almost all segments and consolidation areas are observed on this background (infectious process?). The findings described above were evaluated as compatible with atypical viral pneumonias such Covid-19 pneumonia due primarily infection tendency at baseline levels when other diseases developed concomitantly during pandemic conditions; However it cannot be excluded for clinical laboratory correlation follow up differential diagnosis Infectious processes involving air bronchograms causing structural distortion
+HEART: Heart contour, size are normal.
+ESOPHAGUS: Thoracic esophagus calibration was normal and no significant tumoral wall thickening is detected.
+LIVER: No significant findings.
+GALLBLADDER: No significant findings.
+STOMACH: No significant findings.
+PANCREAS: No significant findings.
+SPLEEN: No significant findings.
+KIDNEY: No significant findings.
+AORTA: No significant findings.
+TRACHEA: Trachea, both main bronchi are open.
+RIB: No significant findings.
+"
+valid_569_c_1,"LUNG: Atelectasis is observed in the medial segment of both lung lower lobes. There are also minimal emphysematous changes and millimetric nonspecific nodules, some larger than 3 mm on this background with a diameter up to approximately half an cm more prominently at posterobasal levels where atelectatic densities exist towards these segments from place to place within their own borders . A ground-glass nodule appearance was noted (series:2 image :178) adjacent primarily air bronchogram signs
+HEART: Heart contour and size are normal. No pleural or pericardial effusion was detected
+ESOPHAGUS: No pathological wall thickness increase was observed in the esophagus within its lumen.
+LIVER: No significant findings.
+GALLBLADDER: No significant findings.
+STOMACH: No significant findings.
+PANCREAS: No significant findings.
+SPLEEN: No significant findings.
+KIDNEY: No significant findings.
+AORTA: Thoracic aorta diameter is normal.
+TRACHEA: Trachea and lumen of both main bronchi are open. No occlusive pathology was detected in the trachea, left lung upper lobe anterior segment bronchus superior lingular branch origin insertion point
+RIB: No significant findings.
+"
+valid_569_b_1,"LUNG: There are millimetric nonspecific nodules in both lungs. No mass or infiltrative lesion was detected
+HEART: No significant findings.
+ESOPHAGUS: No significant findings.
+LIVER: No significant findings.
+GALLBLADDER: No significant findings.
+STOMACH: No significant findings.
+PANCREAS: No significant findings.
+SPLEEN: No significant findings.
+KIDNEY: No significant findings.
+AORTA: Aortic arch calibration is 31 mm. It has a wider appearance than normal, and calcific atheroma plaques are observed on the walls of mediastinal vascular structures in this localization Calcified atherosclerotic changes
+TRACHEA: Trachea and both main bronchi are open. No occlusive pathology was detected in the trachea, left main bronchus or right lower lobe bronchial structures within their lumen
+RIB: No significant findings.
+"
+valid_569_a_1,"LUNG: In both lungs, there are peripherally located crazy paving pattern and patchy ground glass densities with vascular enlargement around it. The findings were evaluated in favor of Covid-19 viral pneumonia
+HEART: Heart contour, size are normal. Pericardial effusion-thickening was not observed
+ESOPHAGUS: No significant findings.
+LIVER: No significant findings.
+GALLBLADDER: No significant findings.
+STOMACH: No significant findings.
+PANCREAS: No significant findings.
+SPLEEN: No significant findings.
+KIDNEY: No significant findings.
+AORTA: No significant findings.
+TRACHEA: Trachea and both main bronchi are open. No occlusive pathology was detected in the trachea, left lung bronchus lumen with 7 mm diameter nodular wall thickness increase is observed (mucosal thickening?).
+RIB: No significant findings.
+"
+valid_200_a_1,"LUNG: Aeration of both lung parenchyma is normal and no nodular or infiltrative lesion, pneumonic infiltration area was detected in the lungs.
+HEART: Heart contour and size are normal.
+ESOPHAGUS: Thoracic esophagus calibration was normal and no significant pathological wall thickening is detected.
+LIVER: No significant findings.
+GALLBLADDER: No significant findings.
+STOMACH: No significant findings.
+PANCREAS: No significant findings.
+SPLEEN: No significant findings.
+KIDNEY: No significant findings.
+AORTA: No significant findings.
+TRACHEA: No significant findings.
+RIB: No significant findings.
+"
+valid_169_a_1,"LUNG: Aeration of both lung parenchyma is normal and no nodular or infiltrative lesion, pneumonic infiltration area in the form described above was detected. No pleural effusion
+HEART: Heart contour and size are normal. No pleural or pericardial effusion was detected
+ESOPHAGUS: No pathological wall thickness increase was observed in the esophagus within its lumen.
+LIVER: No significant findings.
+GALLBLADDER: No significant findings.
+STOMACH: No significant findings.
+PANCREAS: No significant findings.
+SPLEEN: No significant findings.
+KIDNEY: No significant findings.
+AORTA: No significant findings.
+TRACHEA: Trachea and both main bronchi are open. There is no obstructive pathology in the trachea, left lung bronchus or right upper-lower lobe segmental bronchial lumens as far forward at this level from images of bilateral subdiaphragmatic area to mediastinal borders within its field view
+RIB: No significant findings.
+"
+valid_478_a_1,"LUNG: In both lungs, there are peripherally located ground glass areas and occasional accompanying linear density increases parallel to the pleura. The findings were evaluated in favor of Covid-19 pneumonia during clinical laboratory correlation management
+HEART: Heart contour, size are normal. Pericardial effusion-thickening was not observed
+ESOPHAGUS: No pathological increase in wall thickness was observed.
+LIVER: No significant findings.
+GALLBLADDER: No significant findings.
+STOMACH: No significant findings.
+PANCREAS: No significant findings.
+SPLEEN: No significant findings.
+KIDNEY: No significant findings.
+AORTA: No significant findings.
+TRACHEA: Trachea and both main bronchi were in the midline, no obstructive pathology was observed.
+RIB: No significant findings.
+"

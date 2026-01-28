@@ -5,6 +5,7 @@ import logging
 import json
 import pandas as pd
 import torch
+
 from dataclasses import dataclass
 from torch.utils.data import Dataset
 from transformers import Trainer, TrainingArguments, EarlyStoppingCallback
@@ -236,10 +237,12 @@ def main():
         save_total_limit=3, # Keep only the last 3 checkpoints to save space
         eval_accumulation_steps=None, # Fix: Disable accumulation to ensure correct scalar loss reporting
         gradient_checkpointing=True, # Fix OOM: Save memory during training
+        gradient_checkpointing_kwargs={'use_reentrant': False}, # Fix DDP: Prevent "marked ready twice" error
         bf16=True, # Use BF16 for stability
         fp16=False,
         dataloader_num_workers=4,
         remove_unused_columns=False, # Essential for custom forward pass
+        ddp_find_unused_parameters=True, # Fixed: Required to avoid DDP error with unused params
         report_to="wandb"
     )
 
@@ -251,7 +254,68 @@ def main():
             """
             if output_dir is None:
                 output_dir = self.args.output_dir
-            self.model.save_pretrained(output_dir)
+            
+            # Helper to unwrap model in DDP (Distributed Data Parallel)
+            model_to_save = self.model
+            while hasattr(model_to_save, 'module'):
+                model_to_save = model_to_save.module
+                
+            model_to_save.save_pretrained(output_dir)
+
+        def _load_from_checkpoint(self, resume_from_checkpoint, fit_model=True):
+            """
+            Override to handle our custom checkpoint format.
+            """
+            if resume_from_checkpoint is None:
+                return
+
+            print(f"Loading custom checkpoint from {resume_from_checkpoint}")
+            
+            # 1. Load Vision Encoder
+            vision_path = os.path.join(resume_from_checkpoint, "vision_encoder.bin")
+            if os.path.exists(vision_path):
+                self.model.vision_encoder.load_state_dict(torch.load(vision_path, map_location="cpu"))
+                print("  - Vision Encoder loaded.")
+            
+            # 2. Load Projector
+            proj_path = os.path.join(resume_from_checkpoint, "projector.bin")
+            if os.path.exists(proj_path):
+                self.model.visual_projection.load_state_dict(torch.load(proj_path, map_location="cpu"))
+                print("  - Projector loaded.")
+                
+            # 3. Load Projector LayerNorm
+            ln_path = os.path.join(resume_from_checkpoint, "projector_layernorm.bin")
+            if os.path.exists(ln_path):
+                self.model.projector_layernorm.load_state_dict(torch.load(ln_path, map_location="cpu"))
+                print("  - Projector LayerNorm loaded.")
+
+            # 4. Load Visual Pos Embed
+            pos_path = os.path.join(resume_from_checkpoint, "visual_pos_embed.bin")
+            if os.path.exists(pos_path):
+                # It's saved as a tensor/param, so load it directly
+                # If it was saved as state_dict it would be different, but save_pretrained does torch.save(param)
+                # Let's check medical_vlm.py: 
+                # torch.save(self.visual_pos_embed, ...) -> saves the Tensor/Parameter object
+                self.model.visual_pos_embed.data = torch.load(pos_path, map_location="cpu").data
+                print("  - Visual Pos Embed loaded.")
+            
+            # 5. Load LoRA Adapters (Managed by PEFT/Transformers usually)
+            # The 'adapter_model.safetensors' is present, so we should load it.
+            # Using standard PEFT loader if possible, or manual load if we must.
+            # Since self.model.decoder is a PeftModel, we can use load_peft_weights
+            from peft import PeftModel
+            if isinstance(self.model.decoder, PeftModel):
+                self.model.decoder.load_adapter(resume_from_checkpoint, adapter_name="default")
+                print("  - LoRA Adapters loaded.")
+
+            # 6. Load Optimizer/Scheduler/Step (Handled by Trainer.train logic usually, but we need to ensure state is loaded)
+            # calling super()._load_from_checkpoint might fail because it tries to load model weights too.
+            # However, super() logic is complex. 
+            # Actually, standard Trainer._load_from_checkpoint primarily loads the model weights.
+            # The optimizer/scheduler loading happens in `train()` method logic explicitly via `_load_optimizer_and_scheduler`.
+            # So we just need to ensure the MODEL weights are correct here.
+            
+            return
 
     trainer = MedicalTrainer(
         model=model,
