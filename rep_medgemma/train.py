@@ -5,6 +5,7 @@ import logging
 import json
 import pandas as pd
 import torch
+import random
 
 from dataclasses import dataclass
 from torch.utils.data import Dataset
@@ -93,16 +94,16 @@ class OnePassOrganDataset(Dataset):
         with open(json_file, 'r') as f: 
             self.reports_json = json.load(f)
 
-        # Load Weights (Only for training)
-        self.organ_weights = None
+        # Load Sampling Probabilities (Only for training)
+        self.sampling_probs = None
         if split == 'training':
-            weights_path = os.path.join(os.path.dirname(csv_file), 'organ_loss_weights.json')
-            if os.path.exists(weights_path):
-                with open(weights_path, 'r') as f:
-                    self.organ_weights = json.load(f)
-                print(f"Loaded organ loss weights from {weights_path}")
+            probs_path = os.path.join(os.path.dirname(csv_file), 'organ_sampling_probs.json')
+            if os.path.exists(probs_path):
+                with open(probs_path, 'r') as f:
+                    self.sampling_probs = json.load(f)
+                print(f"Loaded organ sampling probabilities from {probs_path}")
             else:
-                print("WARNING: No organ loss weights found for training. Using default 1.0.")
+                print("WARNING: No organ sampling probabilities found for training. Using keep_prob=1.0.")
 
         self.tokenizer = tokenizer
         self.transform = transform
@@ -167,12 +168,15 @@ class OnePassOrganDataset(Dataset):
                     text = "No significant findings." 
                     is_default = True
                 
-                # Get Weight
+                # Balanced Masking Logic
                 weight = 1.0
-                if self.organ_weights and key in self.organ_weights:
-                    w_dict = self.organ_weights[key]
-                    # Use Softened weights if available, otherwise pure
-                    weight = w_dict.get('weight_default' if is_default else 'weight_explicit', 1.0)
+                if self.sampling_probs:
+                    # If Default, we might mask it out (weight=0)
+                    if is_default:
+                        prob = self.sampling_probs.get(key, 1.0)
+                        if random.random() > prob:
+                            weight = 0.0
+                    # Explicit findings always kept (weight=1.0)
                 
                 weights_stack.append(weight)
 
