@@ -240,10 +240,11 @@ def main():
     parser.add_argument('--subset_size', type=int, default=None, help='Train on a small subset for debugging')
     parser.add_argument('--eval_steps', type=int, default=200)
     parser.add_argument('--logging_steps', type=int, default=10)
+    parser.add_argument('--queries_per_organ', type=int, default=8, help='Number of visual tokens per organ')
     args = parser.parse_args()
     
     # Init Model
-    model = MedicalVLM(args.vision_encoder_path, args.decoder_model)
+    model = MedicalVLM(args.vision_encoder_path, args.decoder_model, queries_per_organ=args.queries_per_organ)
 
     # Init Data
     transform = build_transforms()

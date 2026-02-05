@@ -64,14 +64,23 @@ class Attentive_ROI_Wrapper(nn.Module):
 
             B, N_organs, D_m, H_m, W_m = organ_masks.shape
             
+            # --- EXPAND MASKS FOR MULTI-TOKEN (N=8) ---
+            # We have N_organs masks, but N_organs * Q queries.
+            # We repeat each mask Q times.
+            # organ_masks: (B, 12, ...) -> (B, 96, ...)
+            
+            queries_per_organ = self.organ_queries.shape[0] // N_organs
+            organ_masks = organ_masks.repeat_interleave(queries_per_organ, dim=1)
+            
             # --- Downsample Mask for Attention ---
             # ViT reduces 112x256x352 -> approx 7x16x22 depending on patch size
             # Ensure these dimensions match your specific ViT output
             f_d, f_h, f_w = 7, 16, 11 
             
-            flat_masks = organ_masks.view(B * N_organs, 1, D_m, H_m, W_m)
+            # Now flatten with the expanded count
+            flat_masks = organ_masks.view(B * organ_masks.shape[1], 1, D_m, H_m, W_m)
             masks_down = F.interpolate(flat_masks, size=(f_d, f_h, f_w), mode='area')
-            masks_flat = masks_down.view(B, N_organs, -1)
+            masks_flat = masks_down.view(B, organ_masks.shape[1], -1)
             
             # --- Create Attention Bias ---
             attn_bias = torch.zeros_like(masks_flat)
@@ -107,10 +116,15 @@ class MedicalVLM(nn.Module):
         decoder_model_name="google/medgemma-4b-it", # Note: Check HF for exact ID
         image_size=(112, 256, 352),
         patch_size=(16, 16, 32),
+        queries_per_organ=8, # NEW: Default to 8 tokens per organ
         **kwargs 
     ):
         super().__init__()
         
+        self.queries_per_organ = queries_per_organ
+        self.num_organs = 12
+        self.total_visual_tokens = self.num_organs * self.queries_per_organ
+
         # --- 1. VISION ENCODER (Trainable) ---
         print("Initializing Trainable Vision Encoder...")
         vit_hidden_size = 768 
@@ -153,6 +167,13 @@ class MedicalVLM(nn.Module):
             msg = vision_encoder.load_state_dict(new_state_dict, strict=False)
             print(f"Vision Encoder Loaded with msg: {msg}")
         self.vision_encoder = Attentive_ROI_Wrapper(vision_encoder, encoder_config, num_organs=12)
+        
+        # RESIZE QUERIES
+        # Override the default 12 queries with 12 * Q queries
+        self.vision_encoder.organ_queries = nn.Parameter(
+            torch.randn(self.total_visual_tokens, encoder_config.hidden_size)
+        )
+        nn.init.normal_(self.vision_encoder.organ_queries, std=0.02)
 
         # Ensure ViT is Trainable
         for param in self.vision_encoder.parameters():
@@ -254,8 +275,8 @@ class MedicalVLM(nn.Module):
         nn.init.zeros_(self.visual_projection.bias)
         
         # --- NEW: Learned Visual Position Embeddings ---
-        # (1, 12, D) to allow broadcasting across batch
-        self.visual_pos_embed = nn.Parameter(torch.randn(1, 12, self.llm_hidden_size) * 0.02)
+        # (1, 96, D) to allow broadcasting across batch
+        self.visual_pos_embed = nn.Parameter(torch.randn(1, self.total_visual_tokens, self.llm_hidden_size) * 0.02)
         
         # Move Trainable Components to GPU (Required since is_model_parallel=True prevents Trainer from doing it)
         # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -271,7 +292,7 @@ class MedicalVLM(nn.Module):
         self.visual_pos_embed.requires_grad = True
 
         print(f"Model Summary:")
-        print(f"  Vision Encoder: Trainable (ROI Masked)")
+        print(f"  Vision Encoder: Trainable (ROI Masked, {self.queries_per_organ} tokens/organ)")
         print(f"  Projector:      Trainable (768 -> {self.llm_hidden_size})")
         print(f"  MedGemma:       FROZEN (4-bit)")
         
@@ -287,15 +308,15 @@ class MedicalVLM(nn.Module):
         B_batch = pixel_values.shape[0]
 
         # 1. Get Visual Features (Trainable)
-        # Output: (Batch, N_Organs, ViT_Dim)
+        # Output: (Batch, N_Organs * Q, ViT_Dim)
         visual_feats = self.vision_encoder(pixel_values, organ_masks) 
         
         # 2. Project to LLM Space (Trainable)
-        # Output: (Batch, N_Organs, LLM_Dim)
+        # Output: (Batch, N_Organs * Q, LLM_Dim)
         visual_embeds = self.visual_projection(visual_feats)
         
         # Add Learned Position Embeddings (Broadcasts to Batch)
-        # visual_embeds: (B, 12, D)
+        # visual_embeds: (B, 96, D)
         visual_embeds = visual_embeds + self.visual_pos_embed.to(visual_embeds.device)
         
         # 2. STABILIZATION: Apply LayerNorm and Scale Matching
@@ -309,18 +330,35 @@ class MedicalVLM(nn.Module):
         visual_embeds = visual_embeds * (text_std / (visual_embeds.std() + 1e-6))
         
         # 3. Reshape for Processing
-        # We process (Batch * N_Organs) as independent sequences
+        # We process (Batch * N_Organs * Q) as independent sequences
+        # BUT wait, the dataset repeats text 12 times. We have 96 visual tokens.
+        # Logic: 
+        #   Case A: We process 12 samples per image. Each sample has 8 independent visual tokens? NO.
+        #   Case B: We process 96 samples per image? NO.
+        
+        #   CORRECT LOGIC:
+        #   The dataset treats each ORGAN as a sample -> returns 12 items.
+        #   For 'LUNG', we want to give it 8 visual tokens.
+        #   So visual_embeds for LUNG should be (1, 8, D).
+        #   Currently visual_embeds is (B, 96, D).
+        #   We need to reshape visual_embeds to (B, 12, 8, D).
+        #   Then for each of the 12 organ samples, we pass (1, 8, D) as the visual context.
+        
+        # Reshape: (B, 12, 8, D)
+        visual_embeds = visual_embeds.view(B_batch, self.num_organs, self.queries_per_organ, -1)
+
         if labels is not None:
-            B, N, S = input_ids.shape
+            B, N, S = input_ids.shape # N=12
             
-            # Flatten: (B*N, 1, D)
-            visual_embeds = visual_embeds.view(B * N, 1, -1)
-            
-            # Flatten Text: (B*N, S)
+            # Flatten Inputs: (B*12, S)
             input_ids = input_ids.view(B * N, S)
             labels = labels.view(B * N, S)
             attention_mask = attention_mask.view(B * N, S)
 
+            # Flatten Visuals: (B*12, 8, D)
+            # This aligns the 8 tokens with the correct organ text
+            visual_embeds = visual_embeds.view(B * N, self.queries_per_organ, -1)
+            
             # Flatten Weights: (B*N)
             if sample_weights is not None:
                 sample_weights = sample_weights.view(B * N)
@@ -334,7 +372,7 @@ class MedicalVLM(nn.Module):
                 
             # 5. VISUAL SENTINEL TOKENS
             # We insert <vis> (id) before and <end_vis> (id) after the visual token
-            # Sequence: [BOS] + <vis> + [Visual_Token] + <end_vis> + [Instruction...]
+            # Sequence: [BOS] + <vis> + [Visual_Token] + ... + [Visual_Token] + <end_vis> + [Instruction...]
             
             # Create embedding for <vis> and <end_vis>
             # Shape: (1, 1, D) -> (B*N, 1, D)
@@ -351,18 +389,22 @@ class MedicalVLM(nn.Module):
             inputs_embeds = torch.cat([
                 text_embeds[:, :1, :],   # [BOS]
                 vis_embed,               # <vis>
-                visual_embeds,           # [Visual]
+                visual_embeds,           # [Visual] (8 tokens)
                 end_vis_embed,           # <end_vis>
                 text_embeds[:, 1:, :]    # [Instruction...]
             ], dim=1)
             
-            # Adjust Labels: ignore loss on <vis>, <end_vis>, and Visual Token (-100)
-            # We added 2 new tokens (<vis>, <end_vis>), so we need 2 more -100s
-            ignore_vis_block = torch.full((B * N, 3), -100, dtype=labels.dtype, device=labels.device)
+            # Adjust Labels: ignore loss on <vis>, <end_vis>, and Visual Tokens (-100)
+            # We added 2 + 8 = 10 tokens usually? 
+            # Wait, previously we added 1 visual + 2 sentinels = 3.
+            # Now we add 8 visual + 2 sentinels = 10.
+            
+            num_new_tokens = self.queries_per_organ + 2
+            ignore_vis_block = torch.full((B * N, num_new_tokens), -100, dtype=labels.dtype, device=labels.device)
             concat_labels = torch.cat([labels[:, :1], ignore_vis_block, labels[:, 1:]], dim=1)
             
-            # Adjust Mask: add '1' for the visual block (<vis>, Visual, <end_vis>)
-            att_vis_block = torch.ones((B * N, 3), dtype=attention_mask.dtype, device=attention_mask.device)
+            # Adjust Mask
+            att_vis_block = torch.ones((B * N, num_new_tokens), dtype=attention_mask.dtype, device=attention_mask.device)
             concat_mask = torch.cat([attention_mask[:, :1], att_vis_block, attention_mask[:, 1:]], dim=1)
             
             # 7. Calculate Loss Manually for Weighting
@@ -378,10 +420,6 @@ class MedicalVLM(nn.Module):
             logits = outputs.logits
             
             # Shift Logits and Labels
-            # labels are already shifted inside CausalLM value usually, BUT since we passed Labels=None, 
-            # we must do shift manually.
-            # Shift: logits[..., :-1, :], labels[..., 1:]
-            
             shift_logits = logits[..., :-1, :].contiguous()
             shift_labels = concat_labels[..., 1:].contiguous()
             
@@ -397,8 +435,6 @@ class MedicalVLM(nn.Module):
             token_losses = token_losses.view(B * N, -1)
             
             # Mean loss per sample (ignoring masked tokens)
-            # Find non-mask tokens count
-            # Use shift_labels != -100
             non_pad_mask = (shift_labels != -100).float()
             sample_loss_sum = (token_losses * non_pad_mask).sum(dim=1)
             sample_tokens = non_pad_mask.sum(dim=1)
@@ -443,6 +479,11 @@ class MedicalVLM(nn.Module):
         
         # 2. Prepare Prompts
         if input_ids is not None:
+            B, N, S = input_ids.shape
+            
+            # Reshape Visuals (B, 12, 8, D) -> (B*12, 8, D)
+            visual_embeds = visual_embeds.view(B * N, self.queries_per_organ, -1)
+            
             input_ids = input_ids.view(B * N, -1)
             attention_mask = attention_mask.view(B * N, -1)
             
@@ -450,7 +491,7 @@ class MedicalVLM(nn.Module):
                 text_embeds = self.decoder.get_input_embeddings()(input_ids)
                 text_embeds = text_embeds.to(self.decoder.dtype)
             
-            # BOS-Aware Insertion with Sentinels: [BOS] + <vis> + [Visual] + <end_vis> + [Rest]
+            # BOS-Aware Insertion with Sentinels: [BOS] + <vis> + [Visual_Tokens] + <end_vis> + [Rest]
             
             embed_device = self.decoder.get_input_embeddings().weight.device
             
@@ -465,17 +506,18 @@ class MedicalVLM(nn.Module):
             inputs_embeds = torch.cat([
                 text_embeds[:, :1, :],
                 vis_embed,
-                visual_embeds,
+                visual_embeds, # 8 tokens
                 end_vis_embed,
                 text_embeds[:, 1:, :]
             ], dim=1)
             
-            # Mask: +3 tokens (<vis>, Vis, <end_vis>)
-            att_vis_block = torch.ones((B * N, 3), dtype=attention_mask.dtype, device=attention_mask.device)
+            # Mask: + (queries_per_organ + 2) tokens
+            num_new = self.queries_per_organ + 2
+            att_vis_block = torch.ones((B * N, num_new), dtype=attention_mask.dtype, device=attention_mask.device)
             concat_mask = torch.cat([attention_mask[:, :1], att_vis_block, attention_mask[:, 1:]], dim=1)
         else:
             inputs_embeds = visual_embeds
-            concat_mask = torch.ones((B * N, 1), device=visual_embeds.device)
+            concat_mask = torch.ones((visual_embeds.shape[0], visual_embeds.shape[1]), device=visual_embeds.device)
 
         # 3. Generate
         outputs = self.decoder.generate(

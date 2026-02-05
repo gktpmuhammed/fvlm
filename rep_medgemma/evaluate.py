@@ -54,7 +54,7 @@ def evaluate(args):
     print(f"Loading Model: {args.decoder_model}")
     # 1. Load Model (Architecture handles loading weights)
     # Note: We need to load the saved projector and encoder weights
-    model = MedicalVLM(args.vision_encoder_path, args.decoder_model)
+    model = MedicalVLM(args.vision_encoder_path, args.decoder_model, queries_per_organ=args.queries_per_organ)
     
     # Load trained weights
     print(f"Loading trained weights from {args.checkpoint_dir}...")
@@ -141,7 +141,8 @@ def evaluate(args):
     # 2. Data
     transform = build_transforms()
     # Batch Size 2 to utilize GPU (approx 18GB usage)
-    batch_size = 8
+    # Batch Size 2 to utilize GPU (approx 18GB usage)
+    batch_size = args.batch_size
     print(f"Eval Batch Size: {batch_size}")
     
     ds = EvalDataset(args.csv_file, transform, args.subset_size)
@@ -194,12 +195,19 @@ def evaluate(args):
                 return_tensors='pt'
             ).to('cuda')
             
+            # Reshape inputs: (B*N, S) -> (B, N, S)
+            B_curr = pixel_values.shape[0]
+            num_organs = len(ALL_TARGET_KEYS)
+            
+            input_ids_reshaped = inputs.input_ids.view(B_curr, num_organs, -1)
+            attention_mask_reshaped = inputs.attention_mask.view(B_curr, num_organs, -1)
+            
             # Forward Pass (Generation)
             outputs = model.generate(
                 pixel_values=pixel_values,
                 organ_masks=organ_masks,   # Pass the constructed 12-channel mask
-                input_ids=inputs.input_ids,
-                attention_mask=inputs.attention_mask,
+                input_ids=input_ids_reshaped,
+                attention_mask=attention_mask_reshaped,
                 max_new_tokens=100,
                 do_sample=True,         # Enable Sampling
                 temperature=0.8,        # Control randomness (0.8 is balanced)
@@ -246,6 +254,8 @@ if __name__ == "__main__":
     parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv')
     parser.add_argument('--output_dir', type=str, default='./results/medgemma_vlm')
     parser.add_argument('--subset_size', type=int, default=None)
+    parser.add_argument('--queries_per_organ', type=int, default=8)
+    parser.add_argument('--batch_size', type=int, default=2)
     args = parser.parse_args()
     os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     evaluate(args)
