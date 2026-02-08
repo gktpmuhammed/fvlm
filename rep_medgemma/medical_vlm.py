@@ -102,16 +102,16 @@ class Attentive_ROI_Wrapper(nn.Module):
             # --- Cross Attention ---
             queries = self.organ_queries.unsqueeze(0).expand(B, -1, -1)
             
-            organ_embeddings, _ = self.cross_attn(
+            organ_embeddings, attn_weights = self.cross_attn(
                 query=queries,
                 key=image_feats,
                 value=image_feats,
                 attn_mask=attn_bias
             )
             
-            return self.layer_norm(organ_embeddings)
+            return self.layer_norm(organ_embeddings), attn_weights
 
-        return self.layer_norm(image_feats)
+        return self.layer_norm(image_feats), None
 
 class MedicalVLM(nn.Module):
     def __init__(
@@ -313,7 +313,7 @@ class MedicalVLM(nn.Module):
 
         # 1. Get Visual Features (Trainable)
         # Output: (Batch, N_Organs * Q, ViT_Dim)
-        visual_feats = self.vision_encoder(pixel_values, organ_masks) 
+        visual_feats, attn_weights = self.vision_encoder(pixel_values, organ_masks) 
         
         # 2. Project to LLM Space (Trainable)
         # Output: (Batch, N_Organs * Q, LLM_Dim)
@@ -465,46 +465,47 @@ class MedicalVLM(nn.Module):
             alignment_loss = self.compute_alignment_loss(
                 visual_embeds, # (B*N, 8, D)
                 input_ids,     # (B*N, S)
-                attention_mask # (B*N, S)
+                attention_mask, # (B*N, S)
+                labels=labels   # Pass labels for correct masking
             )
             
             # Combine Losses
-            # We weight alignment loss equal to LM loss for now (1.0)
-            total_loss = lm_loss + 1.0 * alignment_loss
+            # We weight alignment loss higher (5.0) to force the model to respect the visual signal
+            total_loss = lm_loss + 5.0 * alignment_loss
             
             # Use dict return for Trainer compatibility
             return {
                 "loss": total_loss,
                 "logits": logits,
                 "lm_loss": lm_loss,
-                "alignment_loss": alignment_loss
+                "alignment_loss": alignment_loss,
+                "attention_weights": attn_weights
             }
 
-    def compute_alignment_loss(self, visual_embeds, input_ids, attention_mask, temperature=0.07):
+    def compute_alignment_loss(self, visual_embeds, input_ids, attention_mask, labels=None, temperature=0.07):
         """
         Computes Image-Text Contrastive (ITC) Loss.
         Goal: Match the visual representation of an organ to its text description.
-        Negatives: Other organs in the same patient (Batch Size 12).
+        If labels is provided, we align ONLY with the 'Response' tokens (where labels != -100).
         """
         # 1. Get Visual Representation: Avg Pool the 8 tokens -> (B*12, D)
         vis_rep = visual_embeds.mean(dim=1) 
         
         # 2. Get Text Representation: Avg Pool the text tokens -> (B*12, D)
-        # We need to get embeddings from the frozen LLM again (since we didn't save them before concat)
         with torch.no_grad():
              text_embeds = self.decoder.get_input_embeddings()(input_ids) # (B*12, S, D)
         
         # Mask out padding/prompt for averaging
-        # attention_mask includes [PAD] as 0. We also want to exclude the Instructions?
-        # For simplicity, we just use the attention_mask which handles PAD.
-        # Ideally we only align with the FINDINGS, not the instruction.
-        # But 'input_ids' here contains "User: ... Model: Findings".
-        # Empirically, aligning with the full sequence is "okay", but aligning with findings is better.
-        # Let's trust the attention_mask to at least handle padding.
-        
-        mask_expanded = attention_mask.unsqueeze(-1).float() # (B*12, S, 1)
-        text_sum = (text_embeds * mask_expanded).sum(dim=1)
-        text_count = mask_expanded.sum(dim=1).clamp(min=1e-8)
+        if labels is not None:
+             # Use labels to identify the "Response" part (labels != -100)
+             # This aligns the visual embedding specifically with the FINDINGS, ignoring the User Prompt.
+             text_mask = (labels != -100).float().unsqueeze(-1)
+        else:
+             # Fallback to attention mask (includes User Prompt)
+             text_mask = attention_mask.unsqueeze(-1).float()
+
+        text_sum = (text_embeds * text_mask).sum(dim=1)
+        text_count = text_mask.sum(dim=1).clamp(min=1e-8)
         text_rep = text_sum / text_count # (B*12, D)
         
         # 3. Project to Shared Space (Optional? No, we assume same space)
@@ -550,7 +551,7 @@ class MedicalVLM(nn.Module):
         Forward pass for Inference.
         """
         # 1. Visual Path
-        visual_feats = self.vision_encoder(pixel_values, organ_masks)
+        visual_feats, attn_weights = self.vision_encoder(pixel_values, organ_masks)
         visual_embeds = self.visual_projection(visual_feats)
         
         # Add Learned Position Embeddings
