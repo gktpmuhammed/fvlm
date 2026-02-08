@@ -79,7 +79,11 @@ class Attentive_ROI_Wrapper(nn.Module):
             
             # Now flatten with the expanded count
             flat_masks = organ_masks.view(B * organ_masks.shape[1], 1, D_m, H_m, W_m)
-            masks_down = F.interpolate(flat_masks, size=(f_d, f_h, f_w), mode='area')
+            
+            # Use MaxPool to preserve ANY organ presence in the patch
+            # F.interpolate(mode='area') averages, which dilutes small organs.
+            masks_down = F.adaptive_max_pool3d(flat_masks, output_size=(f_d, f_h, f_w))
+            
             masks_flat = masks_down.view(B, organ_masks.shape[1], -1)
             
             # --- Create Attention Bias ---
@@ -407,7 +411,7 @@ class MedicalVLM(nn.Module):
             att_vis_block = torch.ones((B * N, num_new_tokens), dtype=attention_mask.dtype, device=attention_mask.device)
             concat_mask = torch.cat([attention_mask[:, :1], att_vis_block, attention_mask[:, 1:]], dim=1)
             
-            # 7. Calculate Loss Manually for Weighting
+            # 7. Calculate LM Loss
             outputs = self.decoder(
                 inputs_embeds=inputs_embeds,
                 attention_mask=concat_mask,
@@ -448,13 +452,98 @@ class MedicalVLM(nn.Module):
                 sample_loss = sample_loss * sample_weights
                 
             # Final Mean Loss
-            loss = sample_loss.mean()
+            lm_loss = sample_loss.mean()
+            
+            # --- 8. ALIGNMENT LOSS (ITC) ---
+            # We enforce that the Visual Representation of an organ (Avg of 8 tokens)
+            # aligns with the Text Representation of that organ (Avg of text tokens).
+            # This is done via InfoNCE loss over the 12 organs within the patient.
+            
+            # visual_embeds is currently (B*12, 8, D)
+            # input_ids is (B*12, S)
+            
+            alignment_loss = self.compute_alignment_loss(
+                visual_embeds, # (B*N, 8, D)
+                input_ids,     # (B*N, S)
+                attention_mask # (B*N, S)
+            )
+            
+            # Combine Losses
+            # We weight alignment loss equal to LM loss for now (1.0)
+            total_loss = lm_loss + 1.0 * alignment_loss
             
             # Use dict return for Trainer compatibility
             return {
-                "loss": loss,
-                "logits": logits
+                "loss": total_loss,
+                "logits": logits,
+                "lm_loss": lm_loss,
+                "alignment_loss": alignment_loss
             }
+
+    def compute_alignment_loss(self, visual_embeds, input_ids, attention_mask, temperature=0.07):
+        """
+        Computes Image-Text Contrastive (ITC) Loss.
+        Goal: Match the visual representation of an organ to its text description.
+        Negatives: Other organs in the same patient (Batch Size 12).
+        """
+        # 1. Get Visual Representation: Avg Pool the 8 tokens -> (B*12, D)
+        vis_rep = visual_embeds.mean(dim=1) 
+        
+        # 2. Get Text Representation: Avg Pool the text tokens -> (B*12, D)
+        # We need to get embeddings from the frozen LLM again (since we didn't save them before concat)
+        with torch.no_grad():
+             text_embeds = self.decoder.get_input_embeddings()(input_ids) # (B*12, S, D)
+        
+        # Mask out padding/prompt for averaging
+        # attention_mask includes [PAD] as 0. We also want to exclude the Instructions?
+        # For simplicity, we just use the attention_mask which handles PAD.
+        # Ideally we only align with the FINDINGS, not the instruction.
+        # But 'input_ids' here contains "User: ... Model: Findings".
+        # Empirically, aligning with the full sequence is "okay", but aligning with findings is better.
+        # Let's trust the attention_mask to at least handle padding.
+        
+        mask_expanded = attention_mask.unsqueeze(-1).float() # (B*12, S, 1)
+        text_sum = (text_embeds * mask_expanded).sum(dim=1)
+        text_count = mask_expanded.sum(dim=1).clamp(min=1e-8)
+        text_rep = text_sum / text_count # (B*12, D)
+        
+        # 3. Project to Shared Space (Optional? No, we assume same space)
+        # Normalize
+        vis_rep = F.normalize(vis_rep, dim=-1)
+        text_rep = F.normalize(text_rep, dim=-1)
+        
+        # 4. InfoNCE Loss
+        # We have B*12 samples. 
+        # Actually, because we reshaped inputs to (B*12), we lost the Batch dimension structure.
+        # We need to reshape back to (B, 12, D) to do contrastive within each patient.
+        
+        B_N, D = vis_rep.shape
+        num_organs = self.num_organs # 12
+        B = B_N // num_organs
+        
+        vis_rep = vis_rep.view(B, num_organs, D)
+        text_rep = text_rep.view(B, num_organs, D)
+        
+        total_loss = 0
+        loss_fct = nn.CrossEntropyLoss()
+        
+        for i in range(B):
+            # For patient i
+            v = vis_rep[i] # (12, D)
+            t = text_rep[i] # (12, D)
+            
+            # Similarity Matrix: (12, 12)
+            logits = torch.matmul(v, t.T) / temperature
+            
+            # Targets: 0..11
+            labels = torch.arange(num_organs, device=logits.device)
+            
+            # Loss (Symmetric? Usually text->image and image->text)
+            # Let's do Visual->Text (standard)
+            loss_i = loss_fct(logits, labels)
+            total_loss += loss_i
+            
+        return total_loss / B
 
     def generate(self, pixel_values, organ_masks=None, input_ids=None, attention_mask=None, **kwargs):
         """

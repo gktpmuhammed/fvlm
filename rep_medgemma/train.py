@@ -293,6 +293,30 @@ def main():
                 
             model_to_save.save_pretrained(output_dir)
 
+        def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
+            """
+            Override to log the split between LM Loss and Alignment Loss.
+            """
+            outputs = model(**inputs)
+            loss = outputs["loss"]
+            
+            # Log breakdown (approximate, might be noisy per step)
+            # We use a simple print or wandb log if available
+            if self.state.global_step % self.args.logging_steps == 0 and self.args.local_rank in [-1, 0]:
+                lm_loss = outputs.get("lm_loss", 0.0)
+                align_loss = outputs.get("alignment_loss", 0.0)
+                
+                # Print to stdout for immediate feedback
+                print(f"Step {self.state.global_step}: Total={loss.item():.4f} | LM={lm_loss.item():.4f} | Align={align_loss.item():.4f}")
+                
+                if wandb.run is not None:
+                    wandb.log({
+                        "train/lm_loss": lm_loss.item(),
+                        "train/alignment_loss": align_loss.item()
+                    }, commit=False)
+            
+            return (loss, outputs) if return_outputs else loss
+
         def _load_from_checkpoint(self, resume_from_checkpoint, fit_model=True):
             """
             Override to handle our custom checkpoint format.

@@ -120,23 +120,67 @@ def run_radeval_metrics(predictions, references, metrics_config):
     if not predictions:
         return {}
     
-    print(f"     > Running RadEval with {sum(metrics_config.values())} metrics...")
+    BATCH_SIZE = 32
+    num_samples = len(predictions)
+    print(f"     > Running RadEval with {sum(metrics_config.values())} metrics on {num_samples} samples (Batch Size: {BATCH_SIZE})...")
     
     try:
         # Initialize RadEval with selected metrics
         evaluator = RadEval(**metrics_config)
         
-        # RadEval expects (references, predictions) order
-        results = evaluator(references, predictions)
+        aggregated_scores = defaultdict(float)
+        total_counts = defaultdict(int) 
+        
+        # Helper to extract scalar from result value (which might be dict)
+        def get_scalar(val):
+            if isinstance(val, (int, float)): return float(val)
+            if isinstance(val, dict):
+                # Prioritize standard keys
+                for k in ['f1', 'score', 'micro avg_f1-score']:
+                    if k in val: return float(val[k])
+                # Fallback: first value
+                return float(list(val.values())[0])
+            return 0.0
+
+        for i in range(0, num_samples, BATCH_SIZE):
+            batch_preds = predictions[i : i + BATCH_SIZE]
+            batch_refs = references[i : i + BATCH_SIZE]
+            current_batch_size = len(batch_preds)
+            
+            print(f"       Batch {i//BATCH_SIZE + 1}/{(num_samples + BATCH_SIZE - 1)//BATCH_SIZE}...")
+            
+            # RadEval expects (references, predictions) order
+            batch_results = evaluator(batch_refs, batch_preds)
+            
+            # extract_radeval_scores usually normalizes logic, but we do it here for aggregation
+            # We must aggregate the raw keys returned by RadEval
+            for key, val in batch_results.items():
+                scalar = get_scalar(val)
+                # Weighted sum
+                aggregated_scores[key] += scalar * current_batch_size
+                total_counts[key] += current_batch_size
+            
+            free_memory()
+
+        # Compute averages
+        final_results = {}
+        for key, total_score in aggregated_scores.items():
+            count = total_counts[key]
+            if count > 0:
+                final_results[key] = total_score / count
+            else:
+                final_results[key] = 0.0
         
         # Clean up evaluator
         del evaluator
         free_memory()
         
-        return results
+        return final_results
         
     except Exception as e:
         print(f"   ! RadEval error: {e}")
+        import traceback
+        traceback.print_exc()
         return {}
 
 def extract_radeval_scores(radeval_results):

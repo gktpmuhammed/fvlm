@@ -46,7 +46,9 @@ class EvalDataset(Dataset):
             return {
                 'pixel_values': img,
                 'full_mask': mask,
-                'patient_id': os.path.basename(row['image_path']).split('.')[0]
+                'pixel_values': img,
+                'full_mask': mask,
+                'patient_id': os.path.basename(row['image_path']).split('.')[0].rsplit('_', 1)[0] # Strip _1 suffix to match JSON keys
             }
         except: return None
 

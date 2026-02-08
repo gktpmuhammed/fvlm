@@ -1,131 +1,604 @@
 patient_id,prediction
-valid_730_a_1,"LUNG: In the evaluation of both lung parenchyma; No active infiltration or mass lesion was detected.
-HEART: Heart contour, size are normal. Pericardial effusion-thickening was not observed.
-ESOPHAGUS: Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.
-LIVER: No space-occupying lesion was detected in the liver that entered the cross-sectional area.
-GALLBLADDER: No significant findings.
-STOMACH: No significant findings.
-PANCREAS: No significant findings.
-SPLEEN: No significant findings.
-KIDNEY: No significant findings.
-AORTA: No significant findings.
-TRACHEA: Trachea, both main bronchi are open.
-RIB: No significant findings.
+valid_730_a,"LUNG: Please provide me with the image! I need to see it in order to analyze its lung features. 
+
+Once you give me access, here are some of the things that would be included when analyzing a chest X-ray or CT scan for lung findings:
+*   **Lung Fields:** Looking at the overall density and appearance (e.g., clear, hazy) on both sides. Are they normally inflated? Is there any consolidation/opacity present?.
+*  **Bronchovascular markings
+HEART: Okay, I need you to provide me with the image!  I can't analyze an image that isn't provided.
+
+Once you give me the image (or a link to it), please tell me what specific feature of the heart you are interested in examining and describe your findings for that particular aspect:
+*   **Size:** Is the heart enlarged or normal? By how much is it enlarged if applicable? How does its size compare to other structures within the view?
+*
+ESOPHAGUS: Please provide me with the image you would like me to analyze. I need an image of a human body (preferably chest or abdominal region) in order to describe its features and specifically, identify any findings related to the esophagus.
+
+Once you give me the image, I will be able to:
+*   Identify anatomical landmarks relevant to the oesophagus such as cervical, thoracic, and lumbar regions where it is located within the chest cavity. 
+*  Describe any abnormalities that may appear on your
+LIVER: Please provide me with the image you would like me to analyze. I need an image of a liver or any other relevant medical imaging (like ultrasound, CT scan, MRI) in order to give you specific findings about it.
+
+Once you upload/provide the image:
+*   **I will describe what I see.** This includes things like its size and shape, color, texture, presence of lesions (tumors), cysts, fatty infiltration, vascular patterns etc.. The information i can extract depends
+GALLBLADDER: I am unable to analyze images. I cannot provide a medical diagnosis or assessment of an image as it would require the use of specialized tools and expertise in anatomy, physiology, and pathology which are beyond my capabilities
+STOMACH: Please provide me with the image! I need to see it in order to analyze its stomach features.
+
+Once you give me access to the image (e.g., by uploading a file or describing where I can find it), I will be able to describe specific findings related to the stomach, such as:
+
+*   **Size and Shape:** Is it normal size? Enlarged/shrunken compared to what is expected for age/sex? Any unusual shape irregularities like distention
+*
+PANCREAS: Okay, I need the image to analyze it. Please provide me with the image of the pancreas!
+
+Once you give me the image (ideally in a format like JPG or PNG), I will do my best to describe its features and identify any specific findings related to the pancreas based on common imaging modalities such as:
+
+*   **CT scan:**  I can look for pancreatic masses, cysts, inflammation/necrosis, calcifications, ductal dilatation etc.
+*   If possible from
+SPLEEN: I am unable to analyze images. I cannot provide a description of the spleen based on an image because it is not possible for me to view or process visual information.
+KIDNEY: Please provide me with the image you would like me to analyze. I need an actual image of a kidney (or a part of one) in order to describe its features and findings for you.
+
+Once you give me the image, I can look at things such as:
+
+*   **Size:** Is it normal size? Enlarged or shrunken compared to other organs on the same imaging study report?
+*   Shape: Normal bean-shaped? Any unusual contours or deformities?
+AORTA: Please provide me with the image! I need to see it in order to analyze its features and describe findings for the aorta. 
+
+Once you give me access (e.g., by uploading a file, describing where to find it online), I can help you identify:
+
+*   **Aortic diameter:** Is it normal or enlarged?
+*   Presence of aneurysms/dissections: Are there any bulges or tears visible?
+    If so, what is their location on
+TRACHEA: Please provide me with the image! I need to see it in order to analyze its features and describe what can be found about the trachea.
+
+Once you give me access to the image, tell me:
+*   **What is your goal?** (e.g., Is there a problem?)
+* **Where are you looking for information on/in this image.**
+
+I'll do my best to help you interpret any relevant findings related to the tracheal structure based on visual cues from
+RIB: Please provide me with the image you would like me to analyze. I need an actual image of a rib (or ribs) in order to describe its features and findings accurately.
+
+Once you give me the image, I can look for things such as:
+
+*   **Rib shape:** Is it curved or straight?
+*   Is there any sign of fracture/dislocation? What is that appearance called if so? 
+*  Presence of bone marrow edema
+* Bone destruction
+*
 "
-valid_75_a_1,"LUNG: In the evaluation of both lung parenchyma; No active infiltration or mass lesion was detected.
-HEART: Heart contour, size are normal. Pericardial effusion-thickening was not observed.
-ESOPHAGUS: Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.
-LIVER: No space-occupying lesion was detected in the liver that entered the cross-sectional area.
-GALLBLADDER: No significant findings.
-STOMACH: No significant findings.
-PANCREAS: No significant findings.
-SPLEEN: No significant findings.
-KIDNEY: No significant findings.
-AORTA: No significant findings.
-TRACHEA: Trachea, both main bronchi are open.
-RIB: No significant findings.
+valid_75_a,"LUNG: I am unable to analyze images. I'm a text-based AI and cannot process visual information like an image.
+HEART: Please provide me with the image you would like me to analyze. I need an image of a heart, or at least something that can be interpreted as such (e.g., X-ray chest, CT scan) in order to describe its features and findings for you.
+
+Once you give me the image information, tell me what specific aspects of the heart are most important to know about. For example:
+*   **Size:** Is it enlarged?
+*  Shape : Does it look
+ESOPHAGUS: Please provide me with the image! I need to see it in order to analyze its features and describe them. Once you give me access (e.g., upload a file or link), I can tell you about any findings related to the esophagus, such as:
+
+*   **Presence of an esophageal stricture:** Narrowing of the esophagus
+*   **,Esophageal mass**: Any growths within the esophagus that may be cancerous or benign
+*  **Erosion/Ulceration**: Open
+LIVER: Please provide me with the image! I need to see it in order to analyze its features and describe findings for the liver.
+
+Once you give me access, here's what kind of information I can look for:
+
+*   **Size:** Is the liver enlarged (hepatomegaly) or normal size?
+*   Presence/Absence of lesions: Are there any abnormal masses, cysts, or other growths visible on the liver surface?
+If present, are they well-defined or
+GALLBLADDER: Please provide me with the image! I need to see the image of the gallbladder in order to analyze its features and describe my findings.
+
+Once you upload or paste a link to the image, I will be able to help you by:
+
+*   **Identifying the Gallbladder:** Pinpointing where it is located within the abdominal cavity (usually near the liver).
+*   Describing its normal appearance: Including shape, size, position relative to other organs like the duodenum, and any distinct markings
+STOMACH: Please provide me with the image! I need to see the stomach in order to analyze its features.
+
+Once you give me the image, tell me what specific feature(s) of the stomach you are interested in finding out about. For example:
+
+*   **Size:** Is it enlarged or normal?
+*   Shape/Contour: Is it smooth, irregular, distended (bloated)? Does it have any masses or indentations?
+    *   What is the shape like
+PANCREAS: Please provide me with the image you would like me to analyze. I need an image of a pancreas, ideally one that shows its different structures (head, body, tail), and any potential abnormalities such as masses or inflammation.
+
+Once you give me the image, I can describe specific features related to the pancreas:
+
+*   **Shape:** Is it normal in shape? Are there any distortions due to cysts, tumors, or other conditions?
+*   The presence and size of blood vessels.
+SPLEEN: Okay, I need the image to analyze it. Please provide me with the image!
+
+Once you give me access to the image (e.g., upload a file or describe what's in it), I will do my best to:
+
+1.  **Identify anatomical landmarks:** Locate and identify structures related to the spleen within the image.
+2. **Describe its size & shape**: Determine if the organ is normal in size for that patient population/age group; assess whether there are
+KIDNEY: I am unable to provide medical diagnoses. A trained professional should analyze the specific image feature of a kidney for diagnosis, and they require access to imaging data such as an MRI or CT scan.
+AORTA: Please provide me with the image! I need to see it in order to analyze its features and describe findings for the aorta. 
+
+Once you give me access, I will look at things like:
+
+*   **Aortic Diameter:** Is it normal? Enlarged (aneurysm)?
+*   Presence of calcification/stiffness
+*    Presence or absence of aneurysms
+*  Wall thickness
+* Presence of other abnormalities such as dissections or hematomas
+TRACHEA: Okay, to analyze the trachea in an image, I need you to provide me with the image!  I am a text-based AI and cannot directly see images.
+
+However, once you give me access (e.g., by uploading it or describing its key features), here's how I would approach analyzing the trachea:
+
+**General Approach:**
+
+1. **Identification:** The first step is identifying what part of the body we are looking at - usually that means human anatomy imaging
+RIB: Okay, I need an image to analyze the rib feature. Please provide me with a description of the image or upload it so that I can perform my analysis on the ribs and other features in your request.
 "
-valid_999_a_1,"LUNG: In the evaluation of both lung parenchyma; No active infiltration or mass lesion was detected.
-HEART: Heart contour, size are normal. Pericardial effusion-thickening was not observed.
-ESOPHAGUS: Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.
-LIVER: No space-occupying lesion was detected in the liver that entered the cross-sectional area.
-GALLBLADDER: No significant findings.
-STOMACH: No significant findings.
-PANCREAS: No significant findings.
-SPLEEN: No significant findings.
-KIDNEY: No significant findings.
-AORTA: No significant findings.
-TRACHEA: Trachea, both main bronchi are open.
-RIB: No significant findings.
+valid_999_a,"LUNG: Please provide me with the image! I need to see it in order to analyze its specific features and describe any findings for the lung.
+
+Once you give me access to the image, I will be able to look for things like:
+
+*   **Lung volume:** Is the lung inflated or collapsed?
+*   Presence of consolidation (fluid/infection)
+* **Interstitial markings**: Are they present? What is their pattern? 
+*  **Atelectasis**: Any areas that
+HEART: Please provide me with the image you would like me to analyze. I need an image of a heart (or at least something that resembles one) in order to describe its features and findings for it.
+
+Once you give me the image, tell me what specific aspects of the heart's appearance are concerning or interesting, such as:
+
+*   **Size:** Is it larger than normal? Smaller than normal
+*   Shape:  Is there any abnormal contouring or asymmetry? 
+*
+ESOPHAGUS: Okay, I need the image to analyze its features. Please provide me with either:
+
+*   **The Image itself:** If you can upload or link a picture of the esophagus (or any relevant part of it), that's ideal!
+*   A **description of what is visible in the image**: Describe what organs are present and their approximate locations if possible. Include information about size, shape, color, texture etc. Also specify what imaging modality was used for this particular exam/image
+LIVER: Okay, I need the image to analyze it. Please provide me with an image of a liver or any part that you want me to describe for the liver.
+
+Once you give me the image:
+
+*   I will carefully examine its features and look at things like shape size, color intensity, texture
+*   Describe findings related to the Liver such as fatty change (steatosis), inflammation(hepatitis) scarring(cirrhosis).
+*  If there are other relevant findings in close
+GALLBLADDER: I am unable to analyze images. I can only process text and do not have the ability to view or interpret visual data such as an image of a gallbladder.
+STOMACH: Please provide me with the image! I need to see it in order to analyze its features and describe what's happening within the stomach.
+
+Once you give me access, I can look for things like:
+
+*   **Shape:** Is it round, oval, irregular?
+*   Size: How large is it compared to other organs or body structures?
+    This might be measured as a diameter of certain key sections of the stomach itself (cardiac region, fundus, body).
+PANCREAS: Please provide me with the image! I need to see it in order to analyze its specific features and describe findings for the pancreas.
+
+Once you share the image, please also tell me what kind of imaging modality was used (e.g., CT scan, MRI, ultrasound). This will help me interpret any potential abnormalities correctly.
+SPLEEN: I am unable to analyze images. I can generate human-like text based on the input that you provide, but cannot process visual information such as an image of a spleen.
+KIDNEY: Please provide me with the image you would like me to analyze. I need an actual image of a kidney (or part of one) for me to give you specific findings about its features and health status.
+
+Once you upload or describe the image, I will be able to tell you things such as:
+
+*   **Size:** Is it normal in size?
+*   Shape:*Is it symmetrical/normal shape? Any abnormalities present?
+    
+*  **Density / Appearance*: What
+AORTA: Please provide me with the image you want me to analyze. I need an image of the aorta (or a region where it is visible) in order to describe its specific features and findings for you.
+
+Once you give me the image, tell me what specifically you are interested in seeing analyzed about the aorta. For example:
+
+*   **Size:** Is it normal? Enlarged or narrowed?
+*   Shape/Contour: Any unusual bulges, kinks, aneurysms etc.?
+TRACHEA: Please provide me with the image! I need to see it in order to analyze its features and describe what's happening with the trachea.
+
+Once you give me access, here are some of the things I will be looking for:
+
+*   **Size:** Is the tracheal diameter normal?
+*   Shape: Does the trachea have a regular or irregular shape (e.g., tortuous)?
+*  Position : The position relative to other structures like esophagus etc.. is abnormal.
+RIB: Please provide me with the image! I need to see it in order to analyze its features, including those of the rib.
+
+Once you give me access (or a description), I can tell you about:
+
+*   **Rib Shape and Orientation:** Are they curved or straight? Where are their origins/insertions on other bones like the sternum and spine?
+*   **, Rib Count:** How many ribs do we have from the images provided?
+ *   **Fractures**: Any
 "
-valid_572_a_1,"LUNG: No mass nodule-infiltration was detected in both lung parenchyma. No sign of pneumonia was detected.
-HEART: Heart contour, size are normal. Pericardial effusion-thickening was not observed.
-ESOPHAGUS: Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.
-LIVER: No space-occupying lesion was detected in the liver that entered the cross-sectional area.
-GALLBLADDER: No significant findings.
-STOMACH: No significant findings.
-PANCREAS: No significant findings.
-SPLEEN: No significant findings.
-KIDNEY: No significant findings.
-AORTA: No significant findings.
-TRACHEA: Trachea, both main bronchi are open.
-RIB: No significant findings.
+valid_572_a,"LUNG: Please provide me with the image you would like me to analyze. I need an actual visual representation of a lung (or any other organ) in order to describe its features and findings.
+
+Once you give me the image, I will be able to look for things such as:
+
+*   **Lung Volume:** Is it normal or reduced?
+*   Presence/absence of consolidation.
+*  Any fluid present inside the lungs (effusion). 
+* **Pneumothorax**:
+HEART: Okay, I need you to provide me with the image.  I can't analyze an image if you don't give it to me!
+
+Once you upload or describe (in detail) the image of the heart, please tell me:
+*   **What is being shown?**: Is this a single view from a CT scan/MRI ? A 2D projection on X-Ray? Multiple images taken at different angles that have been stitched together into one? What kind of medical
+ESOPHAGUS: I am unable to analyze images directly. As a large language model, I cannot access or process visual information like images from the internet nor can i interact with local files on your computer. Therefore, I'm not able to provide an analysis of any specific image features for the esophagus based upon it being sent over in this text-based conversation..
+
+To get help analyzing medical images (like those showing the esophagus), you would need:
+*   **Medical Imaging Expertise**: A trained radiologist is
+LIVER: Please provide me with the image! I need to see the image of the liver in order to analyze its features and describe any findings.
+
+Once you give me the image, tell me what specific feature(s) or area(s), if any are you particularly interested in? For example:
+*   ""What is the size of the gallbladder?""
+*  ""Are there any masses visible on the liver surface?""
+ * ""Is it possible to assess for biliary ductal dilation?"".
+GALLBLADDER: Okay, I need you to provide me with the image!  I am unable to analyze an image without it.
+
+Once you give me the image (either by uploading a file or providing a link), please also tell me:
+
+*   **What kind of imaging is it?**: Is it ultrasound, CT scan, MRI, X-ray, etc.?
+*   The specific part(s) of the gallbladder that are visible in the image.*
+*Are there any labels on the
+STOMACH: Please provide me with the image you would like me to analyze. I need an actual visual representation of the stomach in order to describe its specific features and findings for you.
+
+Once you give me access (or a description) to the image, I will be able to help!
+PANCREAS: Please provide me with the image! I need to see the image of the pancreas in order to analyze its features and describe any findings.
+
+Once you give me access to the image, I can help by describing things like:
+
+*   **Pancreatic size:** Is it enlarged or normal?
+*   Presence of masses/lesions (e.g., cysts, tumors)
+*  Shape irregularities
+* **Calcifications**: Presence, location, number and extent .
+*    The
+SPLEEN: Please provide me with the image! I need to see it in order to analyze its features and describe findings related to the spleen.
+
+Once you give me access to the image, tell me what specific aspects of the spleen are important for analysis (e.g., size, shape, texture, presence/absence of lesions).
+KIDNEY: Please provide me with the image! I need to see it in order to analyze its features and describe them. 
+
+Once you give me the image, tell me:
+*   **What kind of imaging is it?** (e.g., ultrasound, CT scan, MRI)
+*  **Which kidney(s)?** (left or right, both?) If there are abnormalities visible on either side.
+* **If possible what's the clinical context:** Is this a follow
+AORTA: Please provide me with the image! I need to see it in order to analyze its features and describe what is found for the aorta.
+
+Once you give me the image, tell me specifically which part of the aorta (e.g., ascending aorta, aortic arch, descending thoracic aorta) are you interested in analyzing?
+TRACHEA: Please provide me with the image! I need to see it in order to analyze its features and describe what is found for the trachea.
+RIB: Please provide me with the image! I need to see it in order to analyze a specific rib.
+
+Once you give me the image, tell me which rib(s) or part of the rib (e.g., left 6th rib, costochondral junction) you want analyzed.
 "
-valid_569_c_1,"LUNG: In the evaluation of both lung parenchyma; No active infiltration or mass lesion was detected.
-HEART: Heart contour, size are normal. Pericardial effusion-thickening was not observed.
-ESOPHAGUS: Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.
-LIVER: No space-occupying lesion was detected in the liver that entered the cross-sectional area.
-GALLBLADDER: No significant findings.
-STOMACH: No significant findings.
-PANCREAS: No significant findings.
-SPLEEN: No significant findings.
-KIDNEY: No significant findings.
-AORTA: No significant findings.
-TRACHEA: Trachea, both main bronchi are open.
-RIB: No significant findings.
+valid_569_c,"LUNG: Please provide me with the image! I need to see it in order to analyze its features and describe any findings related to the lung.
+
+Once you give me access to the image, I can look for things like:
+
+*   **Lung Volume:** Is the lung inflated or collapsed?
+*   Presence of **Consolidation**: Areas that appear dense (white) are often indicative of pneumonia or other infiltrates.
+*  **Fluid:** Look at areas where fluid may be present if
+HEART: Please provide me with the image you would like me to analyze. I need an actual image of a heart or something containing a visible representation of one, in order to be able to describe its features and findings.
+
+Once you give me the image, I can help by describing things such as:
+
+*   **Overall shape:** Is it normal? Is there any obvious asymmetry (unequal sizes)?
+*   Heart size and position within the chest cavity
+*    The presence and appearance of major
+ESOPHAGUS: Please provide me with the image you would like me to analyze. I need an actual image of something (like a medical scan or X-ray) in order to describe its features and specifically address the esophagus.
+LIVER: Okay, I need the image to analyze it. Please provide me with an image of a liver or any part of the abdomen that is suspected to be related to the liver (e.g., ultrasound scan).
+
+Once you give me the image, I can describe its features and help you understand what they might indicate about the health of your liver.  I'll look for things like:
+
+*   **Size:** Is it enlarged?
+*   ***Shape**:Is there any asymmetry in
+GALLBLADDER: Please provide me with the image! I need to see it in order to analyze its features, including those of the gallbladder.
+
+Once you give me access to the image (e.g., upload a file or describe what's visible), I can tell you about:
+
+*   **Shape and Location:** Is the gallbladder normal-shaped? Where is it located relative to other organs like the liver?
+*   Presence/Absence of Gallstones: Are there any stones visualized within the
+STOMACH: Okay, I need more information to analyze the image feature of the stomach. Please provide me with:
+
+1.  **The Image Itself:** The most important thing is for you or someone else who has access to it to give me a way to see and interpret an actual picture that shows what's happening in your stomach area from imaging studies such as ultrasound images etc..
+2. **Context (if applicable):** Was this part of a larger scan? What was being evaluated at the
+PANCREAS: Please provide me with the image! I need to see the image of the pancreas in order to analyze its features and describe my findings.
+
+Once you give me access to the image (e.g., by uploading it or describing it), I can look for things like:
+
+*   **Size:** Is the pancreas normal size, enlarged, or shrunken?
+*   Asymmetry**: is there any asymmetry present within the gland?
+ * **Shape**: what shape does this have - round
+SPLEEN: Please provide me with the image you want to analyze. I need an image of a spleen in order to describe its specific features and findings for you.
+KIDNEY: I am unable to analyze images. I can only process text and do not have the ability to view or interpret image files like JPG, PNG, etc..
+AORTA: Please provide me with the image! I need to see it in order to analyze its features and describe what's happening specifically regarding the aorta.
+
+Once you give me the image, tell me where on the body is located (e.g., chest x-ray, CT scan of abdomen) so that I can focus my analysis appropriately.
+TRACHEA: Please provide me with the image you would like me to analyze. I need an image of a trachea (windpipe) in order to describe its features and findings.  I cannot access external websites or files, so I can't see any images that aren't directly provided here through text input/description.
+
+Once you give me some details about the image – for example:
+*   **Type:** Is it a CT scan? X-ray? MRI? Ultrasound? A microscopic view
+RIB: Please provide me with the image you would like me to analyze. I need an image of a rib before I can describe its features and findings!
+
+Once you give me the image, tell me what specific aspect of the rib is important for analysis; e.g., are we looking at:
+*   **Shape:** Is it curved? Straight? Angulated?
+*  **Size**: What's the length relative to other ribs on that side or compared against standard measurements (e.
 "
-valid_569_b_1,"LUNG: In the evaluation of both lung parenchyma; No active infiltration or mass lesion was detected.
-HEART: Heart contour, size are normal. Pericardial effusion-thickening was not observed.
-ESOPHAGUS: Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.
-LIVER: No space-occupying lesion was detected in the liver that entered the cross-sectional area.
-GALLBLADDER: No significant findings.
-STOMACH: No significant findings.
-PANCREAS: No significant findings.
-SPLEEN: No significant findings.
-KIDNEY: No significant findings.
-AORTA: No significant findings.
-TRACHEA: Trachea, both main bronchi are open.
-RIB: No significant findings.
+valid_569_b,"LUNG: Please provide me with the image! I need to see the image of the lung in order to analyze its features and describe my findings.
+
+Once you give me access, I can look for things like:
+
+*   **Lung Volume:** Is it normal? Enlarged (hyperinflation) or collapsed/atelectasis?
+*   Presence of infiltrates such as consolidation from pneumonia
+* **Masses**: Any nodules that are concerning because they could be cancerous 
+*  **Fluid build
+HEART: Please provide me with the image you want me to analyze. I need an image of a heart (or part thereof) in order to describe its features and findings.
+
+Once you give me the image, please also tell me:
+
+*   **What kind of analysis are you interested in?**  (e.g., size/shape anomalies, wall thickness abnormalities, presence of calcification or other specific structures like valves etc.)
+* **Are there any known conditions that might be present ?
+ESOPHAGUS: Please provide me with the image you would like me to analyze. I need an actual image of a human esophagus or related structure in order to describe its features and findings for you.
+
+Once you give me access, I will be able to look at it closely and tell you about:
+
+*   **Shape:** Is it straight? Curved (e.g., sigmoid)?
+*   Size:* Does appear normal relative to other structures?
+
+I can also identify specific landmarks such as esophageal sphincters
+LIVER: I am unable to analyze images. I can only process text-based information.
+GALLBLADDER: Okay, I need more information to analyze the gallbladder. Please provide me with:
+
+*   **The image itself:**  Ideally, you would upload a picture of the ultrasound or CT scan showing the gallbladder and surrounding structures (liver, bile ducts).
+*   Alternatively if not possible an example description that include the following points will help in analyzing this feature such as : 
+    -Location - Shape/Size - Wall Thickness - Pericholecystic Fluid - Gallstones - Ductal dilation -
+STOMACH: Okay, I need you to provide me with the image!  I can't analyze an image that isn't visible.
+
+Once you give me access to the image (either by describing it in detail or uploading a link), I will be able to describe specific features of the stomach and its appearance based on what is shown within those parameters:
+*   **Size:** Is it enlarged? Normal size?
+* **Shape**: The general shape(round, oval etc)
+* Size
+PANCREAS: I am unable to analyze images directly. As an AI, I cannot access or process image files provided by the user. Therefore, I can't describe findings for a pancreas in any particular image you provide.
+
+To get information about pancreatic features from an image (e.g., CT scan, MRI), you would need:
+1.  **A radiologist**: A trained medical professional who is skilled at interpreting imaging scans and will be able to tell what they see on it such as cysts
+SPLEEN: Please provide me with the image! I need to see it in order to analyze its features and describe what's happening specifically within the spleen.
+
+Once you give me access (e.g., upload, link), I will look for:
+
+*   **Size:** Is it enlarged or normal?
+*   Shape/Morphology:  Is it uniform, lobular, heterogeneous? Are there any discrete lesions visible on a CT scan? What about vascularity of splenic parenchyma(splenic
+KIDNEY: I am unable to provide a medical diagnosis. I can't analyze an image of the kidney without seeing it and having proper training in radiological interpretation, which is beyond my capabilities as an AI language model. A trained radiologist or physician needs access to clinical information alongside imaging data for accurate assessment.
+AORTA: Okay, I need the image to analyze it. Please provide me with a description of the aorta in the image or upload an actual image file (e.g., JPEG, PNG).
+
+Once you give me more information about what is visible on the image concerning the aorta and its surrounding structures, such as:
+*   **What type of imaging technique was used?**  (CT Angiogram, MRI angiogram, Ultrasound, etc.) This will affect how clearly we can see the vessel
+TRACHEA: Okay, I need an image to analyze the trachea.  Please provide me with either:
+
+*   **A link or description of where to find the image.** (e.g., a URL pointing to a website hosting it)
+*   If you can't share directly, please describe its key characteristics in detail so that I may infer what is there and give my best answer based on those features.*
+
+Once I have this information, I will do my best to identify specific findings related
+RIB: Okay, I need more information to analyze the image and describe the findings for the rib.  I can't see any images!
+
+To help me give you a useful response, please provide:
+
+*   **The Image:** You will have to upload or otherwise share it with me (e.g., via URL).
+*   If not possible to send an image but rather just explain what is visible of the ribs in your description, then tell me that as well so i know which
 "
-valid_569_a_1,"LUNG: In the evaluation of both lung parenchyma; No active infiltration or mass lesion was detected.
-HEART: Heart contour, size are normal. Pericardial effusion-thickening was not observed.
-ESOPHAGUS: Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.
-LIVER: No space-occupying lesion was detected in the liver that entered the cross-sectional area.
-GALLBLADDER: No significant findings.
-STOMACH: No significant findings.
-PANCREAS: No significant findings.
-SPLEEN: No significant findings.
-KIDNEY: No significant findings.
-AORTA: No significant findings.
-TRACHEA: Trachea, both main bronchi are open.
-RIB: No significant findings.
+valid_569_a,"LUNG: I am unable to analyze images. I cannot provide any specific information about the lung based on an image because:
+
+*   **Lack of Image:** As a text-based AI, I don't have access or ability to see/process images that you might be referring to in your request.
+*   To perform medical analysis requires specialized training and expertise which is beyond my capabilities as an AI model designed for general purposes like language tasks.
+If you can describe certain aspects of what appears within
+HEART: I am unable to analyze images. I can't see or process visual information, including the image you are referring to.
+ESOPHAGUS: Okay, I need you to provide me with the image!  I cannot analyze an image that is not provided.
+
+Once you give me a description of what's in the image or upload it (if possible), then tell me:
+*   **What are your specific questions about the esophagus?** For example, ""Is there any visible dilation?"" ""Are there signs of inflammation?"", etc.. The more detail, better results for analysis and diagnosis.
+LIVER: Please provide me with the image! I need to see the image of the liver in order to analyze its features and describe my findings.
+
+Once you give me access to the image, I can look for things like:
+
+*   **Size:** Is it enlarged (hepatomegaly) or shrunken?
+*   Appearance/Texture: Normal texture, fatty change (steatosis), fibrosis, cirrhosis, etc.?
+*    Shape : any abnormal shapes such as a mass lesion ?
+*
+GALLBLADDER: Please provide me with the image you would like me to analyze. I need an image of a gallbladder or related structures in order to describe its features and findings accurately.
+
+Once you give me access to the image, I can look for things such as:
+
+*   **Gallbladder Shape:** Is it normal? Any signs of distention (enlargement)?
+*   Presence/absence of gallstones
+*  Cholecystitis(inflammation)
+* **Wall Thickness:** Are there
+STOMACH: Okay, I need the image to analyze it. Please provide me with an image of a stomach or its related area (e.g., upper abdomen).  I can then describe specific features like:
+
+*   **Size and Shape:** Is it normal in size? What is the shape - round, slightly elongated, etc.?
+*   Coloration/Appearance: Is it homogenous (uniform) or heterogeneous (varied)? Are there any areas that appear more dense or darker than others? Any
+PANCREAS: Okay, I need an image to analyze the pancreas. Please provide me with either:
+
+*   **A link/URL to a publicly accessible online image of the pancreas.**
+*   An uploaded file () if you have access and are comfortable doing so through our platform or another supported method for sharing images directly within this chat interface).  I cannot process files from email attachments unless specifically allowed by security protocols that may vary based on how we interact here. However some platforms allow direct uploading into
+SPLEEN: Okay, I need the image to analyze it. Please provide me with a description of the spleen's appearance in that specific image you are referring to or upload the image itself so I can give you an accurate analysis based on its features.
+
+For example, please describe things like:
+*   **Size:** Is it normal-sized? Enlarged (splenomegaly)? Smaller than usual?
+*  **Shape**: is it round, lobular, irregular?
+ * **Color
+KIDNEY: Please provide me with the image of the kidney. I need to see the image in order to analyze it and describe any specific features for the kidneys within that image.
+
+Once you give me access, I will be able to look at things like:
+
+*   **Shape:** Is the kidney normal bean-shaped? Are there any abnormalities (e.g., cysts, masses)?
+*   The size: Is one kidney larger than other? Does either appear small or enlarged?
+* **
+AORTA: Okay, I need an image to analyze the aorta. Please provide me with either:
+
+*   **A link to a publicly accessible image of the aorta.**
+*   Or **a detailed description:**  I'll do my best based on your description, but more detail helps! Describe things like:
+    *   Location (e.g., ""the ascending aorta at the level of the aortic arch"")
+    (location and other pertinent anatomical landmarks)
+    The size/diameter
+TRACHEA: Okay, I need the image to analyze it. Please provide me with an image of a trachea (windpipe).  Once you give me access to the image, I can describe its features based on what is visible in the picture and how they relate to normal anatomy:
+
+I will be looking for things like these specific tracheal features when analyzing your provided images:
+*   **Location:** The position within the neck relative to other structures (e.g., larynx, thyroid cartilage)
+* **
+RIB: Please provide me with the image you would like me to analyze. I need an image of a rib (or ribs) in order to describe its features and findings, such as:
+
+*   **Location:** Which rib is it?
+*   Fracture lines/deformities
+*  Bone density differences (e.g., osteoporosis or increased bone formation).
+* **Shape abnormalities**: e.g. flattened rib cage from scoliosis.
+
+Once you give me access to the image
 "
-valid_200_a_1,"LUNG: Aeration of both lung parenchyma is normal and no nodular or infiltrative lesion is detected in the lung parenchyma.
-HEART: Heart contour, size are normal. Pericardial effusion-thickening was not observed.
-ESOPHAGUS: Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.
-LIVER: No space-occupying lesion was detected in the liver that entered the cross-sectional area.
-GALLBLADDER: No significant findings.
-STOMACH: No significant findings.
-PANCREAS: No significant findings.
-SPLEEN: No significant findings.
-KIDNEY: No significant findings.
-AORTA: No significant findings.
-TRACHEA: Trachea, both main bronchi are open.
-RIB: No significant findings.
+valid_200_a,"LUNG: Please provide me with the image! I need to see it in order to analyze its specific features and describe any findings related to the lung.
+
+Once you give me access to the image, tell me what specifically interests you about the lungs (e.g., size, shape, density, presence of abnormalities). The more information you can offer beforehand, the better my analysis will be.
+HEART: Please provide me with the image you would like me to analyze. I need an actual image of a heart in order to describe its features and findings for you.
+
+Once you give me the image, I can tell you about:
+
+*   **Overall appearance:** Is it normal-sized? Does it appear enlarged or small relative to chest size (cardiomegaly/cardiac silhouette)?
+*   **(If applicable) **Shape**: Any obvious abnormalities such as pericardial effusion causing cardiac tamponade
+ESOPHAGUS: Okay, to analyze the specific image feature for the esophagus I need you to provide me with the **** itself.  I am unable to access external websites or local files directly; therefore, please upload the image so that i can describe its features and findings related to the esophagus..
+
+Once you have provided an image of the esophagus (e.g., endoscopy video clip, X-ray, CT scan), then give me a description:
+*   **What kind of imaging is it?
+LIVER: Please provide me with the image! I need to see the image of the liver in order to analyze its features and describe my findings.
+
+Once you give me access to the image, tell me what kind of information or aspects of the Liver's appearance are specifically relevant for analysis (e.g., size, shape, texture, presence/absence of lesions).  This will help me focus on the most important details
+GALLBLADDER: Please provide me with the image you want me to analyze. I need an actual image of a gallbladder in order to describe its features and findings.
+
+Once you give me the image, please also tell me if there are any specific concerns or questions about it that you have (e.g., ""Is this gallstone?"", ""Does this appear inflamed?"", etc.). This will help me tailor my analysis to your needs.
+STOMACH: Please provide me with the image! I need to see it in order to analyze its features and describe what is found for the stomach.
+
+Once you give me the image, tell me specifically which part of the stomach (e.g., fundus, body, antrum) are you interested in or if there's anything specific about the stomach that concerns you like shape, size, presence/absence of contents etc..
+PANCREAS: Please provide me with the image! I need to see the image of the pancreas in order to analyze its features and describe any findings.
+
+Once you give me access, I can help you by:
+*   **Identifying key structures:** such as the head, body, tail, pancreatic duct, and blood vessels (artery/vein).
+*  **Looking for abnormalities**: such as masses or cysts, calcifications, inflammation signs like edema or fluid collections.
+* **Describing
+SPLEEN: Okay, I need the image to analyze it. Please provide me with a description of the image or upload an image file so that I can describe its features and give you my findings for the spleen!
+
+For example, tell me:
+
+*   **What is in the image?**: Is it a CT scan, MRI, ultrasound, X-ray?
+*   Is there any labeling on the images showing organs such as ""spleen""? Or are we looking at a general picture of
+KIDNEY: Please provide me with the image! I need to see the kidney (or a portion of it) in order to analyze its features.  Once you give me access, or describe what is visible, I can tell you about:
+
+*   **Size and Shape:** Is it normal size? Does it have any unusual shape abnormalities like cysts, masses, or deformities?
+*   ***Renal cortex and medulla: Are they well-defined as expected? Any signs such as scarring/fib
+AORTA: Please provide me with the image! I need to see the image of the aorta in order to analyze its features and describe my findings.
+
+Once you give me access (e.g., upload it, link a website), I can look for things like:
+
+*   **Aortic Diameter:**  Is it normal? Is there any evidence of dilation or narrowing?
+*   Shape/Contour*: Normal biconcave shape? Any irregularities, bulges, kinks, or aneurysms
+TRACHEA: Okay, I need an image to analyze the trachea. Please provide me with a description of what you want me to look for in terms of features related to the trachea or upload it if possible.
+
+For example, tell me:
+*   **What kind of imaging is involved? (e.g., X-ray, CT scan)** - The specific type can affect how we see the trachea and which features are visible/relevant. If its x ray then I would be looking at shadows on
+RIB: Please provide me with the image you would like me to analyze. I need an image of a rib (or something containing ribs) in order to describe its features and findings accurately.
+
+Once you give me access, or upload/describe where it is located(e.g., chest X-ray), I can then look for things such as:
+
+*   **Shape:** Is it normal? Are there any deformities?
+*   Is it fractured?
+I will do my best to
 "
-valid_169_a_1,"LUNG: No mass nodule-infiltration was detected in both lung parenchyma. No sign of pneumonia was detected.
-HEART: Heart contour, size are normal. Pericardial effusion-thickening was not observed.
-ESOPHAGUS: Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.
-LIVER: No space-occupying lesion was detected in the liver that entered the cross-sectional area.
-GALLBLADDER: No significant findings.
-STOMACH: No significant findings.
-PANCREAS: No significant findings.
-SPLEEN: No significant findings.
-KIDNEY: No significant findings.
-AORTA: No significant findings.
-TRACHEA: Trachea, both main bronchi are open.
-RIB: No significant findings.
+valid_169_a,"LUNG: I am unable to analyze images. I can only process text-based information.
+HEART: Please provide me with the image you would like me to analyze. I need an actual image file (e.g., JPEG, PNG) or a URL pointing to it so that I can examine its features and describe them for the heart.
+
+Once you give me the image:
+*   I will attempt to identify any structures in the image that are part of the heart region. This could include aspects such as chambers, valves, major blood vessels leading into/out of the chest cavity etc..
+ESOPHAGUS: Okay, to analyze the esophagus in an image I would need access to that image. Please provide me with the following:
+
+1.  **The Image Itself:** The actual photograph or digital image of the esophagus is required for analysis
+2. **Context (If Available):** If there's any context about how this was taken and what it shows such as a radiology report then please share! This can help understand the type of image i am looking at. 
+
+With those details,
+LIVER: Please provide me with the image! I need to see the image of the liver in order to analyze its features and describe any findings. 
+
+Once you give me the image, tell me:
+*   **What is your question about the image?** (e.g., Are there lesions present? What's the texture like?) The more specific questions will help focus my analysis.
+GALLBLADDER: I am unable to analyze images. I'm a text-based AI and do not have the capability of viewing or processing visual data like an image.
+STOMACH: Okay, I need you to provide me with the image!  I can't analyze an image that isn't given.
+
+Once you give me a description of the stomach area in your image (or better yet, upload it), tell me what specific features you want me to look for and describe them. For example:
+
+*   **Shape:** Is it round? Oval? Irregular?
+*   Size : Is is large or small compared to other structures nearby?
+    **
+PANCREAS: I am unable to analyze images. I'm a text-based AI and do not have the capability of processing visual information like an image file or screenshot would require.
+SPLEEN: Please provide me with the image you would like me to analyze. I need an image of a spleen in order to describe its features and findings.
+
+Once you give me the image, tell me what specific feature(s) you are interested in knowing about (e.g., size, shape, texture, presence/absence of abnormalities).
+KIDNEY: I am unable to analyze images. I can't see any image you might be referring to. Therefore, it is impossible for me to describe the specific findings of a kidney from an image that isn't provided.
+
+To get help with your request, please provide:
+*   **The actual image.** You could upload it directly if possible or give me instructions on how to access it (e.g., URL). 
+* Or **A detailed description**. Provide as much information about
+AORTA: Okay, I need an image to analyze the aorta. Please provide me with either:
+
+*   **The Image Itself:** If you can upload or link directly to a file (e.g., JPG, PNG), that would be ideal and allow for analysis using computer vision tools if available
+    or
+*   A detailed description of it as possible including relevant anatomical structures.
+
+Once i have this information, then tell me what is your request so i can help describe findings about the A
+TRACHEA: Please provide me with the image you would like me to analyze. I need an actual visual input (e.g., a picture, screenshot) of something containing a trachea in order to describe its features and findings.
+
+Once you give me the image, tell me what specific aspect or feature you're interested in regarding the trachea. For example:
+
+*   **Overall appearance:** Is it normal? Are there any obvious abnormalities such as narrowing, widening, kinks, or masses?
+*
+RIB: Okay, I'm ready. Please provide the image you want me to analyze for rib features.  I need an image (or a link/description) of it in order to give you specific findings about the ribs!
+
+Once you tell me what image you are talking about or describe its characteristics as best as possible; I will be able to offer information on things like:
+
+*   **Rib Count:** How many ribs does the person have?
+*   Specific Ribs Identified and their
 "
-valid_478_a_1,"LUNG: In the evaluation of both lung parenchyma; No active infiltration or mass lesion was detected.
-HEART: Heart contour, size are normal. Pericardial effusion-thickening was not observed.
-ESOPHAGUS: Thoracic esophagus calibration was normal and no significant tumoral wall thickening was detected.
-LIVER: No space-occupying lesion was detected in the liver that entered the cross-sectional area.
-GALLBLADDER: No significant findings.
-STOMACH: No significant findings.
-PANCREAS: No significant findings.
-SPLEEN: No significant findings.
-KIDNEY: No significant findings.
-AORTA: No significant findings.
-TRACHEA: Trachea, both main bronchi are open.
-RIB: No significant findings.
+valid_478_a,"LUNG: Please provide me with the image! I need to see it in order to analyze its features and describe findings for the lung.
+
+Once you give me the image, please also tell me:
+*   **What kind of imaging is it?** (e.g., Chest X-ray, CT scan)
+*  **Are there any specific regions that are concerning or which part do you want me focus on ?** ( e.g. Right lower lobe?)
+
+The more information you
+HEART: Please provide me with the image you would like me to analyze. I need an image of a heart, ideally in a medical context (e.g., X-ray, CT scan, MRI) or at least showing a clear depiction of its anatomy and structure for accurate analysis.
+
+Once you give me the image, I can describe specific features such as:
+
+*   **Size:** Is it normal? Enlarged (cardiomegaly)?
+*   Shape:** Normal shape? Irregularity
+ESOPHAGUS: Please provide me with the image! I need to see the image of the esophagus in order to analyze its features and describe my findings.
+
+Once you give me access to the image, tell me what specific feature or region within the esophagus you'd like me to focus on (e.g., esophageal wall thickness at a particular point along the lumen, presence/absence of inflammation).
+LIVER: Please provide me with the image! I need to see the image of the liver (or any relevant medical imaging) in order to analyze its features and describe my findings.
+
+Once you give me an image, tell me what specifically about the Liver you are interested in so that I can focus on it for your analysis:
+*   **Size:** Is it enlarged or shrunken? By how much?
+*    **Shape:** Normal round shape or abnormal contours/irregularities?
+ *
+GALLBLADDER: I am unable to analyze images. I can only process text-based information. Therefore, I cannot provide a description of gallbladder features from an image.
+STOMACH: Please provide me with the image you would like me to analyze. I need an image of a stomach or part of it (e.g., a cross-sectional view, MRI scan) in order to describe its features and findings.
+
+Once you give me the image, I can look for things such as:
+
+*   **Shape:** Is the stomach distended? How does it appear in terms of size relative to other organs?
+*   **.Ulcers/Erosion**: Are there
+PANCREAS: Okay, I need an image to analyze the pancreas. Please provide me with either:
+
+*   **The Image Itself:** If you can upload or link directly to a file-sharing service (like Imgur) then I will be able to see it and describe what is present in the image regarding the pancreas
+*  **A Detailed Description of The Image**: In this case please include information about resolution , imaging modality used, location on body etc..
+
+Once I have access to the image
+SPLEEN: Please provide me with the image! I need to see the image of the spleen in order to analyze its features and describe my findings.
+
+Once you give me an image, tell me what specific aspects of the splenic feature you're most interested in (e.g., size, shape, texture, presence/absence of lesions).  The more information you can give me about your interests, the better I can assist you.
+KIDNEY: I am sorry, but I cannot analyze the specific image feature for the kidney. As a large language model, an AI assistant that generates human-like text based on input prompts and data to provide information in response to questions or requests, it's not possible for me to directly process images with visual features like those of the kidneys from medical scans or photographs without having access to them.
+
+To accurately describe findings related to the kidneys within an image (e.g., size, shape, texture,
+AORTA: Please provide me with the image! I need to see the image of the aorta in order to analyze its features and describe my findings.
+
+Once you upload or describe where it is located (e.g., ""in a chest X-ray"", ""on an ultrasound""), I can help you by:
+
+*   **Identifying specific aortic structures:** such as the ascending, arch, descending thoracic, abdominal aorta, etc.
+*   Describing any abnormalities present like aneurysms, dissections
+TRACHEA: Please provide me with the image! I need to see it in order to analyze its features, including those of the trachea.
+
+Once you give me access (e.g., by uploading a file or describing where it is located), I can help you find and describe things like:
+
+*   **Location:** Where is the trachea positioned relative to other structures?
+*   Shape:* Is it circular, oval, irregular etc.? How does this vary throughout the course of the structure?
+ *
+RIB: Please provide me with the image you would like me to analyze. I need an image of a rib in order to describe its features and findings.
+
+Once you give me access to the image, I will be able to:
+
+*   **Identify Ribs:** Determine which ribs are visible (anterior, posterior, floating).
+*   Describe any **bone structure**: Shape, thickness at different points along length etc..
+*  Analyze for abnormalities such as fractures, dislocations, deformities or other
 "
