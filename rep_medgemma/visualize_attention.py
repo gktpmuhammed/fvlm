@@ -14,8 +14,9 @@ def visualize_attention(args):
     print(f"Loading model from {args.checkpoint_path}")
     # We need to construct the model first, then load weights
     # Assuming the checkpoint folder contains the bin files
+    # Note: For V3 architecture, queries_per_organ is default 8.
     model = MedicalVLM(
-        vision_encoder_path="/home/muhammedg/fvlm/checkpoints/model.pth", # Base dummy path, will be overwritten
+        vision_encoder_path="dummy", # Initialize from scratch
         decoder_model_name="google/medgemma-4b-it",
         queries_per_organ=8
     )
