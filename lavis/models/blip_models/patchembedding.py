@@ -52,11 +52,11 @@ class PatchEmbeddingBlock(nn.Module):
         patch_size: Sequence[int] | int,
         hidden_size: int,
         num_heads: int,
-        pos_embed: str = "conv",
         proj_type: str = "conv",
         pos_embed_type: str = "learnable",
         dropout_rate: float = 0.0,
         spatial_dims: int = 3,
+        stride: Sequence[int] | int | None = None, # NEW: Allow custom stride
     ) -> None:
         """
         Args:
@@ -69,6 +69,7 @@ class PatchEmbeddingBlock(nn.Module):
             pos_embed_type: position embedding layer type.
             dropout_rate: fraction of the input units to drop.
             spatial_dims: number of spatial dimensions.
+            stride: stride for patch embedding. If None, defaults to patch_size (non-overlapping).
         .. deprecated:: 1.4
             ``pos_embed`` is deprecated in favor of ``proj_type``.
         """
@@ -86,18 +87,30 @@ class PatchEmbeddingBlock(nn.Module):
 
         img_size = ensure_tuple_rep(img_size, spatial_dims)
         patch_size = ensure_tuple_rep(patch_size, spatial_dims)
+        
+        # Determine stride
+        if stride is None:
+            stride = patch_size
+        else:
+            stride = ensure_tuple_rep(stride, spatial_dims)
+            
         for m, p in zip(img_size, patch_size):
             if m < p:
                 raise ValueError("patch_size should be smaller than img_size.")
             if self.proj_type == "perceptron" and m % p != 0:
                 raise ValueError("patch_size should be divisible by img_size for perceptron.")
-        self.n_patches = np.prod([im_d // p_d for im_d, p_d in zip(img_size, patch_size)])
+        
+        # Calculate n_patches based on sliding window formula: floor((img - patch)/stride) + 1
+        # self.n_patches = np.prod([im_d // p_d for im_d, p_d in zip(img_size, patch_size)])
+        # Use exact formula for Conv
+        self.n_patches = np.prod([(im_d - p_d) // s_d + 1 for im_d, p_d, s_d in zip(img_size, patch_size, stride)])
+        
         self.patch_dim = int(in_channels * np.prod(patch_size))
 
         self.patch_embeddings: nn.Module
         if self.proj_type == "conv":
             self.patch_embeddings = Conv[Conv.CONV, spatial_dims](
-                in_channels=in_channels, out_channels=hidden_size, kernel_size=patch_size, stride=patch_size
+                in_channels=in_channels, out_channels=hidden_size, kernel_size=patch_size, stride=stride
             )
         elif self.proj_type == "perceptron":
             # for 3d: "b c (h p1) (w p2) (d p3)-> b (h w d) (p1 p2 p3 c)"

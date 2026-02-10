@@ -22,9 +22,26 @@ parent_dir = os.path.dirname(current_dir)
 if parent_dir not in sys.path:
     sys.path.insert(1, parent_dir)
 
+class CNNStem(nn.Module):
+    def __init__(self, out_channels=64):
+        super().__init__()
+        self.net = nn.Sequential(
+            # Layer 1: Downsample 2x
+            nn.Conv3d(1, 32, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm3d(32),
+            nn.LeakyReLU(inplace=True),
+            # Layer 2: Downsample 2x (Total 4x)
+            nn.Conv3d(32, out_channels, kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm3d(out_channels),
+            nn.LeakyReLU(inplace=True),
+            # Project to ViT dimensions is implicit if ViT in_channels = out_channels
+        )
+    def forward(self, x):
+        return self.net(x)
+
 class Attentive_ROI_Wrapper(nn.Module):
     """
-    ViT -> Masked Cross-Attention -> Organ Specific Embeddings
+    CNN Stem -> ViT -> Masked Cross-Attention -> Organ Specific Embeddings
     """
     def __init__(self, vit_model, config, num_organs=12):
         super().__init__()
@@ -45,8 +62,18 @@ class Attentive_ROI_Wrapper(nn.Module):
         nn.init.normal_(self.organ_queries, std=0.02)
 
     def forward(self, pixel_values, organ_masks=None):
-        # 1. Run Vision Encoder
-        pixel_values = pixel_values.to(dtype=torch.float32) # Force FP32 for ViT
+        # 1. Run Vision Encoder (Stem + ViT)
+        pixel_values = pixel_values.to(dtype=torch.float32) # Force FP32
+        
+        # NOTE: pixel_values here should already be processed by Stem if Stem is outside?
+        # Or we assume vit_model includes the stem?
+        # Current design: MedicalVLM calls vision_encoder(pixel_values).
+        # So Attentive_ROI_Wrapper should handle everything.
+        # But we want to inject Stem.
+        # Let's assume 'vit_model' passed here is just the ViT.
+        # We need to add 'self.stem' here or pass 'stem_output' to forward.
+        # See MedicalVLM below for integration.
+        
         with torch.cuda.amp.autocast(enabled=False):
             outputs = self.vit(pixel_values)
         
@@ -73,7 +100,11 @@ class Attentive_ROI_Wrapper(nn.Module):
             organ_masks = organ_masks.repeat_interleave(queries_per_organ, dim=1)
             
             # --- Downsample Mask for Attention ---
-            # ViT reduces 112x256x352 -> approx 7x16x22 depending on patch size
+            # ViT Grid is now: (112//4)//4, (256//4)//4, (352//4)//8
+            # Stem: 4x downsample.
+            # ViT Patch: (4,4,8).
+            # Total Downsample: 16x, 16x, 32x.
+            # Grid: 7, 16, 11 (Matches Original 1232 tokens).
             # Ensure these dimensions match your specific ViT output
             f_d, f_h, f_w = 7, 16, 11 
             
@@ -119,7 +150,7 @@ class MedicalVLM(nn.Module):
         vision_encoder_path,
         decoder_model_name="google/medgemma-4b-it", # Note: Check HF for exact ID
         image_size=(112, 256, 352),
-        patch_size=(16, 16, 32),
+        patch_size=(16, 16, 32), # DEPRECATED: Overridden by logic below
         queries_per_organ=8, # NEW: Default to 8 tokens per organ
         **kwargs 
     ):
@@ -129,47 +160,51 @@ class MedicalVLM(nn.Module):
         self.num_organs = 12
         self.total_visual_tokens = self.num_organs * self.queries_per_organ
 
-        # --- 1. VISION ENCODER (Trainable) ---
-        print("Initializing Trainable Vision Encoder...")
-        vit_hidden_size = 768 
+        # --- 1. VISION ENCODER (CNN Stem + ViT) ---
+        print("Initializing Logic: Hybrid CNN Stem + ViT")
+        
+        # STEM Configuration
+        # Downsample 4x (Stride 2 * 2)
+        # Input: (112, 256, 352) -> (28, 64, 88)
+        self.stem = CNNStem(out_channels=64)
+        
+        # ViT Configuration
+        # Input to ViT is output of Stem: (28, 64, 88), 64 channels
+        vit_img_size = (28, 64, 88)
+        vit_patch_size = (4, 4, 8) # Reducing to (4,4,8) to match original token count (1232)
+        vit_in_chans = 64
+        vit_hidden_size = 768
+        
+        print(f"  Stem Output / ViT Input: {vit_img_size}, Channels: {vit_in_chans}")
+        print(f"  ViT Patch Size: {vit_patch_size}")
+        
         encoder_config = ViTConfig(
-            hidden_size=vit_hidden_size, image_size=image_size, patch_size=patch_size
+            hidden_size=vit_hidden_size, image_size=vit_img_size, patch_size=vit_patch_size
         )
 
         # Import ViT from LAVIS
         try:
             from lavis.models.blip_models.vit import ViT
-            vision_encoder = ViT(in_channels=1, img_size=image_size, patch_size=patch_size, num_classes=0)
+            # Note: We use the modified ViT class that accepts stride if needed.
+            # Currently using patch_size as stride (default).
+            vision_encoder = ViT(
+                in_channels=vit_in_chans, 
+                img_size=vit_img_size, 
+                patch_size=vit_patch_size, 
+                num_classes=0
+            )
         except ImportError:
             raise ImportError("Could not find 'lavis.models.blip_models.vit'. Please check python path.")
         
-        if os.path.exists(vision_encoder_path):
-            print(f"  Loading ViT weights from {vision_encoder_path}")
-            checkpoint = torch.load(vision_encoder_path, map_location='cpu')
-            if 'model' in checkpoint:
-                state_dict = checkpoint['model']
-            elif 'state_dict' in checkpoint:
-                state_dict = checkpoint['state_dict']
-            else:
-                state_dict = checkpoint
-                
-            # Key Mapping for Contrastive Encoder (which has 'visual_encoder.' prefix)
-            # We need to map `visual_encoder.blocks...` -> `blocks...`
-            new_state_dict = {}
-            for k, v in state_dict.items():
-                if k.startswith("visual_encoder."):
-                    # Strip prefix
-                    new_k = k.replace("visual_encoder.", "")
-                    new_state_dict[new_k] = v
-                elif k.startswith("module."): # Common DDP prefix
-                    new_k = k.replace("module.", "")
-                    new_state_dict[new_k] = v
-                else:
-                    new_state_dict[k] = v
-            
-            # Load weights (strict=False because the checkpoint might contain extra heads like text_encoder, queues etc)
-            msg = vision_encoder.load_state_dict(new_state_dict, strict=False)
-            print(f"Vision Encoder Loaded with msg: {msg}")
+        # Note: We are creating a NEW architecture, so we cannot load 'vision_encoder_path' directly
+        # onto this new structure. We will start the ViT from scratch (or partial load if possible).
+        # Given the drastic change (Stem + New Patch Size), it's better to initialize ViT from scratch
+        # or transfer weights carefully if they were pretrained on standard ImageNet (but 3D is different).
+        # We will assume training from scratch or loading what we can.
+        
+        print("  WARNING: Architecture changed. Initializing Vision Encoder from scratch.")
+        # If you really want to load weights, implement partial loading here.
+        
         self.vision_encoder = Attentive_ROI_Wrapper(vision_encoder, encoder_config, num_organs=12)
         
         # RESIZE QUERIES
@@ -181,6 +216,8 @@ class MedicalVLM(nn.Module):
 
         # Ensure ViT is Trainable
         for param in self.vision_encoder.parameters():
+            param.requires_grad = True
+        for param in self.stem.parameters():
             param.requires_grad = True
 
         # --- 2. DECODER / LLM (Frozen) ---
@@ -312,8 +349,14 @@ class MedicalVLM(nn.Module):
         B_batch = pixel_values.shape[0]
 
         # 1. Get Visual Features (Trainable)
+        pixel_values = pixel_values.to(dtype=torch.float32)
+        
+        # Run CNN Stem
+        stem_feats = self.stem(pixel_values)
+        
         # Output: (Batch, N_Organs * Q, ViT_Dim)
-        visual_feats, attn_weights = self.vision_encoder(pixel_values, organ_masks) 
+        # We pass stem_feats to Attentive_ROI_Wrapper
+        visual_feats, attn_weights = self.vision_encoder(stem_feats, organ_masks) 
         
         # 2. Project to LLM Space (Trainable)
         # Output: (Batch, N_Organs * Q, LLM_Dim)
@@ -551,7 +594,9 @@ class MedicalVLM(nn.Module):
         Forward pass for Inference.
         """
         # 1. Visual Path
-        visual_feats, attn_weights = self.vision_encoder(pixel_values, organ_masks)
+        pixel_values = pixel_values.to(dtype=torch.float32)
+        stem_feats = self.stem(pixel_values)
+        visual_feats, attn_weights = self.vision_encoder(stem_feats, organ_masks)
         visual_embeds = self.visual_projection(visual_feats)
         
         # Add Learned Position Embeddings
@@ -628,6 +673,7 @@ class MedicalVLM(nn.Module):
     def save_pretrained(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
         # We only save the trainable parts to save space
+        torch.save(self.stem.state_dict(), os.path.join(output_dir, "stem.bin")) # NEW
         torch.save(self.vision_encoder.state_dict(), os.path.join(output_dir, "vision_encoder.bin"))
         torch.save(self.visual_projection.state_dict(), os.path.join(output_dir, "projector.bin"))
         torch.save(self.projector_layernorm.state_dict(), os.path.join(output_dir, "projector_layernorm.bin"))

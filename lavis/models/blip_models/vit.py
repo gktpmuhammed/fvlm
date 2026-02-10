@@ -53,6 +53,7 @@ class ViT(nn.Module):
         post_activation="Tanh",
         qkv_bias: bool = False,
         save_attn: bool = False,
+        patch_stride: Sequence[int] | int | None = None, # NEW
     ) -> None:
         """
         Args:
@@ -74,10 +75,10 @@ class ViT(nn.Module):
                 Set to other values to remove this function.
             qkv_bias (bool, optional): apply bias to the qkv linear layer in self attention block. Defaults to False.
             save_attn (bool, optional): to make accessible the attention in self attention block. Defaults to False.
-
+            patch_stride: stride for patch embedding.
         .. deprecated:: 1.4
             ``pos_embed`` is deprecated in favor of ``proj_type``.
-
+        
         Examples::
 
             # for single channel input with image size of (96,96,96), conv position embedding and segmentation backbone
@@ -111,6 +112,7 @@ class ViT(nn.Module):
             pos_embed_type=pos_embed_type,
             dropout_rate=dropout_rate,
             spatial_dims=spatial_dims,
+            stride=patch_stride, # NEW
         )
         self.blocks = nn.ModuleList(
             [

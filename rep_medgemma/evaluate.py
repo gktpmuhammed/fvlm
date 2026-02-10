@@ -61,8 +61,15 @@ def evaluate(args):
     # Load trained weights
     print(f"Loading trained weights from {args.checkpoint_dir}...")
     enc_path = os.path.join(args.checkpoint_dir, "vision_encoder.bin")
+    stem_path = os.path.join(args.checkpoint_dir, "stem.bin") # NEW
     proj_path = os.path.join(args.checkpoint_dir, "projector.bin")
     
+    if os.path.exists(stem_path):
+        print(f"Loading CNN Stem from {stem_path}...")
+        model.stem.load_state_dict(torch.load(stem_path, map_location='cpu'))
+    else:
+        print("WARNING: No CNN Stem weights found! (Random init)")
+        
     if os.path.exists(enc_path):
         model.vision_encoder.load_state_dict(torch.load(enc_path, map_location='cpu'))
     if os.path.exists(proj_path):

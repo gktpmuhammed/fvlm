@@ -23,10 +23,17 @@ def visualize_attention(args):
     
     # Load custom weights
     vision_path = os.path.join(args.checkpoint_path, "vision_encoder.bin")
+    stem_path = os.path.join(args.checkpoint_path, "stem.bin") # NEW for V3
     projector_path = os.path.join(args.checkpoint_path, "projector.bin")
     ln_path = os.path.join(args.checkpoint_path, "projector_layernorm.bin")
     pos_path = os.path.join(args.checkpoint_path, "visual_pos_embed.bin")
     
+    if os.path.exists(stem_path):
+        model.stem.load_state_dict(torch.load(stem_path))
+        print("Loaded CNN Stem")
+    else:
+        print("WARNING: No CNN Stem found (using random init)")
+
     if os.path.exists(vision_path):
         model.vision_encoder.load_state_dict(torch.load(vision_path))
         print("Loaded Vision Encoder")
@@ -87,8 +94,10 @@ def visualize_attention(args):
     
     # 4. Forward Pass
     with torch.no_grad():
+        # V3 Update: Pass through Stem first
+        stem_feats = model.stem(pixel_values)
         # returns (img_feats, attn_weights) from vision_encoder
-        visual_feats, attn_weights = model.vision_encoder(pixel_values, organ_masks)
+        visual_feats, attn_weights = model.vision_encoder(stem_feats, organ_masks)
     
     # attn_weights shape: (Batch, TargetSeq, SourceSeq)
     # TargetSeq = 12 Organs * 8 Queries = 96
@@ -97,8 +106,8 @@ def visualize_attention(args):
     
     # 5. Process Attention Map
     # Reshape source to grid (7, 16, 11)
-    # Check ViT config in MedicalVLM: image_size=(112, 256, 352), patch=(16, 16, 32)
-    # 112/16=7, 256/16=16, 352/32=11
+    # V3 Config: Stem Out (28, 64, 88) -> ViT Patch (4, 4, 8)
+    # 28/4=7, 64/4=16, 88/8=11
     D_vit, H_vit, W_vit = 7, 16, 11
     
     attn_map = attn_weights[0] # (96, 1232)
@@ -116,10 +125,10 @@ def visualize_attention(args):
 
     # 6. Overlay on CT
     # We want to visualize specific organs.
-    target_organs = ['lung', 'heart', 'liver', 'trachea']
-    ALL_ORGANS = sorted(val_ds.target_keys) # Ensure correct order
+    ALL_ORGANS = val_ds.target_keys # FIX: Do NOT sort! Must match OnePassOrganDataset stacking order.
+    target_organs = ALL_ORGANS # Plot ALL organs
     print(f"Target Organs: {target_organs}")
-    print(f"Dataset Organs: {ALL_ORGANS}")
+    print(f"Dataset Organs (Tensor Order): {ALL_ORGANS}")
     
     # Get original CT image (normalize back to 0-1 for display)
     ct_vol = pixel_values[0, 0].cpu().numpy()
@@ -127,10 +136,9 @@ def visualize_attention(args):
     ct_vol = (ct_vol - ct_vol.min()) / (ct_vol.max() - ct_vol.min())
     
     # Create plot
-    # Show 4 organs, each with 3 slices (Axial, Coronal, Sagittal)
-    # Choose slices with max attention
+    # Show 12 organs, each with 4 columns (Axial, Coronal, Sagittal, GT)
     
-    fig, axes = plt.subplots(len(target_organs), 4, figsize=(20, 5 * len(target_organs)))
+    fig, axes = plt.subplots(len(target_organs), 4, figsize=(20, 4 * len(target_organs)))
     
     for row_idx, organ in enumerate(target_organs):
         if organ not in ALL_ORGANS: 
@@ -201,7 +209,7 @@ def visualize_attention(args):
         ax.axis('off')
 
     plt.tight_layout()
-    result_path = "attention_vis.png"
+    result_path = "attention_vis_v3.png"
     plt.savefig(result_path)
     print(f"Saved visualization to {result_path}")
     
@@ -210,4 +218,5 @@ if __name__ == "__main__":
     parser.add_argument('--checkpoint_path', type=str, required=True)
     parser.add_argument('--patient_id', type=str, default=None)
     args = parser.parse_args()
+    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
     visualize_attention(args)

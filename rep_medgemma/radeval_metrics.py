@@ -29,6 +29,79 @@ from nltk.translate.meteor_score import meteor_score
 # Import RadEval
 from RadEval import RadEval
 
+# --- MONKEYPATCH FIXED FOR RADEVAL GREEN METRIC ---
+# The GREEN metric's clustering utils can fail when n_samples is small (e.g., <= 5)
+# because of edge cases in silhouette_score (requires 2 <= n_labels <= n_samples - 1).
+# Using batch_size=32 triggers this often as we cluster per-batch error sentences.
+# We fully reimplement the binary search to be robust.
+
+try:
+    import RadEval.factual.green_score.utils as green_utils
+    from sklearn.cluster import KMeans
+    from sklearn.metrics import silhouette_score
+    import warnings
+
+    def _robust_binary_search_optimal_kmeans(data, min_k, max_k):
+        # 1. Cap max_k based on data size
+        n_samples = len(data)
+        if max_k >= n_samples:
+            max_k = n_samples - 1
+            
+        best_k = min_k
+        best_score = -1.0
+        # Default fallback: 1 cluster
+        best_kmeans = KMeans(n_clusters=1, random_state=42).fit(data)
+
+        while min_k <= max_k:
+            mid_k = (min_k + max_k) // 2
+            
+            # Needs at least 2 clusters for silhouette_score
+            if mid_k < 2:
+                # If we are forced below 2, we can't find a better 'score', stop.
+                break
+
+            try:
+                # Suppress convergence warnings for small data
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    kmeans = KMeans(n_clusters=mid_k, random_state=42).fit(data)
+                
+                labels = kmeans.labels_
+                
+                # Check effectively used labels
+                n_labels = len(set(labels))
+                if n_labels < 2 or n_labels >= n_samples:
+                    # Invalid for silhouette_score
+                    # Try searching for fewer clusters
+                    max_k = mid_k - 1
+                    continue
+
+                score = silhouette_score(data, labels)
+
+                if score > best_score:
+                    best_score = score
+                    best_k = mid_k
+                    best_kmeans = kmeans
+                    min_k = mid_k + 1
+                else:
+                    max_k = mid_k - 1
+                    
+            except Exception:
+                # If anything goes wrong (e.g. ValueError), treat as invalid k
+                max_k = mid_k - 1
+
+        return best_kmeans
+
+    print("   ! Applying Robust Monkeypatch to RadEval.factual.green_score.utils.binary_search_optimal_kmeans")
+    green_utils.binary_search_optimal_kmeans = _robust_binary_search_optimal_kmeans
+
+except ImportError:
+    print("   ! Warning: Could not import RadEval items for patching.")
+except Exception as e:
+    print(f"   ! Warning: Failed to apply RadEval monkeypatch: {e}")
+
+# --------------------------------------------------
+
 # --- CONFIGURATION ---
 
 ALL_ORGANS = [
