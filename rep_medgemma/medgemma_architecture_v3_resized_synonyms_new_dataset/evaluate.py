@@ -19,7 +19,7 @@ parent_dir = os.path.dirname(current_dir)
 if parent_dir in sys.path: sys.path.remove(parent_dir)
 if current_dir in sys.path: sys.path.remove(current_dir)
 
-sys.path.insert(0, parent_dir)
+sys.path.insert(0, os.path.join(parent_dir, "../"))
 sys.path.insert(0, current_dir)
 
 from medical_vlm import MedicalVLM
@@ -198,6 +198,9 @@ def evaluate(args):
             if organ_masks.dim() == 6:
                 organ_masks = organ_masks.squeeze(2)
             
+            # Enforce Left Padding for Generation (Standard Practice)
+            model.tokenizer.padding_side = 'left'
+            
             inputs = model.tokenizer(
                 all_prompts,
                 padding=True,
@@ -266,5 +269,5 @@ if __name__ == "__main__":
     parser.add_argument('--queries_per_organ', type=int, default=8)
     parser.add_argument('--batch_size', type=int, default=2)
     args = parser.parse_args()
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '1'
     evaluate(args)

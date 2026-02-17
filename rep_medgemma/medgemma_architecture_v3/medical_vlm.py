@@ -514,7 +514,7 @@ class MedicalVLM(nn.Module):
             
             # Combine Losses
             # We weight alignment loss higher (5.0) to force the model to respect the visual signal
-            total_loss = lm_loss + 5.0 * alignment_loss
+            total_loss = lm_loss + 1.0 * alignment_loss
             
             # Use dict return for Trainer compatibility
             return {

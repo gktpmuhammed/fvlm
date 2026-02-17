@@ -19,7 +19,7 @@ parent_dir = os.path.dirname(current_dir)
 if parent_dir in sys.path: sys.path.remove(parent_dir)
 if current_dir in sys.path: sys.path.remove(current_dir)
 
-sys.path.insert(0, parent_dir)
+sys.path.insert(0, os.path.join(parent_dir, "../"))
 sys.path.insert(0, current_dir)
 
 from medical_vlm import MedicalVLM
@@ -244,8 +244,10 @@ if __name__ == "__main__":
     parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/checkpoints/medical_vlm/model.pth')
     parser.add_argument('--decoder_model', type=str, default='google/medgemma-4b-it')
     parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv')
-    parser.add_argument('--output_dir', type=str, default='./results/medgemma_vlm')
+    parser.add_argument('--output_dir', type=str, default='./results/retrain_v2')
     parser.add_argument('--subset_size', type=int, default=None)
+    parser.add_argument('--queries_per_organ', type=int, default=8)
+    parser.add_argument('--batch_size', type=int, default=2)
     args = parser.parse_args()
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+    # os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     evaluate(args)

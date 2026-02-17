@@ -10,21 +10,22 @@ import random
 from dataclasses import dataclass
 from torch.utils.data import Dataset
 from transformers import Trainer, TrainingArguments, EarlyStoppingCallback
-from monai.transforms import Compose, LoadImaged, ScaleIntensityRanged, SpatialPadd, CenterSpatialCropd, Transposed, EnsureChannelFirstd
+from monai.transforms import Compose, LoadImaged, ScaleIntensityRanged, SpatialPadd, CenterSpatialCropd, Transposed, EnsureChannelFirstd,  Resized, EnsureTyped
 import traceback
 
 # Path setup
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
+    sys.path.insert(0, os.path.join(parent_dir, "../"))
+    sys.path.append(parent_dir)
 
 from medical_vlm import MedicalVLM
 import wandb
 
 logger = logging.getLogger(__name__)
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1" # Moved to main()
-os.environ["WANDB_PROJECT"] = "thesis"
+os.environ["WANDB_PROJECT"] = os.getenv("WANDB_PROJECT", "thesis")
 os.environ["NCCL_P2P_DISABLE"] = "1"
 os.environ["NCCL_IB_DISABLE"] = "1"
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
@@ -59,8 +60,22 @@ def build_transforms():
         Transposed(keys=['image', 'mask'], indices=(0, 3, 2, 1)),
         ScaleIntensityRanged(keys=['image'], a_min=-1150, a_max=350, b_min=0.0, b_max=1.0, clip=True),
         SpatialPadd(keys=['image', 'mask'], spatial_size=(112, 256, 352), mode='constant', constant_values=0),
-        CenterSpatialCropd(keys=['image', 'mask'], roi_size=(112, 256, 352)),
+        # V3 Update: Use Resizing instead of Cropping to preserve all organs
+        Resized(keys=['image', 'mask'], spatial_size=(112, 256, 352), mode=['trilinear', 'nearest']),
+        EnsureTyped(keys=['image', 'mask']),
     ])
+
+
+NO_FINDING_TEMPLATES = [
+    "No significant findings in the {organ}.",
+    "The {organ} is unremarkable.",
+    "No abnormalities detected in the {organ}.",
+    "Normal limits for the {organ}.",
+    "No pathology in the {organ}.",
+    "No acute findings in the {organ}.",
+    "The {organ} appears normal.",
+    "Clear {organ}."
+]
 
 @dataclass
 class OrganCollator:
@@ -87,6 +102,7 @@ class OrganCollator:
 
 class OnePassOrganDataset(Dataset):
     def __init__(self, csv_file, json_file, tokenizer, transform, max_length=128, subset_size=None, split='training'):
+        self.split = split
         self.df = pd.read_csv(csv_file)
         self.df = self.df[self.df['split'] == split].reset_index(drop=True)
         if subset_size: self.df = self.df.head(subset_size)
@@ -106,6 +122,9 @@ class OnePassOrganDataset(Dataset):
                 print("WARNING: No organ sampling probabilities found for training. Using keep_prob=1.0.")
 
         self.tokenizer = tokenizer
+        # Enforce right padding for correct masking logic
+        self.tokenizer.padding_side = 'right'
+        
         self.transform = transform
         self.max_length = max_length
         self.target_keys = ALL_TARGET_KEYS
@@ -130,6 +149,14 @@ class OnePassOrganDataset(Dataset):
         prompt = f"<start_of_turn>user\nAnalyze the specific image feature. Describe the findings for the {organ_name}.<end_of_turn>\n<start_of_turn>model\n"
         full_text = prompt + findings + "<eos>"
         return full_text, prompt
+
+    @staticmethod
+    def _find_subsequence(sequence, subsequence):
+        max_start = len(sequence) - len(subsequence)
+        for i in range(max_start + 1):
+            if sequence[i:i+len(subsequence)] == subsequence:
+                return i
+        return None
 
     def __getitem__(self, idx):
         row = self.valid_patients[idx]
@@ -164,8 +191,14 @@ class OnePassOrganDataset(Dataset):
                 is_default = False
                 
                 if len(text) < 3: 
-                    # If empty, teach model to say "No findings."
-                    text = "No significant findings." 
+                    # If empty, teach model to say "No findings." or a synonym
+                    if self.split == 'training':
+                        tmpl = random.choice(NO_FINDING_TEMPLATES)
+                        text = tmpl.format(organ=key)
+                    else:
+                        # Use a consistent template for validation to avoid artificial loss spikes
+                        # while still matching the training distribution format.
+                        text = NO_FINDING_TEMPLATES[0].format(organ=key)
                     is_default = True
                 
                 # Balanced Masking Logic
@@ -198,16 +231,36 @@ class OnePassOrganDataset(Dataset):
                 # We only want to calculate loss on the "Response" part
                 labels = input_ids.clone()
                 
-                # Find length of prompt to mask it out
-                prompt_tokens = self.tokenizer(prompt_text, add_special_tokens=False)['input_ids']
-                prompt_len = len(prompt_tokens)
-                
-                # Mask out padding
-                labels[labels == self.tokenizer.pad_token_id] = -100
+                pad_id = self.tokenizer.pad_token_id
+                if pad_id is None:
+                    pad_id = self.tokenizer.eos_token_id
+
+                # Mask padding tokens
+                labels[labels == pad_id] = -100
                 labels[labels == 0] = -100 # Explicitly mask <pad> (id 0) just in case
 
-                # Mask out the prompt (Instruction)
-                labels[:prompt_len] = -100
+                # Tokenize prompt ONLY (no padding)
+                # This ensures we find the exact prompt structure within the full sequence
+                prompt_tokens = self.tokenizer(
+                    prompt_text,
+                    add_special_tokens=True,
+                    padding=False,
+                    truncation=False
+                )['input_ids']
+
+                prompt_len = len(prompt_tokens)
+                input_ids_list = input_ids.tolist()
+
+                # Find prompt location inside padded sequence
+                start_idx = self._find_subsequence(input_ids_list, prompt_tokens)
+
+                if start_idx is None:
+                    # Fallback: only if something VERY strange happens (should never trigger)
+                    # print("WARNING: prompt tokens not found in input_ids. Falling back to prefix masking.")
+                    start_idx = 0
+
+                # Mask prompt region
+                labels[start_idx : start_idx + prompt_len] = -100
 
                 input_ids_stack.append(input_ids)
                 att_stack.append(att_mask)
@@ -233,7 +286,7 @@ def main():
     parser.add_argument('--decoder_model', type=str, default='google/medgemma-4b-it')
     parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/checkpoints/model.pth')
     parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv')
-    parser.add_argument('--json_file', type=str, default='/home/muhammedg/fvlm/data_sym/combined_desc_conc.json')
+    parser.add_argument('--json_file', type=str, default='/home/muhammedg/fvlm/data_sym/combined_desc_conc_v2.json')
     parser.add_argument('--output_dir', type=str, default='./checkpoints/medgemma_vlm')
     parser.add_argument('--batch_size', type=int, default=1) 
     parser.add_argument('--num_epochs', type=int, default=2)

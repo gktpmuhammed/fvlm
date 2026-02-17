@@ -19,7 +19,7 @@ parent_dir = os.path.dirname(current_dir)
 if parent_dir in sys.path: sys.path.remove(parent_dir)
 if current_dir in sys.path: sys.path.remove(current_dir)
 
-sys.path.insert(0, parent_dir)
+sys.path.insert(0, os.path.join(parent_dir, "../"))
 sys.path.insert(0, current_dir)
 
 from medical_vlm import MedicalVLM

@@ -17,14 +17,16 @@ import traceback
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 if parent_dir not in sys.path:
-    sys.path.insert(0, parent_dir)
+    # sys.path.insert(0, parent_dir) # REMOVED
+    sys.path.append(parent_dir)
+    sys.path.insert(0, os.path.join(parent_dir, "../"))
 
 from medical_vlm import MedicalVLM
 import wandb
 
 logger = logging.getLogger(__name__)
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1" # Moved to main()
-os.environ["WANDB_PROJECT"] = "thesis"
+os.environ["WANDB_PROJECT"] = os.getenv("WANDB_PROJECT", "thesis")
 os.environ["NCCL_P2P_DISABLE"] = "1"
 os.environ["NCCL_IB_DISABLE"] = "1"
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
@@ -106,6 +108,8 @@ class OnePassOrganDataset(Dataset):
                 print("WARNING: No organ sampling probabilities found for training. Using keep_prob=1.0.")
 
         self.tokenizer = tokenizer
+        # Enforce right padding for correct masking logic
+        self.tokenizer.padding_side = 'right'
         self.transform = transform
         self.max_length = max_length
         self.target_keys = ALL_TARGET_KEYS
@@ -130,6 +134,14 @@ class OnePassOrganDataset(Dataset):
         prompt = f"<start_of_turn>user\nAnalyze the specific image feature. Describe the findings for the {organ_name}.<end_of_turn>\n<start_of_turn>model\n"
         full_text = prompt + findings + "<eos>"
         return full_text, prompt
+
+    @staticmethod
+    def _find_subsequence(sequence, subsequence):
+        max_start = len(sequence) - len(subsequence)
+        for i in range(max_start + 1):
+            if sequence[i:i+len(subsequence)] == subsequence:
+                return i
+        return None
 
     def __getitem__(self, idx):
         row = self.valid_patients[idx]
@@ -198,16 +210,36 @@ class OnePassOrganDataset(Dataset):
                 # We only want to calculate loss on the "Response" part
                 labels = input_ids.clone()
                 
-                # Find length of prompt to mask it out
-                prompt_tokens = self.tokenizer(prompt_text, add_special_tokens=False)['input_ids']
-                prompt_len = len(prompt_tokens)
-                
-                # Mask out padding
-                labels[labels == self.tokenizer.pad_token_id] = -100
+                pad_id = self.tokenizer.pad_token_id
+                if pad_id is None:
+                    pad_id = self.tokenizer.eos_token_id
+
+                # Mask padding tokens
+                labels[labels == pad_id] = -100
                 labels[labels == 0] = -100 # Explicitly mask <pad> (id 0) just in case
 
-                # Mask out the prompt (Instruction)
-                labels[:prompt_len] = -100
+                # Tokenize prompt ONLY (no padding)
+                # This ensures we find the exact prompt structure within the full sequence
+                prompt_tokens = self.tokenizer(
+                    prompt_text,
+                    add_special_tokens=True,
+                    padding=False,
+                    truncation=False
+                )['input_ids']
+
+                prompt_len = len(prompt_tokens)
+                input_ids_list = input_ids.tolist()
+
+                # Find prompt location inside padded sequence
+                start_idx = self._find_subsequence(input_ids_list, prompt_tokens)
+
+                if start_idx is None:
+                    # Fallback: only if something VERY strange happens (should never trigger)
+                    # print("WARNING: prompt tokens not found in input_ids. Falling back to prefix masking.")
+                    start_idx = 0
+
+                # Mask prompt region
+                labels[start_idx : start_idx + prompt_len] = -100
 
                 input_ids_stack.append(input_ids)
                 att_stack.append(att_mask)
@@ -233,8 +265,8 @@ def main():
     parser.add_argument('--decoder_model', type=str, default='google/medgemma-4b-it')
     parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/checkpoints/model.pth')
     parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv')
-    parser.add_argument('--json_file', type=str, default='/home/muhammedg/fvlm/data_sym/combined_desc_conc.json')
-    parser.add_argument('--output_dir', type=str, default='./checkpoints/medgemma_vlm')
+    parser.add_argument('--json_file', type=str, default='../../data_sym/combined_desc_conc_v2.json')
+    parser.add_argument('--output_dir', type=str, default='./checkpoints/retrain_v2')
     parser.add_argument('--batch_size', type=int, default=1) 
     parser.add_argument('--num_epochs', type=int, default=2)
     parser.add_argument('--subset_size', type=int, default=None, help='Train on a small subset for debugging')
