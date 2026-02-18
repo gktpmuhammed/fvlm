@@ -8,7 +8,7 @@ import torch
 from dataclasses import dataclass
 from torch.utils.data import Dataset
 from transformers import Trainer, TrainingArguments, EarlyStoppingCallback
-from monai.transforms import Compose, LoadImaged, ScaleIntensityRanged, SpatialPadd, CenterSpatialCropd, Transposed, EnsureChannelFirstd
+from monai.transforms import Compose, LoadImaged, ScaleIntensityRanged, SpatialPadd, CenterSpatialCropd, Transposed, Resized, EnsureTyped, EnsureChannelFirstd
 import traceback
 
 # Path setup
@@ -66,7 +66,9 @@ def build_transforms():
         Transposed(keys=['image', 'mask'], indices=(0, 3, 2, 1)),
         ScaleIntensityRanged(keys=['image'], a_min=-1150, a_max=350, b_min=0.0, b_max=1.0, clip=True),
         SpatialPadd(keys=['image', 'mask'], spatial_size=(112, 256, 352), mode='constant', constant_values=0),
-        CenterSpatialCropd(keys=['image', 'mask'], roi_size=(112, 256, 352)),
+        # V3 Update: Use Resizing instead of Cropping to preserve all organs
+        Resized(keys=['image', 'mask'], spatial_size=(112, 256, 352), mode=['trilinear', 'nearest']),
+        EnsureTyped(keys=['image', 'mask']),
     ])
 
 @dataclass
