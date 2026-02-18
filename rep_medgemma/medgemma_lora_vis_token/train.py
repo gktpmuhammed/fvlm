@@ -174,7 +174,6 @@ class OnePassOrganDataset(Dataset):
                 # 2. Text
                 text = patient_data.get(key, "").strip()
                 if len(text) < 3: 
-                if len(text) < 3: 
                     # If empty, teach model to say "No findings." or a synonym
                     if self.split == 'training':
                         tmpl = random.choice(NO_FINDING_TEMPLATES)

@@ -5,7 +5,7 @@
 source ~/miniconda3/etc/profile.d/conda.sh
 
 # Global WandB Settings
-export WANDB_PROJECT="thesis_retrain_v2"
+export WANDB_PROJECT="thesis_retrain_v3"
 
 
 # Function to run a full pipeline for a model
@@ -37,6 +37,7 @@ run_pipeline() {
     CUDA_VISIBLE_DEVICES=$GPU_ID python evaluate.py \
         --queries_per_organ $QUERIES \
         --batch_size 1 \
+        --checkpoint_dir "../checkpoints_retrain/$MODEL_DIR/final" \
         --output_dir "../results_retrain/$MODEL_DIR" \
         > eval.log 2>&1
         
@@ -74,19 +75,18 @@ run_pipeline() {
 run_gpu0() {
     # 1 Query Models
     run_pipeline "medgemma_lora_vis_token_pos_embed" 0 1
-    run_pipeline "lora_with_vis_tokens_pos_embed_undersampling" 0 1
     run_pipeline "lora_with_vis_tokens_pos_embed_weight_loss" 0 1
+    run_pipeline "lora_with_vis_tokens_pos_embed_undersampling" 0 1
     
     # 8 Query Models
-    run_pipeline "medgemma_alignment_v1" 0 8
+    
 }
 
 # GPU 1 List (8 Query Models)
 run_gpu1() {
-    run_pipeline "medgemma_architecture_v3" 1 8
-    run_pipeline "medgemma_architecture_v3_resized" 1 8
-    run_pipeline "medgemma_architecture_v3_resized_synonyms" 1 8
     run_pipeline "medical_vlm_8_tokens_full" 1 8
+    run_pipeline "medgemma_alignment_v1" 0 8
+    run_pipeline "medgemma_architecture_v3" 1 8
 }
 
 # Start Parallel Execution
