@@ -9,8 +9,21 @@ import torch
 from dataclasses import dataclass
 from torch.utils.data import Dataset
 from transformers import Trainer, TrainingArguments, EarlyStoppingCallback
+import random
 from monai.transforms import Compose, LoadImaged, ScaleIntensityRanged, SpatialPadd, CenterSpatialCropd, Transposed, Resized, EnsureTyped, EnsureChannelFirstd
 import traceback
+
+
+NO_FINDING_TEMPLATES = [
+    "No significant findings in the {organ}.",
+    "The {organ} is unremarkable.",
+    "No abnormalities detected in the {organ}.",
+    "Normal limits for the {organ}.",
+    "No pathology in the {organ}.",
+    "No acute findings in the {organ}.",
+    "The {organ} appears normal.",
+    "Clear {organ}."
+]
 
 # Path setup
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -90,6 +103,7 @@ class OrganCollator:
 
 class OnePassOrganDataset(Dataset):
     def __init__(self, csv_file, json_file, tokenizer, transform, max_length=128, subset_size=None, split='training'):
+        self.split = split
         self.df = pd.read_csv(csv_file)
         self.df = self.df[self.df['split'] == split].reset_index(drop=True)
         if subset_size: self.df = self.df.head(subset_size)
@@ -177,8 +191,14 @@ class OnePassOrganDataset(Dataset):
                 is_default = False
                 
                 if len(text) < 3: 
-                    # If empty, teach model to say "No findings."
-                    text = "No significant findings." 
+                    # If empty, teach model to say "No findings." or a synonym
+                    if self.split == 'training':
+                        tmpl = random.choice(NO_FINDING_TEMPLATES)
+                        text = tmpl.format(organ=key)
+                    else:
+                        # Use a consistent template for validation to avoid artificial loss spikes
+                        # while still matching the training distribution format.
+                        text = NO_FINDING_TEMPLATES[0].format(organ=key)
                     is_default = True
                 
                 # Get Weight
