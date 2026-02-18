@@ -288,7 +288,7 @@ def main():
     parser.add_argument('--batch_size', type=int, default=1) 
     parser.add_argument('--num_epochs', type=int, default=2)
     parser.add_argument('--subset_size', type=int, default=None, help='Train on a small subset for debugging')
-    parser.add_argument('--eval_steps', type=int, default=10)
+    parser.add_argument('--eval_steps', type=int, default=200)
     parser.add_argument('--logging_steps', type=int, default=10)
     args = parser.parse_args()
     
