@@ -73,20 +73,22 @@ run_pipeline() {
 
 # GPU 0 List (1 Query Models + others)
 run_gpu0() {
-    # 1 Query Models
-    run_pipeline "medgemma_lora_vis_token_pos_embed" 0 1
-    run_pipeline "lora_with_vis_tokens_pos_embed_weight_loss" 0 1
-    run_pipeline "lora_with_vis_tokens_pos_embed_undersampling" 0 1
-    
-    # 8 Query Models
-    
+    # # 1 Query Models
+    # run_pipeline "medgemma_lora_vis_token_pos_embed" 0 1
+    # run_pipeline "lora_with_vis_tokens_pos_embed_weight_loss" 0 1
+    # run_pipeline "lora_with_vis_tokens_pos_embed_undersampling" 0 1
+    # run_pipeline "curriculum_learning" 0 8
+    run_pipeline "hard_example_mining" 0 8
 }
 
 # GPU 1 List (8 Query Models)
 run_gpu1() {
-    run_pipeline "medical_vlm_8_tokens_full" 1 8
-    run_pipeline "medgemma_alignment_v1" 0 8
-    run_pipeline "medgemma_architecture_v3" 1 8
+    # run_pipeline "medical_vlm_8_tokens_full" 1 8
+    # run_pipeline "medgemma_alignment_v1" 1 8
+    # run_pipeline "medgemma_architecture_v3" 1 8
+    # run_pipeline "medical_vlm_8_tokens_full_maxpool" 1 8
+    # run_pipeline "multiscale_vit_fpn" 1 8
+    run_pipeline "perceiver_resampler" 1 8
 }
 
 # Start Parallel Execution
