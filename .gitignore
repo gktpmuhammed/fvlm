@@ -28,7 +28,6 @@ report_generations/
 outputs/
 checkpoints/
 checkpoints_retrain/
-results_retrain/
 blip2_official_full/
 blip2_official_full_512_length/
 rep_blip2_official/lr_1e-5/
