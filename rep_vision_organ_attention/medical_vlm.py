@@ -1,7 +1,7 @@
 """
 Unified Medical Vision-Language Model
 Feature: "One-Pass" ROI Pooling for Multi-Organ Generation
-Optimization: Dynamic Batching (Filters empty organs to speed up training)
+Architecture: 8 Visual Tokens per Organ (Matching MedGemma V3)
 """
 import sys
 import os
@@ -28,18 +28,19 @@ if parent_dir not in sys.path:
 class Attentive_ROI_Wrapper(nn.Module):
     """
     ViT -> Masked Cross-Attention -> Decoder
+    Supports multiple queries per organ (e.g., 8 tokens/organ = 96 total).
     """
     def __init__(self, vit_model, config, num_organs=12):
         super().__init__()
         self.vit = vit_model
         self.config = config
         self.hidden_size = config.hidden_size
+        self.num_organs = num_organs
         
         # Required by Hugging Face VisionEncoderDecoderModel
         self.main_input_name = "pixel_values"
         
-        # 1. Learnable Queries (The "Interviewer" for each organ)
-        # Updated to 12 based on the refined list
+        # 1. Learnable Queries (Will be resized by MedicalVLM.__init__ if queries_per_organ > 1)
         self.organ_queries = nn.Parameter(torch.randn(num_organs, self.hidden_size))
         
         # 2. Cross Attention Layer
@@ -74,11 +75,17 @@ class Attentive_ROI_Wrapper(nn.Module):
             # organ_masks: (Batch, N_organs, D, H, W)
             B, N_organs, D_m, H_m, W_m = organ_masks.shape
             
+            # --- EXPAND MASKS FOR MULTI-TOKEN (Q tokens per organ) ---
+            queries_per_organ = self.organ_queries.shape[0] // N_organs
+            organ_masks = organ_masks.repeat_interleave(queries_per_organ, dim=1)
+            
             # --- A. Prepare the Mask for Attention ---
             f_d, f_h, f_w = 7, 16, 11 
-            flat_masks = organ_masks.view(B * N_organs, 1, D_m, H_m, W_m)
-            masks_down = F.interpolate(flat_masks, size=(f_d, f_h, f_w), mode='area')
-            masks_flat = masks_down.view(B, N_organs, -1)
+            flat_masks = organ_masks.view(B * organ_masks.shape[1], 1, D_m, H_m, W_m)
+            
+            # Use MaxPool to preserve ANY organ presence in the patch (matches MedGemma V3)
+            masks_down = F.adaptive_max_pool3d(flat_masks, output_size=(f_d, f_h, f_w))
+            masks_flat = masks_down.view(B, organ_masks.shape[1], -1)
             
             # --- SAFEGUARD: Prevent NaNs from empty masks ---
             attn_bias = torch.zeros_like(masks_flat)
@@ -104,9 +111,11 @@ class Attentive_ROI_Wrapper(nn.Module):
                 attn_mask=attn_bias
             )
             
-            # --- D. Flatten for Decoder ---
+            # --- D. Reshape for Decoder ---
             organ_embeddings = self.layer_norm(organ_embeddings)
-            final_embeddings = organ_embeddings.view(B * N_organs, 1, -1)
+            # (B, total_tokens, D) -> (B, 12, Q, D) -> (B*12, Q, D)
+            final_embeddings = organ_embeddings.view(B, N_organs, queries_per_organ, -1)
+            final_embeddings = final_embeddings.view(B * N_organs, queries_per_organ, -1)
             
             return BaseModelOutput(last_hidden_state=final_embeddings)
 
@@ -120,11 +129,15 @@ class MedicalVLM(nn.Module):
         decoder_model_name="gpt2", 
         image_size=(112, 256, 352),
         patch_size=(16, 16, 32),
-        bert_model_path="/home/muhammedg/fvlm/BiomedVLP-CXR-BERT-specialized",
+        queries_per_organ=8,
         **kwargs 
     ):
         super().__init__()
         
+        self.queries_per_organ = queries_per_organ
+        self.num_organs = 12
+        self.total_visual_tokens = self.num_organs * self.queries_per_organ
+
         # 1. SETUP ENCODER (3D ViT)
         hidden_size = 768 
         encoder_config = ViTConfig(
@@ -156,20 +169,35 @@ class MedicalVLM(nn.Module):
 
         # 2. WRAP ENCODER (ROI Attention)
         wrapped_encoder = Attentive_ROI_Wrapper(vision_encoder, encoder_config, num_organs=12)
+        
+        # RESIZE QUERIES for multi-token: 12 -> 96
+        wrapped_encoder.organ_queries = nn.Parameter(
+            torch.randn(self.total_visual_tokens, encoder_config.hidden_size)
+        )
+        nn.init.normal_(wrapped_encoder.organ_queries, std=0.02)
 
-        # 3. SETUP DECODER
+        # 3. SETUP DECODER (Supports GPT-2, BART, and similar models)
         self.tokenizer = AutoTokenizer.from_pretrained(decoder_model_name)
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
         decoder_config = AutoConfig.from_pretrained(decoder_model_name)
         decoder_config.is_decoder = True
-        decoder_config.add_cross_attention = True 
+        # Only set add_cross_attention if the model needs it (GPT-2 does, BART already has it)
+        if not getattr(decoder_config, 'add_cross_attention', False):
+            decoder_config.add_cross_attention = True 
         decoder = AutoModelForCausalLM.from_pretrained(decoder_model_name, config=decoder_config)
 
-        # Surgical Freezing
+        # Surgical Freezing: Freeze everything, then unfreeze cross-attention + norms + head
         for param in decoder.parameters(): param.requires_grad = False
-        keywords = ["crossattention", "ln_", "layer_norm", "lm_head", "output_projection"]
+        # Keywords cover both GPT-2 and BART layer naming conventions:
+        #   GPT-2: crossattention, ln_1, ln_2, lm_head
+        #   BART:  encoder_attn, layer_norm, final_layer_norm, lm_head, output_projection
+        keywords = [
+            "crossattention", "encoder_attn",   # Cross-attention layers
+            "ln_", "layer_norm", "final_layer_norm",  # Normalization layers
+            "lm_head", "output_projection"       # Output head
+        ]
         for name, param in decoder.named_parameters():
             if any(k in name for k in keywords):
                 param.requires_grad = True
@@ -185,103 +213,156 @@ class MedicalVLM(nn.Module):
         self.model.config.pad_token_id = self.tokenizer.pad_token_id
         self.model.config.vocab_size = self.tokenizer.vocab_size
 
-        # ### NEW: Load CXR-BERT Teacher (If path provided)
-        if bert_model_path and os.path.exists(bert_model_path):
-            print(f"  Loading CXR-BERT Teacher from: {bert_model_path}")
-            self.bert_tokenizer = AutoTokenizer.from_pretrained(bert_model_path, trust_remote_code=True)
-            self.bert_model = AutoModel.from_pretrained(bert_model_path, trust_remote_code=True)
-            
-            # Freeze BERT (Teacher only)
-            for param in self.bert_model.parameters():
-                param.requires_grad = False
-            
-            # Projection Layer: ViT (768) -> BERT Hidden Size (usually 128 or 768)
-            # We assume CXR-BERT-specialized uses 128 dim projection in original paper, 
-            # but the raw HuggingFace model usually outputs 768. 
-            # We project to match the BERT hidden size.
-            bert_dim = self.bert_model.config.hidden_size
-            self.visual_projection = nn.Linear(768, bert_dim)
-        else:
-            print("  No BERT path provided or path invalid. Semantic Loss disabled.")
-            self.bert_model = None
-
-    # Semantic Loss Calculation Helper
-    def get_semantic_loss(self, visual_features, label_ids):
+        # Self-Alignment Projection: ViT (768) -> Decoder Hidden Size
+        # Auto-detect hidden size across architectures (GPT-2: n_embd, BART: d_model)
+        self.llm_hidden_size = getattr(decoder_config, 'n_embd', None) or \
+                               getattr(decoder_config, 'd_model', None) or \
+                               getattr(decoder_config, 'hidden_size', 768)
+        self.visual_projection = nn.Linear(hidden_size, self.llm_hidden_size)
+        
+        print(f"Model Summary:")
+        print(f"  Vision Encoder: Trainable (ROI Masked, {self.queries_per_organ} tokens/organ)")
+        print(f"  Decoder: {decoder_model_name} (Partially Frozen)")
+    
+    # InfoNCE Alignment Loss (Same as MedGemma V3)
+    def compute_alignment_loss(self, visual_embeds, input_ids, labels=None, temperature=0.07):
         """
-        visual_features: (Batch * N_Organs, Hidden_Size)
-        label_ids: (Batch * N_Organs, Seq_Len)
+        Computes Image-Text Contrastive (ITC) Loss using GPT-2's own embeddings.
+        visual_embeds: (B*12, Q, D) where Q = queries_per_organ
         """
-        device = visual_features.device
+        device = visual_embeds.device
         
-        # 1. Decode Labels to Text (Batch Decode)
-        # We replace -100 with pad_token_id to decode correctly
-        clean_labels = label_ids.clone()
-        clean_labels[clean_labels == -100] = self.tokenizer.pad_token_id
+        # 1. Get Visual Representation: Average over Q tokens -> (B*12, D)
+        vis_rep = visual_embeds.mean(dim=1) 
         
-        decoded_texts = self.tokenizer.batch_decode(clean_labels, skip_special_tokens=True)
-        
-        # Filter out empty strings (missing organs) to avoid BERT errors
-        # Create a mask for valid texts
-        valid_indices = [i for i, t in enumerate(decoded_texts) if len(t.strip()) > 3]
-        if not valid_indices:
-            return torch.tensor(0.0, device=device)
-            
-        valid_texts = [decoded_texts[i] for i in valid_indices]
-        valid_visuals = visual_features[valid_indices]
-        
-        # 2. Get Text Embeddings from BERT
+        # 2. Get Text Representation: Avg Pool the text tokens -> (B*12, D)
         with torch.no_grad():
-            inputs = self.bert_tokenizer(
-                valid_texts, padding=True, truncation=True, max_length=128, return_tensors="pt"
-            ).to(device)
-            bert_outputs = self.bert_model(**inputs)
-            # Use [CLS] token (index 0)
-            text_embeds = bert_outputs.last_hidden_state[:, 0, :]
-            
-        # 3. Project Visual Embeddings
-        vis_proj = self.visual_projection(valid_visuals)
+             text_embeds = self.model.decoder.get_input_embeddings()(input_ids)
         
-        # 4. Normalize
-        vis_norm = F.normalize(vis_proj, dim=-1)
-        text_norm = F.normalize(text_embeds, dim=-1)
-        
-        # 5. Cosine Similarity Loss (Maximize similarity -> Minimize 1 - Sim)
-        similarity = (vis_norm * text_norm).sum(dim=-1)
-        loss = 1.0 - similarity.mean()
-        
-        return loss
+        # Mask out padding/prompt for averaging
+        if labels is not None:
+             text_mask = (labels != -100).float().unsqueeze(-1)
+        else:
+             text_mask = (input_ids != self.tokenizer.pad_token_id).float().unsqueeze(-1)
 
-    # Forward to include Semantic Loss
-    def forward(self, pixel_values, organ_masks=None, labels=None, **kwargs):
-        # 1. Run Encoder explicitly to get embeddings
+        text_sum = (text_embeds * text_mask).sum(dim=1)
+        text_count = text_mask.sum(dim=1).clamp(min=1e-8)
+        text_rep = text_sum / text_count
+        
+        # 3. Normalize
+        vis_rep = F.normalize(vis_rep, dim=-1)
+        text_rep = F.normalize(text_rep, dim=-1)
+        
+        # 4. InfoNCE Loss (Per-patient contrastive over 12 organs)
+        B_N, D = vis_rep.shape
+        num_organs = self.num_organs
+        B = B_N // num_organs
+        
+        vis_rep = vis_rep.view(B, num_organs, D)
+        text_rep = text_rep.view(B, num_organs, D)
+        
+        total_loss = 0
+        loss_fct = nn.CrossEntropyLoss()
+        
+        for i in range(B):
+            v = vis_rep[i]
+            t = text_rep[i]
+            logits = torch.matmul(v, t.T) / temperature
+            labels_idx = torch.arange(num_organs, device=logits.device)
+            total_loss += loss_fct(logits, labels_idx)
+            
+        return total_loss / B
+
+    # Forward with Sample Weights and InfoNCE Alignment Loss
+    def forward(self, pixel_values, organ_masks=None, labels=None, sample_weights=None, **kwargs):
+        # Strip kwargs that Trainer injects but VisionEncoderDecoderModel doesn't accept
+        kwargs.pop('num_items_in_batch', None)
+        
+        # 1. Run Encoder
         encoder_outputs = self.model.encoder(pixel_values=pixel_values, organ_masks=organ_masks)
         
-        flat_labels = None
         if labels is not None:
             B, N_organs, Seq_Len = labels.shape
             flat_labels = labels.view(B * N_organs, Seq_Len)
             
-        # 2. Run Decoder (Standard generation loss)
-        outputs = self.model(
-            encoder_outputs=encoder_outputs,
-            labels=flat_labels, 
-            return_dict=True, 
-            **kwargs
-        )
-        
-        # 3. Add Semantic Loss if BERT is loaded and we are training
-        if labels is not None and self.bert_model is not None and self.training:
-            # encoder_outputs.last_hidden_state is (Batch * N, 1, 768)
-            # Squeeze to (Batch * N, 768)
-            vis_feats = encoder_outputs.last_hidden_state.squeeze(1)
+            # Reconstruct input_ids for alignment loss
+            flat_input_ids = flat_labels.clone()
+            flat_input_ids[flat_input_ids == -100] = self.tokenizer.pad_token_id
+
+            if sample_weights is not None:
+                # --- Manual Loss Computation with Sample Weights ---
+                flat_weights = sample_weights.view(B * N_organs)
+                
+                # Create decoder_input_ids (shift right)
+                decoder_start_id = self.model.config.decoder_start_token_id
+                decoder_input_ids = flat_labels.new_zeros(flat_labels.shape)
+                decoder_input_ids[:, 1:] = flat_labels[:, :-1].clone()
+                decoder_input_ids[:, 0] = decoder_start_id
+                decoder_input_ids.masked_fill_(decoder_input_ids == -100, self.tokenizer.pad_token_id)
+                
+                # Forward without internal loss (get logits only)
+                outputs = self.model(
+                    encoder_outputs=encoder_outputs,
+                    decoder_input_ids=decoder_input_ids,
+                    labels=None,
+                    return_dict=True,
+                    **kwargs
+                )
+                
+                logits = outputs.logits
+                
+                # Shift for loss computation
+                shift_logits = logits[..., :-1, :].contiguous()
+                shift_labels = flat_labels[..., 1:].contiguous()
+                
+                # Per-token loss
+                loss_fct = torch.nn.CrossEntropyLoss(reduction='none', ignore_index=-100)
+                token_losses = loss_fct(
+                    shift_logits.view(-1, shift_logits.size(-1)),
+                    shift_labels.view(-1)
+                ).view(B * N_organs, -1)
+                
+                # Per-sample loss
+                non_pad_mask = (shift_labels != -100).float()
+                sample_loss = (token_losses * non_pad_mask).sum(dim=1) / (non_pad_mask.sum(dim=1) + 1e-8)
+                
+                # Apply weights
+                flat_weights = flat_weights.to(sample_loss.device)
+                sample_loss = sample_loss * flat_weights
+                
+                lm_loss = sample_loss.mean()
+            else:
+                # Standard loss (no weighting) - let HF compute it
+                outputs = self.model(
+                    encoder_outputs=encoder_outputs,
+                    labels=flat_labels,
+                    return_dict=True,
+                    **kwargs
+                )
+                lm_loss = outputs.loss
             
-            sem_loss = self.get_semantic_loss(vis_feats, flat_labels)
+            # 3. Add Alignment Loss during training
+            if self.training:
+                vis_feats = encoder_outputs.last_hidden_state  # (B*12, Q, 768)
+                vis_embeds = self.visual_projection(vis_feats)
+                align_loss = self.compute_alignment_loss(vis_embeds, flat_input_ids, labels=flat_labels)
+                lm_loss = lm_loss + align_loss
             
-            # Combine Losses (Weight semantic loss)
-            # 0.5 is a conservative weight; can be increased to 1.0 if hallucinations persist
-            outputs.loss += (0.5 * sem_loss)
-            
-        return outputs
+            # Return a clean output with loss
+            from transformers.modeling_outputs import Seq2SeqLMOutput
+            return Seq2SeqLMOutput(
+                loss=lm_loss,
+                logits=outputs.logits,
+                encoder_last_hidden_state=encoder_outputs.last_hidden_state,
+            )
+        else:
+            # Inference (no labels)
+            outputs = self.model(
+                encoder_outputs=encoder_outputs,
+                return_dict=True,
+                **kwargs
+            )
+            return outputs
 
     def generate(self, pixel_values, organ_masks=None, input_ids=None, attention_mask=None, **kwargs):
         encoder_outputs = self.model.encoder(pixel_values=pixel_values, organ_masks=organ_masks)
@@ -292,6 +373,10 @@ class MedicalVLM(nn.Module):
             decoder_attention_mask=attention_mask,
             **kwargs
         )
+
+    def gradient_checkpointing_enable(self, gradient_checkpointing_kwargs=None):
+        """Enable gradient checkpointing on the decoder."""
+        self.model.gradient_checkpointing_enable(gradient_checkpointing_kwargs=gradient_checkpointing_kwargs)
 
     def save_pretrained(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)

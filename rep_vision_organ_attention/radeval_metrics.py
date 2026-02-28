@@ -11,7 +11,9 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from collections import defaultdict
+import json
 
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 # NLTK Setup for fallback metrics
 import nltk
 try:
@@ -27,6 +29,79 @@ from nltk.translate.meteor_score import meteor_score
 
 # Import RadEval
 from RadEval import RadEval
+
+# --- MONKEYPATCH FIXED FOR RADEVAL GREEN METRIC ---
+# The GREEN metric's clustering utils can fail when n_samples is small (e.g., <= 5)
+# because of edge cases in silhouette_score (requires 2 <= n_labels <= n_samples - 1).
+# Using batch_size=32 triggers this often as we cluster per-batch error sentences.
+# We fully reimplement the binary search to be robust.
+
+try:
+    import RadEval.factual.green_score.utils as green_utils
+    from sklearn.cluster import KMeans
+    from sklearn.metrics import silhouette_score
+    import warnings
+
+    def _robust_binary_search_optimal_kmeans(data, min_k, max_k):
+        # 1. Cap max_k based on data size
+        n_samples = len(data)
+        if max_k >= n_samples:
+            max_k = n_samples - 1
+            
+        best_k = min_k
+        best_score = -1.0
+        # Default fallback: 1 cluster
+        best_kmeans = KMeans(n_clusters=1, random_state=42).fit(data)
+
+        while min_k <= max_k:
+            mid_k = (min_k + max_k) // 2
+            
+            # Needs at least 2 clusters for silhouette_score
+            if mid_k < 2:
+                # If we are forced below 2, we can't find a better 'score', stop.
+                break
+
+            try:
+                # Suppress convergence warnings for small data
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    kmeans = KMeans(n_clusters=mid_k, random_state=42).fit(data)
+                
+                labels = kmeans.labels_
+                
+                # Check effectively used labels
+                n_labels = len(set(labels))
+                if n_labels < 2 or n_labels >= n_samples:
+                    # Invalid for silhouette_score
+                    # Try searching for fewer clusters
+                    max_k = mid_k - 1
+                    continue
+
+                score = silhouette_score(data, labels)
+
+                if score > best_score:
+                    best_score = score
+                    best_k = mid_k
+                    best_kmeans = kmeans
+                    min_k = mid_k + 1
+                else:
+                    max_k = mid_k - 1
+                    
+            except Exception:
+                # If anything goes wrong (e.g. ValueError), treat as invalid k
+                max_k = mid_k - 1
+
+        return best_kmeans
+
+    print("   ! Applying Robust Monkeypatch to RadEval.factual.green_score.utils.binary_search_optimal_kmeans")
+    green_utils.binary_search_optimal_kmeans = _robust_binary_search_optimal_kmeans
+
+except ImportError:
+    print("   ! Warning: Could not import RadEval items for patching.")
+except Exception as e:
+    print(f"   ! Warning: Failed to apply RadEval monkeypatch: {e}")
+
+# --------------------------------------------------
 
 # --- CONFIGURATION ---
 
@@ -102,12 +177,6 @@ def calculate_meteor_fallback(predictions, references):
         print(f"   ! METEOR fallback error: {e}")
         return 0.0
 
-def calculate_accuracy_fallback(predictions, references):
-    """Exact match accuracy - FALLBACK."""
-    matches = sum(1 for p, r in zip(predictions, references) 
-                  if p.strip().lower() == r.strip().lower())
-    return matches / len(predictions) if len(predictions) > 0 else 0.0
-
 # --- RADEVAL INTEGRATION ---
 
 def run_radeval_metrics(predictions, references, metrics_config):
@@ -125,23 +194,67 @@ def run_radeval_metrics(predictions, references, metrics_config):
     if not predictions:
         return {}
     
-    print(f"     > Running RadEval with {sum(metrics_config.values())} metrics...")
+    BATCH_SIZE = 32
+    num_samples = len(predictions)
+    print(f"     > Running RadEval with {sum(metrics_config.values())} metrics on {num_samples} samples (Batch Size: {BATCH_SIZE})...")
     
     try:
         # Initialize RadEval with selected metrics
         evaluator = RadEval(**metrics_config)
         
-        # RadEval expects (references, predictions) order
-        results = evaluator(references, predictions)
+        aggregated_scores = defaultdict(float)
+        total_counts = defaultdict(int) 
+        
+        # Helper to extract scalar from result value (which might be dict)
+        def get_scalar(val):
+            if isinstance(val, (int, float)): return float(val)
+            if isinstance(val, dict):
+                # Prioritize standard keys
+                for k in ['f1', 'score', 'micro avg_f1-score']:
+                    if k in val: return float(val[k])
+                # Fallback: first value
+                return float(list(val.values())[0])
+            return 0.0
+
+        for i in range(0, num_samples, BATCH_SIZE):
+            batch_preds = predictions[i : i + BATCH_SIZE]
+            batch_refs = references[i : i + BATCH_SIZE]
+            current_batch_size = len(batch_preds)
+            
+            print(f"       Batch {i//BATCH_SIZE + 1}/{(num_samples + BATCH_SIZE - 1)//BATCH_SIZE}...")
+            
+            # RadEval expects (references, predictions) order
+            batch_results = evaluator(batch_refs, batch_preds)
+            
+            # extract_radeval_scores usually normalizes logic, but we do it here for aggregation
+            # We must aggregate the raw keys returned by RadEval
+            for key, val in batch_results.items():
+                scalar = get_scalar(val)
+                # Weighted sum
+                aggregated_scores[key] += scalar * current_batch_size
+                total_counts[key] += current_batch_size
+            
+            free_memory()
+
+        # Compute averages
+        final_results = {}
+        for key, total_score in aggregated_scores.items():
+            count = total_counts[key]
+            if count > 0:
+                final_results[key] = total_score / count
+            else:
+                final_results[key] = 0.0
         
         # Clean up evaluator
         del evaluator
         free_memory()
         
-        return results
+        return final_results
         
     except Exception as e:
         print(f"   ! RadEval error: {e}")
+        import traceback
+        traceback.print_exc()
         return {}
 
 def extract_radeval_scores(radeval_results):
@@ -189,11 +302,16 @@ def extract_radeval_scores(radeval_results):
 
 def evaluate_metrics_sequentially(args):
     # 1. Load Data
-    print(f"Loading data from {args.input_csv}...")
+    print(f"Loading generated reports from {args.input_csv}...")
     df = pd.read_csv(args.input_csv)
     df['pred'] = df['prediction'].fillna("").astype(str)
-    df['ref'] = df['reference'].fillna("").astype(str)
+    # df['ref'] is no longer the primary source of truth, we use the JSON.
     
+    # Load Ground Truth JSON
+    print(f"Loading ground truth from {args.ground_truth_json}...")
+    with open(args.ground_truth_json, 'r') as f:
+        ground_truth_data = json.load(f)
+
     # Optional Subset
     if args.subset and len(df) > args.subset:
         print(f"⚠️  SUBSET MODE: Using random {args.subset} samples.")
@@ -202,23 +320,75 @@ def evaluate_metrics_sequentially(args):
     # 2. Organize Data
     data_buckets = defaultdict(lambda: {'preds': [], 'refs': []})
     
-    print("Parsing reports...")
+    print("Parsing reports and matching with ground truth...")
     for _, row in df.iterrows():
-        p_text, r_text = row['pred'], row['ref']
+        p_text = row['pred']
+        patient_id = str(row['patient_id'])
         
-        # Global Bucket
-        if len(r_text) > 2:
-            data_buckets['GLOBAL']['preds'].append(p_text)
-            data_buckets['GLOBAL']['refs'].append(r_text)
+        # --- Resolve Patient ID ---
+        # Try exact match first
+        gt_key = None
+        if patient_id in ground_truth_data:
+            gt_key = patient_id
+        else:
+            # Try stripping suffix like _1, _2
+            # e.g. valid_730_a_1 -> valid_730_a
+            base_id = re.sub(r'_\d+$', '', patient_id)
+            if base_id in ground_truth_data:
+                gt_key = base_id
+        
+        if not gt_key:
+            print(f"   ! Warning: No ground truth found for ID {patient_id} (tried {base_id if 'base_id' in locals() else 'N/A'})")
+            continue
             
-        # Organ Buckets
+        gt_record = ground_truth_data[gt_key]
+        
+        # --- Construct Reference Text from JSON & Filter Predictions ---
+        # Strategy: Iterate ALL_ORGANS. 
+        # If in JSON -> Add to global list, add to organ bucket.
+        # If NOT in JSON -> SKIP entirely (avoids metric inflation).
+        
+        global_ref_parts = []
+        global_pred_parts = []
+        
         p_parts = extract_organ_sections(p_text)
-        r_parts = extract_organ_sections(r_text)
         
         for organ in ALL_ORGANS:
-            if len(r_parts[organ]) > 2:
-                data_buckets[organ]['preds'].append(p_parts[organ])
-                data_buckets[organ]['refs'].append(r_parts[organ])
+            organ_key = organ.lower()
+            
+            # --- CRITICAL CHANGE: Only process if present in Ground Truth ---
+            if organ_key in gt_record:
+                # 1. Get Reference
+                r_content = gt_record[organ_key]
+                r_content = normalize_text(r_content)
+                
+                # 2. Get Prediction (for this specific organ)
+                p_content = p_parts.get(organ, "")
+                p_content = normalize_text(p_content)
+                
+                # 3. Add to Organ Bucket
+                data_buckets[organ]['preds'].append(p_content)
+                data_buckets[organ]['refs'].append(r_content)
+                
+                # 4. Add to Global Construction
+                # We rebuild the global strings to only contain the relevant organs
+                if r_content:
+                    global_ref_parts.append(f"{organ}: {r_content}")
+                if p_content:
+                    global_pred_parts.append(f"{organ}: {p_content}")
+
+        # Join global parts
+        # If no organs were found for this patient, we might end up with empty strings.
+        # That's acceptable, they will be empty in both or have minor mismatches.
+        if global_ref_parts:
+            r_text_constructed = " ".join(global_ref_parts)
+            # For prediction, we can either use the original full text OR the filtered constructed text.
+            # Using filtered text is fairer if we are strictly ignoring other organs.
+            # Let's use the filtered prediction to match the filtered reference.
+            p_text_constructed = " ".join(global_pred_parts)
+            
+            data_buckets['GLOBAL']['preds'].append(p_text_constructed)
+            data_buckets['GLOBAL']['refs'].append(r_text_constructed)
 
     final_results = defaultdict(dict)
     
@@ -250,7 +420,7 @@ def evaluate_metrics_sequentially(args):
     print(f"{'='*60}")
     print("RadEval Metrics:", {k: v for k, v in radeval_config.items() if v})
     print("Fallback Metrics:", 
-          [m for m, flag in [('METEOR', run_meteor), ('CIDEr', run_cider), ('ACC', run_accuracy)] if flag])
+          [m for m, flag in [('METEOR', run_meteor), ('CIDEr', run_cider)] if flag])
     print(f"{'='*60}\n")
 
     # 4. Execute Evaluation
@@ -273,7 +443,7 @@ def evaluate_metrics_sequentially(args):
         if any(radeval_config.values()):
             print("\n[1/2] Running RadEval Suite...")
             radeval_results = run_radeval_metrics(preds, refs, radeval_config)
-            
+            print(radeval_results)
             extracted_scores = extract_radeval_scores(radeval_results)
             final_results[key].update(extracted_scores)
             
@@ -296,11 +466,6 @@ def evaluate_metrics_sequentially(args):
             final_results[key]['CIDEr'] = cider
             print(f"     ✓ CIDEr: {cider:.4f}")
         
-        if run_accuracy:
-            acc = calculate_accuracy_fallback(preds, refs)
-            final_results[key]['ACC'] = acc
-            print(f"     ✓ ACC: {acc:.4f}")
-        
         free_memory()
 
     save_results(final_results, args.output_dir)
@@ -316,8 +481,8 @@ def save_results(results_dict, output_dir):
     
     # Define Column Order
     ordered_keys = [
-        'Organ', 'N', 'ACC', 'GREEN', 
-        'BLEU-1', 'BLEU-2', 'BLEU-3', 'BLEU-4', 
+        'Organ', 'N', 'GREEN', 
+        'BLEU-4', 
         'METEOR', 'ROUGE-L', 'CIDEr',
         'BERTScore', 'RadGraph', 'CheXbert', 'RadCliQ',
         'SRR-BERT'
@@ -386,6 +551,8 @@ def save_results(results_dict, output_dir):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Medical Report Evaluation with RadEval Integration")
     parser.add_argument('--input_csv', type=str, required=True, help="Path to generated_reports.csv")
+    parser.add_argument('--ground_truth_json', type=str, default='/home/muhammedg/fvlm/data_sym/combined_desc_conc_v2.json', 
+                        help="Path to ground truth JSON file (default: combined_desc_conc.json)")
     parser.add_argument('--output_dir', type=str, default='./results_metrics', help="Folder to save results")
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'cpu'])
     
@@ -395,8 +562,6 @@ if __name__ == "__main__":
     parser.add_argument('--subset', type=int, default=None, help="Debug: Evaluate only N samples")
     
     args = parser.parse_args()
-
-    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
     
     if os.path.exists(args.input_csv):
         evaluate_metrics_sequentially(args)

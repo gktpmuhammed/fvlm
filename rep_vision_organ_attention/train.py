@@ -10,8 +10,9 @@ import argparse
 import SimpleITK as sitk
 from dataclasses import dataclass
 from torch.utils.data import Dataset
-from transformers import Seq2SeqTrainingArguments, Seq2SeqTrainer, EarlyStoppingCallback
-from monai.transforms import Compose, LoadImaged, ScaleIntensityRanged, SpatialPadd, CenterSpatialCropd, Transposed, EnsureChannelFirstd
+from transformers import Seq2SeqTrainingArguments, Seq2SeqTrainer
+from monai.transforms import Compose, LoadImaged, ScaleIntensityRanged, SpatialPadd, CenterSpatialCropd, Transposed, Resized, EnsureTyped, EnsureChannelFirstd
+import random
 
 # Fix path for lavis
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -23,9 +24,11 @@ from medical_vlm import MedicalVLM
 import wandb
 
 logger = logging.getLogger(__name__)
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-os.environ["WANDB_PROJECT"] = "thesis"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # Allow shell override
+os.environ["WANDB_PROJECT"] = "thesis_retrain_v3"
 os.environ["WANDB_ENTITY"] = "gktp-thesis"
+os.environ["NCCL_P2P_DISABLE"] = "1"
+os.environ["NCCL_IB_DISABLE"] = "1"
 
 # --- CONFIGURATION ---
 
@@ -34,7 +37,18 @@ os.environ["WANDB_ENTITY"] = "gktp-thesis"
 ALL_TARGET_KEYS = [
     'lung', 'heart', 'esophagus', 
     'liver', 'gallbladder', 'stomach', 'pancreas', 'spleen', 'kidney',
-    # 'aorta', 'trachea', 'rib'
+    'aorta', 'trachea', 'rib'
+]
+
+NO_FINDING_TEMPLATES = [
+    "No significant findings in the {organ}.",
+    "The {organ} is unremarkable.",
+    "No abnormalities detected in the {organ}.",
+    "Normal limits for the {organ}.",
+    "No pathology in the {organ}.",
+    "No acute findings in the {organ}.",
+    "The {organ} appears normal.",
+    "Clear {organ}."
 ]
 
 # --- MAPPING LOGIC ---
@@ -65,17 +79,17 @@ class OrganCollator:
         features = [f for f in features if f is not None]
         if not features: raise ValueError("Empty batch")
         
-        # Stack Patients
-        # pixel_values: (Batch, 1, D, H, W)
         pixel_values = torch.stack([f['pixel_values'] for f in features])
-        
-        # organ_masks: (Batch, N_Targets, D, H, W)
         organ_masks = torch.stack([f['organ_masks'] for f in features])
-        
-        # labels: (Batch, N_Targets, Seq_Len)
         labels = torch.stack([f['labels'] for f in features])
+        sample_weights = torch.stack([f['sample_weights'] for f in features])
         
-        return {'pixel_values': pixel_values, 'organ_masks': organ_masks, 'labels': labels}
+        return {
+            'pixel_values': pixel_values, 
+            'organ_masks': organ_masks, 
+            'labels': labels,
+            'sample_weights': sample_weights
+        }
 
 def build_transforms():
     return Compose([
@@ -84,12 +98,14 @@ def build_transforms():
         Transposed(keys=['image', 'mask'], indices=(0, 3, 2, 1)),
         ScaleIntensityRanged(keys=['image'], a_min=-1150, a_max=350, b_min=0.0, b_max=1.0, clip=True),
         SpatialPadd(keys=['image', 'mask'], spatial_size=(112, 256, 352), mode='constant', constant_values=0),
-        CenterSpatialCropd(keys=['image', 'mask'], roi_size=(112, 256, 352)),
+        Resized(keys=['image', 'mask'], spatial_size=(112, 256, 352), mode=['trilinear', 'nearest']),
+        EnsureTyped(keys=['image', 'mask'])
     ])
 
 class OnePassOrganDataset(Dataset):
     def __init__(self, csv_file, json_file, tokenizer, transform, max_length=128, subset_size=None, split='training'):
         print(f"--- Loading One-Pass Dataset ({split}) ---")
+        self.split = split
         
         self.df = pd.read_csv(csv_file)
         self.df = self.df[self.df['split'] == split].reset_index(drop=True)
@@ -98,6 +114,17 @@ class OnePassOrganDataset(Dataset):
         # Load Single JSON
         with open(json_file, 'r') as f: 
             self.reports_json = json.load(f)
+
+        # Load Sampling Probabilities (Only for training)
+        self.sampling_probs = None
+        if split == 'training':
+            probs_path = os.path.join(os.path.dirname(csv_file), 'organ_sampling_probs.json')
+            if os.path.exists(probs_path):
+                with open(probs_path, 'r') as f:
+                    self.sampling_probs = json.load(f)
+                print(f" Loaded organ sampling probabilities from {probs_path}")
+            else:
+                print("WARNING: No organ sampling probabilities found for training. Using keep_prob=1.0.")
 
         self.tokenizer = tokenizer
         self.transform = transform
@@ -152,6 +179,7 @@ class OnePassOrganDataset(Dataset):
             # 2. Iterate ALL Target Organs
             mask_stack = []
             label_stack = []
+            weights_stack = []
             
             patient_data = self.reports_json.get(item['pid'], {})
             
@@ -164,31 +192,46 @@ class OnePassOrganDataset(Dataset):
                     for tid in target_ids:
                         binary_mask[full_mask_tensor == tid] = 1.0
                 else:
-                    # Should not happen given our cleaner list, but safe fallback
                     binary_mask = torch.zeros_like(full_mask_tensor)
                 
                 mask_stack.append(binary_mask)
                 
-                # B. Prepare TEXT (Single Source)
+                # B. Prepare TEXT & Weighting
                 text = patient_data.get(key, "").strip()
+                is_default = False
                 
+                if len(text) < 3: 
+                    if self.split == 'training':
+                        tmpl = random.choice(NO_FINDING_TEMPLATES)
+                        text = tmpl.format(organ=key)
+                    else:
+                        text = NO_FINDING_TEMPLATES[0].format(organ=key)
+                    is_default = True
+
+                # Balanced Masking Logic (matches MedGemma V3)
+                weight = 1.0
+                if self.sampling_probs:
+                    if is_default:
+                        prob = self.sampling_probs.get(key, 1.0)
+                        if random.random() > prob:
+                            weight = 0.0
+                    # Explicit findings always kept (weight=1.0)
+                
+                weights_stack.append(weight)
+
                 # C. Tokenize
-                if len(text) > 3:
-                    prompt = f"Describe {key}: "
-                    full_input = prompt + text
-                    
-                    tokens = self.tokenizer(
-                        full_input, 
-                        max_length=self.max_length, 
-                        padding='max_length', 
-                        truncation=True, 
-                        return_tensors='pt'
-                    )['input_ids'].squeeze(0)
-                    
-                    tokens[tokens == self.tokenizer.pad_token_id] = -100
-                else:
-                    # MISSING DATA -> PAD with -100
-                    tokens = torch.full((self.max_length,), -100, dtype=torch.long)
+                prompt = f"Describe {key}: "
+                full_input = prompt + text
+                
+                tokens = self.tokenizer(
+                    full_input, 
+                    max_length=self.max_length, 
+                    padding='max_length', 
+                    truncation=True, 
+                    return_tensors='pt'
+                )['input_ids'].squeeze(0)
+                
+                tokens[tokens == self.tokenizer.pad_token_id] = -100
                 
                 label_stack.append(tokens)
 
@@ -196,7 +239,8 @@ class OnePassOrganDataset(Dataset):
             return {
                 'pixel_values': image_tensor,
                 'organ_masks': torch.stack(mask_stack).float(),
-                'labels': torch.stack(label_stack)
+                'labels': torch.stack(label_stack),
+                'sample_weights': torch.tensor(weights_stack, dtype=torch.float32)
             }
 
         except Exception as e:
@@ -208,7 +252,8 @@ def main(args):
     
     model = MedicalVLM(
         vision_encoder_path=args.vision_encoder_path,
-        decoder_model_name=args.decoder_model
+        decoder_model_name=args.decoder_model,
+        queries_per_organ=args.queries_per_organ
     )
 
     transform = build_transforms()
@@ -230,30 +275,47 @@ def main(args):
         report_to="wandb",
         num_train_epochs=args.num_epochs,
         per_device_train_batch_size=args.batch_size,
-        per_device_eval_batch_size=1,
+        per_device_eval_batch_size=args.batch_size,
         gradient_accumulation_steps=8, 
-        learning_rate=2e-4,
+        learning_rate=1e-4,
         weight_decay=0.01,
-        warmup_ratio=0.1,
-        logging_steps=5,
-        evaluation_strategy="steps",
-        eval_steps=400,
+        warmup_ratio=0.05,
+        logging_steps=args.logging_steps,
+        eval_strategy="steps",
+        eval_steps=args.eval_steps,
         save_strategy="steps",
-        save_steps=400,
-        save_total_limit=2,
+        save_steps=200,
+        save_total_limit=3,
         load_best_model_at_end=True,
-        fp16=True,
+        bf16=True,
+        fp16=False,
         dataloader_num_workers=4,
-        remove_unused_columns=False
+        remove_unused_columns=False,
+        gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={'use_reentrant': False},
+        ddp_find_unused_parameters=True,
     )
 
-    trainer = Seq2SeqTrainer(
+    # Custom Trainer to handle tied weight saving (GPT-2/BART have shared wte/lm_head)
+    class MedicalTrainer(Seq2SeqTrainer):
+        def save_model(self, output_dir=None, _internal_call=False):
+            if output_dir is None:
+                output_dir = self.args.output_dir
+            os.makedirs(output_dir, exist_ok=True)
+            # Use torch.save to avoid safetensors tied-weight error
+            torch.save(
+                self.model.state_dict(), 
+                os.path.join(output_dir, "pytorch_model.bin")
+            )
+            if hasattr(self.model, 'tokenizer'):
+                self.model.tokenizer.save_pretrained(output_dir)
+
+    trainer = MedicalTrainer(
         model=model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=val_dataset,
         data_collator=OrganCollator(),
-        callbacks=[EarlyStoppingCallback(early_stopping_patience=5)]
     )
 
     trainer.train()
@@ -264,13 +326,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--decoder_model', type=str, default='gpt2')
     parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/checkpoints/model.pth')
-    parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data/image_first_dataset.csv')
-    parser.add_argument('--json_file', type=str, default='/home/muhammedg/fvlm/data/combined_desc_conc.json')
+    parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv')
+    parser.add_argument('--json_file', type=str, default='../../data_sym/combined_desc_conc_v2.json')
     parser.add_argument('--output_dir', type=str, default='./checkpoints/medical_vlm')
     parser.add_argument('--max_length', type=int, default=150)
     parser.add_argument('--batch_size', type=int, default=2) 
     parser.add_argument('--num_epochs', type=int, default=2)
     parser.add_argument('--subset_size', type=int, default=None)
+    parser.add_argument('--eval_steps', type=int, default=200)
+    parser.add_argument('--logging_steps', type=int, default=10)
+    parser.add_argument('--queries_per_organ', type=int, default=8, help='Number of visual tokens per organ')
     
     args = parser.parse_args()
     main(args)

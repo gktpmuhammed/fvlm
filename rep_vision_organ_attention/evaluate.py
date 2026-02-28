@@ -25,11 +25,6 @@ except LookupError:
     nltk.download('omw-1.4')
     nltk.download('punkt')
 
-# Metrics Imports
-from torchmetrics.text.rouge import ROUGEScore
-from nltk.translate.meteor_score import meteor_score
-from nltk.translate.bleu_score import corpus_bleu
-from nltk.translate.gleu_score import sentence_gleu
 from monai.transforms import Compose, LoadImaged, ScaleIntensityRanged, SpatialPadd, CenterSpatialCropd, Transposed, EnsureChannelFirstd
 
 # Add parent directory to path to import modules
@@ -40,131 +35,6 @@ if parent_dir not in sys.path:
 
 from medical_vlm import MedicalVLM
 from train import get_organ_ids_for_key, ALL_TARGET_KEYS, build_transforms
-
-# --- METRIC FUNCTIONS ---
-
-def calculate_meteor(predictions, references):
-    scores = []
-    for pred, ref in zip(predictions, references):
-        try: 
-            scores.append(meteor_score([nltk.word_tokenize(ref)], nltk.word_tokenize(pred)))
-        except: scores.append(0.0)
-    return np.mean(scores)
-
-def calculate_bleu_scores(predictions, references):
-    references_tok = [[nltk.word_tokenize(ref)] for ref in references]
-    hypotheses_tok = [nltk.word_tokenize(pred) for pred in predictions]
-    weights = [
-        (1.0, 0, 0, 0),          # BLEU-1
-        (0.5, 0.5, 0, 0),        # BLEU-2
-        (1/3, 1/3, 1/3, 0),      # BLEU-3
-        (0.25, 0.25, 0.25, 0.25) # BLEU-4
-    ]
-    scores = {}
-    for i, w in enumerate(weights, start=1):
-        try: scores[f'bleu{i}'] = corpus_bleu(references_tok, hypotheses_tok, weights=w)
-        except: scores[f'bleu{i}'] = 0.0
-    return scores
-
-def calculate_greene(predictions, references):
-    # Approximation using Sentence GLEU (Google-BLEU)
-    scores = []
-    for pred, ref in zip(predictions, references):
-        try: scores.append(sentence_gleu([nltk.word_tokenize(ref)], nltk.word_tokenize(pred)))
-        except: scores.append(0.0)
-    return np.mean(scores)
-
-def calculate_accuracy(predictions, references):
-    # Exact match accuracy
-    matches = sum(1 for p, r in zip(predictions, references) if p.strip().lower() == r.strip().lower())
-    return matches / len(predictions) if len(predictions) > 0 else 0.0
-
-def calculate_cider_approx(predictions, references, ngram=4):
-    def ngrams(tokens, n):
-        return [' '.join(tokens[i:i+n]) for i in range(len(tokens)-n+1)]
-    
-    docs_p, docs_r = [], []
-    for p in predictions:
-        toks = nltk.word_tokenize(p)
-        ngs = []
-        for k in range(1, ngram+1): ngs.extend(ngrams(toks, k))
-        docs_p.append(ngs)
-    
-    for r in references:
-        toks = nltk.word_tokenize(r)
-        ngs = []
-        for k in range(1, ngram+1): ngs.extend(ngrams(toks, k))
-        docs_r.append(ngs) 
-        
-    # Document Frequency from References
-    df = defaultdict(int)
-    for doc in docs_r:
-        for g in set(doc): df[g] += 1
-    
-    N = len(docs_r)
-    
-    def tf_idf(ng_list):
-        tf = Counter(ng_list)
-        vec = {}
-        for k, v in tf.items():
-            vec[k] = (v / sum(tf.values())) * math.log((N+1)/(1+df.get(k, 0)))
-        return vec
-    
-    def cosine(v1, v2):
-        dot = sum(v1.get(k,0)*v2.get(k,0) for k in v1)
-        norm = math.sqrt(sum(v*v for v in v1.values())) * math.sqrt(sum(v*v for v in v2.values()))
-        return dot/norm if norm else 0.0
-    
-    scores = []
-    for p_ng, r_ng in zip(docs_p, docs_r):
-        scores.append(cosine(tf_idf(p_ng), tf_idf(r_ng)))
-        
-    return np.mean(scores) * 10.0 if scores else 0.0
-
-def create_metrics_table_plot(results_list, output_dir):
-    os.makedirs(output_dir, exist_ok=True)
-    # Define Column Order
-    col_labels = ['Organ', 'N', 'ACC', 'GREEN', 'BLEU-1', 'BLEU-2', 'BLEU-3', 'BLEU-4', 'METEOR', 'ROUGE-L', 'CIDEr']
-    
-    table_rows, csv_rows = [], []
-    
-    for row_data in results_list:
-        row = [
-            str(row_data['Organ']).upper(),
-            f"{row_data['N']}",
-            f"{row_data['ACC']:.3f}",
-            f"{row_data['GREEN']:.3f}",
-            f"{row_data['BLEU-1']:.3f}",
-            f"{row_data['BLEU-2']:.3f}",
-            f"{row_data['BLEU-3']:.3f}",
-            f"{row_data['BLEU-4']:.3f}",
-            f"{row_data['METEOR']:.3f}",
-            f"{row_data['ROUGE-L']:.3f}",
-            f"{row_data['CIDEr']:.3f}",
-        ]
-        table_rows.append(row)
-        csv_rows.append({k:v for k,v in zip(col_labels, row)})
-    
-    # Save CSV
-    with open(os.path.join(output_dir, 'metrics_breakdown.csv'), 'w', newline='') as cf:
-        writer = csv.DictWriter(cf, fieldnames=col_labels)
-        writer.writeheader()
-        writer.writerows(csv_rows)
-        
-    # Save Image
-    fig, ax = plt.subplots(figsize=(14, len(table_rows) * 0.5 + 2))
-    ax.axis('off')
-    table = ax.table(cellText=table_rows, colLabels=col_labels, cellLoc='center', loc='center')
-    table.auto_set_font_size(False)
-    table.set_fontsize(9)
-    table.scale(1, 1.5)
-    for (row, col), cell in table.get_celld().items():
-        if row == 0:
-            cell.set_text_props(weight='bold', color='white')
-            cell.set_facecolor('#333333')
-    plt.tight_layout()
-    fig.savefig(os.path.join(output_dir, 'metrics_table.png'), dpi=200, bbox_inches='tight')
-    plt.close(fig)
 
 # --- DATASET ---
 
@@ -207,29 +77,6 @@ class EvalDataset(Dataset):
 
 # --- EVALUATION LOGIC ---
 
-def compute_all_metrics(preds, refs):
-    """Helper to run all metric functions on a list of pairs."""
-    if not preds: return {}
-    
-    bleu = calculate_bleu_scores(preds, refs)
-    rouge = ROUGEScore()(preds, refs)
-    meteor = calculate_meteor(preds, refs)
-    green = calculate_greene(preds, refs)
-    acc = calculate_accuracy(preds, refs)
-    cider = calculate_cider_approx(preds, refs)
-    
-    return {
-        'BLEU-1': bleu['bleu1'],
-        'BLEU-2': bleu['bleu2'],
-        'BLEU-3': bleu['bleu3'],
-        'BLEU-4': bleu['bleu4'],
-        'ROUGE-L': rouge['rougeL_fmeasure'].item(),
-        'METEOR': meteor,
-        'GREEN': green,
-        'ACC': acc,
-        'CIDEr': cider
-    }
-
 def evaluate(args):
     print(f"--- Starting Evaluation ---")
     print(f"Model: {args.decoder_model}")
@@ -237,7 +84,7 @@ def evaluate(args):
     os.makedirs(args.output_dir, exist_ok=True)
     
     # 1. Load Model
-    model = MedicalVLM(args.vision_encoder_path, args.decoder_model)
+    model = MedicalVLM(args.vision_encoder_path, args.decoder_model, queries_per_organ=args.queries_per_organ)
     if model.tokenizer.pad_token is None:
         model.tokenizer.pad_token = model.tokenizer.eos_token
         model.model.config.pad_token_id = model.tokenizer.eos_token_id
@@ -369,45 +216,6 @@ def evaluate(args):
                 print(f"Skipping {pid} error: {e}")
                 continue
 
-    # # --- METRICS CALCULATION ---
-    # print("\n" + "="*50)
-    # print("   EVALUATION RESULTS")
-    # print("="*50)
-    
-    # metrics_summary_list = []
-    
-    # # 1. Global (Concatenated)
-    # if len(full_predictions) > 0:
-    #     print("\nComputing Global Metrics (Concatenated)...")
-    #     g_metrics = compute_all_metrics(full_predictions, full_references)
-        
-    #     # Add metadata for table
-    #     g_metrics['Organ'] = 'GLOBAL_REPORT'
-    #     g_metrics['N'] = len(full_predictions)
-    #     metrics_summary_list.append(g_metrics)
-        
-    #     print(f"Global BLEU-4: {g_metrics['BLEU-4']:.4f} | ROUGE-L: {g_metrics['ROUGE-L']:.4f} | CIDEr: {g_metrics['CIDEr']:.4f}")
-    
-    # # 2. Per-Organ
-    # print("\nComputing Per-Organ Metrics...")
-    # for organ in ALL_TARGET_KEYS:
-    #     data = organ_specific_data[organ]
-    #     preds = data['preds']
-    #     refs = data['refs']
-        
-    #     if len(refs) < 5:
-    #         continue
-            
-    #     o_metrics = compute_all_metrics(preds, refs)
-    #     o_metrics['Organ'] = organ
-    #     o_metrics['N'] = len(refs)
-    #     metrics_summary_list.append(o_metrics)
-        
-    #     print(f" > {organ.upper():<12}: BLEU-4 {o_metrics['BLEU-4']:.4f}")
-
-    # # Save Results
-    # create_metrics_table_plot(metrics_summary_list, args.output_dir)
-
     # Save Generated Text
     out_csv = os.path.join(args.output_dir, "generated_reports.csv")
     df = pd.DataFrame({
@@ -419,7 +227,7 @@ def evaluate(args):
     
     print("\n" + "-"*50)
     print(f"Full reports saved to: {out_csv}")
-    print(f"Metrics table saved to: {os.path.join(args.output_dir, 'metrics_breakdown.csv')}")
+    print(f"Evaluation Complete. Please run radeval_metrics.py on the output CSV.")
     print("-"*50)
 
 if __name__ == "__main__":
@@ -427,11 +235,12 @@ if __name__ == "__main__":
     parser.add_argument('--model_path', type=str, required=True)
     parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/checkpoints/model.pth')
     parser.add_argument('--decoder_model', type=str, default='gpt2')
-    parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data/image_first_dataset.csv')
-    parser.add_argument('--json_file', type=str, default='/home/muhammedg/fvlm/data/combined_desc_conc.json')
+    parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv')
+    parser.add_argument('--json_file', type=str, default='../../data_sym/combined_desc_conc_v2.json')
     parser.add_argument('--output_dir', type=str, default='./results')
     parser.add_argument('--subset_size', type=int, default=None)
+    parser.add_argument('--queries_per_organ', type=int, default=8)
     
     args = parser.parse_args()
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+    # os.environ["CUDA_VISIBLE_DEVICES"] = "0"  # Allow shell override
     evaluate(args)
