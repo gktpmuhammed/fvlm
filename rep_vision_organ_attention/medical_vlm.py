@@ -74,18 +74,17 @@ class Attentive_ROI_Wrapper(nn.Module):
 
             # organ_masks: (Batch, N_organs, D, H, W)
             B, N_organs, D_m, H_m, W_m = organ_masks.shape
-            
-            # --- EXPAND MASKS FOR MULTI-TOKEN (Q tokens per organ) ---
             queries_per_organ = self.organ_queries.shape[0] // N_organs
-            organ_masks = organ_masks.repeat_interleave(queries_per_organ, dim=1)
             
-            # --- A. Prepare the Mask for Attention ---
+            # --- A. Downsample masks FIRST (saves massive memory) ---
             f_d, f_h, f_w = 7, 16, 11 
-            flat_masks = organ_masks.view(B * organ_masks.shape[1], 1, D_m, H_m, W_m)
-            
-            # Use MaxPool to preserve ANY organ presence in the patch (matches MedGemma V3)
+            flat_masks = organ_masks.view(B * N_organs, 1, D_m, H_m, W_m)
             masks_down = F.adaptive_max_pool3d(flat_masks, output_size=(f_d, f_h, f_w))
-            masks_flat = masks_down.view(B, organ_masks.shape[1], -1)
+            # (B, N_organs, f_d*f_h*f_w)
+            masks_flat = masks_down.view(B, N_organs, -1)
+            
+            # --- EXPAND for multi-token AFTER downsampling (cheap on small tensor) ---
+            masks_flat = masks_flat.repeat_interleave(queries_per_organ, dim=1)
             
             # --- SAFEGUARD: Prevent NaNs from empty masks ---
             attn_bias = torch.zeros_like(masks_flat)

@@ -330,7 +330,7 @@ if __name__ == '__main__':
     parser.add_argument('--json_file', type=str, default='../../data_sym/combined_desc_conc_v2.json')
     parser.add_argument('--output_dir', type=str, default='./checkpoints/medical_vlm')
     parser.add_argument('--max_length', type=int, default=150)
-    parser.add_argument('--batch_size', type=int, default=2) 
+    parser.add_argument('--batch_size', type=int, default=1) 
     parser.add_argument('--num_epochs', type=int, default=2)
     parser.add_argument('--subset_size', type=int, default=None)
     parser.add_argument('--eval_steps', type=int, default=200)
