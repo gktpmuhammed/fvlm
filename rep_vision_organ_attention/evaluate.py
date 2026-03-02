@@ -158,15 +158,10 @@ def evaluate(args):
                 truncation=True
             ).to(device)
             
-            # Prepend BOS token (decoder_start_token_id) to the prompted input_ids
-            # to match the shifted labels used during training.
-            batch_size_prompt = prompt_inputs.input_ids.shape[0]
-            bos_token_id = model.model.config.decoder_start_token_id
-            bos_tensor = torch.full((batch_size_prompt, 1), bos_token_id, dtype=torch.long, device=device)
-            bos_attn = torch.ones((batch_size_prompt, 1), dtype=torch.long, device=device)
-            
-            decoder_input_ids = torch.cat([bos_tensor, prompt_inputs.input_ids], dim=1)
-            decoder_attention_mask = torch.cat([bos_attn, prompt_inputs.attention_mask], dim=1)
+            # Use prompt tokens directly as decoder_input_ids
+            # (must match training, which does NOT prepend a BOS token)
+            decoder_input_ids = prompt_inputs.input_ids
+            decoder_attention_mask = prompt_inputs.attention_mask
             
             # Generate
             try:
@@ -201,7 +196,7 @@ def evaluate(args):
                 
                 for key, text, p_text in zip(ALL_TARGET_KEYS, decoded, prompts):
                     # Clean Prediction (Remove Prompt)
-                    clean_pred = text.replace(p_text, "").strip()
+                    clean_pred = text.removeprefix(p_text).strip()
                     
                     # Get specific organ reference from JSON
                     ref_sent = p_ref_dict.get(key, "")

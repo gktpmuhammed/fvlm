@@ -88,7 +88,10 @@ class Attentive_ROI_Wrapper(nn.Module):
             queries_per_organ = self.organ_queries.shape[0] // N_organs
             
             # --- A. Downsample masks FIRST (saves massive memory) ---
-            f_d, f_h, f_w = 7, 16, 11 
+            # Compute grid from config (image_size / patch_size) instead of hardcoding
+            img_sz = self.config.image_size if isinstance(self.config.image_size, (list, tuple)) else [self.config.image_size]*3
+            pat_sz = self.config.patch_size if isinstance(self.config.patch_size, (list, tuple)) else [self.config.patch_size]*3
+            f_d, f_h, f_w = img_sz[0]//pat_sz[0], img_sz[1]//pat_sz[1], img_sz[2]//pat_sz[2]
             flat_masks = organ_masks.view(B * N_organs, 1, D_m, H_m, W_m)
             masks_down = F.adaptive_max_pool3d(flat_masks, output_size=(f_d, f_h, f_w))
             # (B, N_organs, f_d*f_h*f_w)
@@ -334,12 +337,16 @@ class MedicalVLM(nn.Module):
         return total_loss / B
 
     # Forward with Sample Weights and InfoNCE Alignment Loss
-    def forward(self, pixel_values, organ_masks=None, labels=None, sample_weights=None, **kwargs):
+    def forward(self, pixel_values, organ_masks=None, input_ids=None, labels=None, sample_weights=None, **kwargs):
         # Strip kwargs that Trainer injects but VisionEncoderDecoderModel doesn't accept
         kwargs.pop('num_items_in_batch', None)
         
         # 1. Run Encoder
         encoder_outputs = self.model.encoder(pixel_values=pixel_values, organ_masks=organ_masks)
+        
+        # 2. Project encoder outputs: ViT hidden (768) → Decoder hidden size
+        projected = self.visual_projection(encoder_outputs.last_hidden_state)
+        encoder_outputs = BaseModelOutput(last_hidden_state=projected)
         
         if labels is not None:
             B, N_organs, Seq_Len = labels.shape
@@ -348,22 +355,46 @@ class MedicalVLM(nn.Module):
             # Reconstruct input_ids for alignment loss
             flat_input_ids = flat_labels.clone()
             flat_input_ids[flat_input_ids == -100] = self.tokenizer.pad_token_id
+            
+            # FIX Issue 4: Build decoder_input_ids from the FULL token sequence
+            # (including prompt), so the model sees prompt tokens during training
+            # — matching inference behavior.
+            if input_ids is not None:
+                flat_input_ids_all = input_ids.view(B * N_organs, Seq_Len)
+            else:
+                # Fallback: reconstruct from labels (replace -100 with pad)
+                flat_input_ids_all = flat_labels.clone()
+                flat_input_ids_all[flat_input_ids_all == -100] = self.tokenizer.pad_token_id
+            
+            # Create decoder_input_ids by shifting right
+            decoder_start_id = self.model.config.decoder_start_token_id
+            decoder_input_ids = flat_input_ids_all.new_zeros(flat_input_ids_all.shape)
+            decoder_input_ids[:, 1:] = flat_input_ids_all[:, :-1].clone()
+            decoder_input_ids[:, 0] = decoder_start_id
+            decoder_input_ids.masked_fill_(decoder_input_ids == -100, self.tokenizer.pad_token_id)
+            
+            # Build decoder_attention_mask: 1 for real tokens, 0 for padding
+            # We derive this from labels + prompt positions:
+            # - Positions with active labels (-100 mask removed) = content → attend
+            # - Prompt positions (masked in labels but are real tokens) → attend
+            # - Padding (masked in labels AND are pad_token_id) → don't attend
+            # Using flat_input_ids_all != pad works for BART (pad≠eos),
+            # but for GPT-2 (pad==eos) it would mask the real EOS.
+            # Solution: attend where labels != -100 OR input_ids != pad
+            # Position 0 (decoder_start) always attends.
+            label_active = (flat_labels != -100)  # content positions
+            input_active = (flat_input_ids_all != self.tokenizer.pad_token_id)  # non-pad positions
+            decoder_attention_mask = (label_active | input_active).long()
+            decoder_attention_mask[:, 0] = 1  # decoder_start_token always attends
 
             if sample_weights is not None:
-                # --- Manual Loss Computation with Sample Weights ---
                 flat_weights = sample_weights.view(B * N_organs)
-                
-                # Create decoder_input_ids (shift right)
-                decoder_start_id = self.model.config.decoder_start_token_id
-                decoder_input_ids = flat_labels.new_zeros(flat_labels.shape)
-                decoder_input_ids[:, 1:] = flat_labels[:, :-1].clone()
-                decoder_input_ids[:, 0] = decoder_start_id
-                decoder_input_ids.masked_fill_(decoder_input_ids == -100, self.tokenizer.pad_token_id)
                 
                 # Forward without internal loss (get logits only)
                 outputs = self.model(
                     encoder_outputs=encoder_outputs,
                     decoder_input_ids=decoder_input_ids,
+                    decoder_attention_mask=decoder_attention_mask,
                     labels=None,
                     return_dict=True,
                     **kwargs
@@ -390,23 +421,35 @@ class MedicalVLM(nn.Module):
                 flat_weights = flat_weights.to(sample_loss.device)
                 sample_loss = sample_loss * flat_weights
                 
-                lm_loss = sample_loss.mean()
+                # Normalize by sum of active weights (not total count)
+                # This prevents zero-weight samples from diluting the loss
+                weight_sum = flat_weights.sum().clamp(min=1e-8)
+                lm_loss = sample_loss.sum() / weight_sum
             else:
-                # Standard loss (no weighting) - let HF compute it
+                # Standard loss — manually construct decoder_input_ids with prompt
                 outputs = self.model(
                     encoder_outputs=encoder_outputs,
-                    labels=flat_labels,
+                    decoder_input_ids=decoder_input_ids,
+                    decoder_attention_mask=decoder_attention_mask,
+                    labels=None,
                     return_dict=True,
                     **kwargs
                 )
-                lm_loss = outputs.loss
+                
+                logits = outputs.logits
+                loss_fct = torch.nn.CrossEntropyLoss(ignore_index=-100)
+                lm_loss = loss_fct(
+                    logits.view(-1, logits.size(-1)),
+                    flat_labels.view(-1)
+                )
             
-            # 3. Add Alignment Loss during training
+            # 3. Add Alignment Loss during training (only if any samples have content)
             if self.training:
-                vis_feats = encoder_outputs.last_hidden_state  # (B*12, Q, 768)
-                vis_embeds = self.visual_projection(vis_feats)
-                align_loss = self.compute_alignment_loss(vis_embeds, flat_input_ids, labels=flat_labels)
-                lm_loss = lm_loss + align_loss
+                has_active_content = (flat_labels != -100).any()
+                if has_active_content:
+                    vis_embeds = projected  # Already projected (B*12, Q, llm_hidden)
+                    align_loss = self.compute_alignment_loss(vis_embeds, flat_input_ids, labels=flat_labels)
+                    lm_loss = lm_loss + align_loss
             
             # Return a clean output with loss
             from transformers.modeling_outputs import Seq2SeqLMOutput
@@ -427,6 +470,10 @@ class MedicalVLM(nn.Module):
     def generate(self, pixel_values, organ_masks=None, input_ids=None, attention_mask=None, **kwargs):
         encoder_outputs = self.model.encoder(pixel_values=pixel_values, organ_masks=organ_masks)
         
+        # Project encoder outputs: ViT hidden (768) → Decoder hidden size
+        projected = self.visual_projection(encoder_outputs.last_hidden_state)
+        encoder_outputs = BaseModelOutput(last_hidden_state=projected)
+        
         return self.model.generate(
             encoder_outputs=encoder_outputs,
             decoder_input_ids=input_ids,
@@ -440,5 +487,6 @@ class MedicalVLM(nn.Module):
 
     def save_pretrained(self, output_dir):
         os.makedirs(output_dir, exist_ok=True)
-        self.model.save_pretrained(output_dir)
+        # Save FULL state_dict (includes visual_projection + all outer params)
+        torch.save(self.state_dict(), os.path.join(output_dir, "pytorch_model.bin"))
         self.tokenizer.save_pretrained(output_dir)

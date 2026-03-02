@@ -81,12 +81,14 @@ class OrganCollator:
         
         pixel_values = torch.stack([f['pixel_values'] for f in features])
         organ_masks = torch.stack([f['organ_masks'] for f in features])
+        input_ids = torch.stack([f['input_ids'] for f in features])
         labels = torch.stack([f['labels'] for f in features])
         sample_weights = torch.stack([f['sample_weights'] for f in features])
         
         return {
             'pixel_values': pixel_values, 
-            'organ_masks': organ_masks, 
+            'organ_masks': organ_masks,
+            'input_ids': input_ids,
             'labels': labels,
             'sample_weights': sample_weights
         }
@@ -179,6 +181,7 @@ class OnePassOrganDataset(Dataset):
             # 2. Iterate ALL Target Organs
             mask_stack = []
             label_stack = []
+            input_id_stack = []
             weights_stack = []
             
             patient_data = self.reports_json.get(item['pid'], {})
@@ -231,14 +234,56 @@ class OnePassOrganDataset(Dataset):
                     return_tensors='pt'
                 )['input_ids'].squeeze(0)
                 
-                tokens[tokens == self.tokenizer.pad_token_id] = -100
+                # --- FIX: Proper label masking ---
+                # 1. Find actual content length (tokens before padding)
+                #    Tokenize without padding to get the real token count
+                content_ids = self.tokenizer(
+                    full_input, add_special_tokens=True, truncation=True,
+                    max_length=self.max_length
+                )['input_ids']
                 
-                label_stack.append(tokens)
+                # GPT-2 doesn't auto-append EOS — explicitly add it so the model learns to stop
+                if (self.tokenizer.eos_token_id is not None and 
+                    (len(content_ids) == 0 or content_ids[-1] != self.tokenizer.eos_token_id) and
+                    len(content_ids) < self.max_length):
+                    content_ids.append(self.tokenizer.eos_token_id)
+                    # Also patch the padded tokens tensor to include EOS
+                    tokens[len(content_ids) - 1] = self.tokenizer.eos_token_id
+                
+                content_len = len(content_ids)  # includes BOS/EOS if tokenizer adds them
+                
+                # 2. Find prompt length (without special tokens to get raw prompt token count)
+                prompt_ids = self.tokenizer(prompt, add_special_tokens=False)['input_ids']
+                prompt_len = len(prompt_ids)
+                
+                # 3. Account for BOS token (BART adds BOS, GPT-2 does not)
+                bos_offset = 0
+                if (self.tokenizer.bos_token_id is not None and 
+                    len(content_ids) > 0 and 
+                    content_ids[0] == self.tokenizer.bos_token_id):
+                    bos_offset = 1
+                
+                # 4. Build label mask:
+                #    - BOS token (if present): mask (-100)
+                #    - Prompt tokens: mask (-100)  
+                #    - Content tokens: keep (these are the report text)
+                #    - EOS token: keep (model must learn to stop)
+                #    - Padding: mask (-100)
+                labels = tokens.clone()
+                # Mask BOS + prompt
+                labels[:bos_offset + prompt_len] = -100
+                # Mask padding (everything after the real content)
+                if content_len < self.max_length:
+                    labels[content_len:] = -100
+                
+                label_stack.append(labels)
+                input_id_stack.append(tokens)
 
             # Stack tensors
             return {
                 'pixel_values': image_tensor,
                 'organ_masks': torch.stack(mask_stack).float(),
+                'input_ids': torch.stack(input_id_stack),
                 'labels': torch.stack(label_stack),
                 'sample_weights': torch.tensor(weights_stack, dtype=torch.float32)
             }
