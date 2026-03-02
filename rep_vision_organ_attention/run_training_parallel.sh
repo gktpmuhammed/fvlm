@@ -37,6 +37,7 @@ run_pipeline() {
     
     export WANDB_NAME="$MODEL_NAME"
     CUDA_VISIBLE_DEVICES=$GPU_ID python train.py \
+        --vision_encoder_path "/home/muhammedg/fvlm/checkpoints/model.pth" \
         --decoder_model "$DECODER_MODEL" \
         --num_epochs 1 \
         --batch_size 1 \
@@ -61,6 +62,7 @@ run_pipeline() {
     echo "[$(date '+%H:%M:%S')] [Env: fvlm_training_clean] Evaluating $MODEL_NAME..."
     
     CUDA_VISIBLE_DEVICES=$GPU_ID python evaluate.py \
+        --vision_encoder_path "/home/muhammedg/fvlm/checkpoints/model.pth" \
         --decoder_model "$DECODER_MODEL" \
         --queries_per_organ 8 \
         --model_path "$CKPT_DIR/final_model" \

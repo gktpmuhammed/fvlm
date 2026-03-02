@@ -97,7 +97,9 @@ def evaluate(args):
     else:
         state_dict = torch.load(args.model_path, map_location='cpu')
         
-    model.model.load_state_dict(state_dict, strict=False)
+    missing, unexpected = model.load_state_dict(state_dict, strict=False)
+    print(f"  Loaded weights. Missing keys: {len(missing)} | Unexpected keys: {len(unexpected)}")
+    
     model.cuda()
     model.eval()
     
@@ -156,13 +158,23 @@ def evaluate(args):
                 truncation=True
             ).to(device)
             
+            # Prepend BOS token (decoder_start_token_id) to the prompted input_ids
+            # to match the shifted labels used during training.
+            batch_size_prompt = prompt_inputs.input_ids.shape[0]
+            bos_token_id = model.model.config.decoder_start_token_id
+            bos_tensor = torch.full((batch_size_prompt, 1), bos_token_id, dtype=torch.long, device=device)
+            bos_attn = torch.ones((batch_size_prompt, 1), dtype=torch.long, device=device)
+            
+            decoder_input_ids = torch.cat([bos_tensor, prompt_inputs.input_ids], dim=1)
+            decoder_attention_mask = torch.cat([bos_attn, prompt_inputs.attention_mask], dim=1)
+            
             # Generate
             try:
                 outputs = model.generate(
                     pixel_values=pixel_values,
                     organ_masks=organ_masks,
-                    input_ids=prompt_inputs.input_ids,
-                    attention_mask=prompt_inputs.attention_mask,
+                    input_ids=decoder_input_ids,
+                    attention_mask=decoder_attention_mask,
                     max_length=120,
                     num_beams=4,
                     repetition_penalty=2.0,
@@ -233,8 +245,8 @@ def evaluate(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_path', type=str, required=True)
-    parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/checkpoints/model.pth')
-    parser.add_argument('--decoder_model', type=str, default='gpt2')
+    parser.add_argument("--vision_encoder_path", type=str, default="/home/muhammedg/fvlm/checkpoints/model.pth", help="Path to pre-trained ViT")
+    parser.add_argument("--decoder_model", type=str, default="gpt2", help="Decoder model to evaluate (gpt2 or GanjinZero/biobart-v2-base)")
     parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv')
     parser.add_argument('--json_file', type=str, default='../../data_sym/combined_desc_conc_v2.json')
     parser.add_argument('--output_dir', type=str, default='./results')

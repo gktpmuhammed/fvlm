@@ -66,6 +66,17 @@ class Attentive_ROI_Wrapper(nn.Module):
             image_feats = outputs.last_hidden_state
         else:
             image_feats = outputs
+
+        # ---- DEBUG (prints once, rank0 only) ----
+        if not getattr(self, "_dbg_printed", False):
+            rank0 = True
+            if torch.distributed.is_available() and torch.distributed.is_initialized():
+                rank0 = (torch.distributed.get_rank() == 0)
+            if rank0:
+                print("[DBG] pixel_values:", tuple(pixel_values.shape), pixel_values.dtype, flush=True)
+                print("[DBG] image_feats:", tuple(image_feats.shape), image_feats.dtype, flush=True)
+            self._dbg_printed = True
+        # -----------------------------------------
             
         if organ_masks is not None:
             # Handle 6D input (Batch, N, C, D, H, W) -> Squeeze C
@@ -82,6 +93,22 @@ class Attentive_ROI_Wrapper(nn.Module):
             masks_down = F.adaptive_max_pool3d(flat_masks, output_size=(f_d, f_h, f_w))
             # (B, N_organs, f_d*f_h*f_w)
             masks_flat = masks_down.view(B, N_organs, -1)
+            
+            # ---- DEBUG: token/mask alignment check (prints once) ----
+            if not getattr(self, "_dbg_mask_printed", False):
+                rank0 = True
+                if torch.distributed.is_available() and torch.distributed.is_initialized():
+                    rank0 = (torch.distributed.get_rank() == 0)
+                if rank0:
+                    seq_len = image_feats.shape[1]   # expected ViT token count
+                    mask_len = masks_flat.shape[-1]  # f_d*f_h*f_w
+                    print("[DBG] organ_masks:", tuple(organ_masks.shape), organ_masks.dtype, flush=True)
+                    print("[DBG] masks_down:", tuple(masks_down.shape), masks_down.dtype, flush=True)
+                    print(f"[DBG] seq_len={seq_len}  mask_len={mask_len}  diff={seq_len-mask_len}", flush=True)
+                    if seq_len == mask_len + 1:
+                        print("[DBG] Likely CLS token present in image_feats (seq_len = mask_len + 1).", flush=True)
+                self._dbg_mask_printed = True
+            # --------------------------------------------------------
             
             # --- EXPAND for multi-token AFTER downsampling (cheap on small tensor) ---
             masks_flat = masks_flat.repeat_interleave(queries_per_organ, dim=1)
@@ -101,7 +128,15 @@ class Attentive_ROI_Wrapper(nn.Module):
             
             # --- B. Prepare Queries ---
             queries = self.organ_queries.unsqueeze(0).expand(B, -1, -1)
-            
+
+            if not getattr(self, "_dbg_attn_printed", False):
+                rank0 = True
+                if torch.distributed.is_available() and torch.distributed.is_initialized():
+                    rank0 = (torch.distributed.get_rank() == 0)
+                if rank0:
+                    print("[DBG] queries:", tuple(queries.shape), queries.dtype, flush=True)
+                    print("[DBG] attn_bias:", tuple(attn_bias.shape), attn_bias.dtype, flush=True)
+                self._dbg_attn_printed = True
             # --- C. Cross Attention ---
             organ_embeddings, _ = self.cross_attn(
                 query=queries,
@@ -116,6 +151,13 @@ class Attentive_ROI_Wrapper(nn.Module):
             final_embeddings = organ_embeddings.view(B, N_organs, queries_per_organ, -1)
             final_embeddings = final_embeddings.view(B * N_organs, queries_per_organ, -1)
             
+            if not getattr(self, "_dbg_final_printed", False):
+                rank0 = True
+                if torch.distributed.is_available() and torch.distributed.is_initialized():
+                    rank0 = (torch.distributed.get_rank() == 0)
+                if rank0:
+                    print("[DBG] final_embeddings:", tuple(final_embeddings.shape), final_embeddings.dtype, flush=True)
+                self._dbg_final_printed = True
             return BaseModelOutput(last_hidden_state=final_embeddings)
 
         # Fallback
@@ -185,17 +227,36 @@ class MedicalVLM(nn.Module):
         # Only set add_cross_attention if the model needs it (GPT-2 does, BART already has it)
         if not getattr(decoder_config, 'add_cross_attention', False):
             decoder_config.add_cross_attention = True 
+        
+        # Load CausalLM. If it's a seq2seq model (like BART), its embeddings/lm_head 
+        # might be randomly initialized by AutoModelForCausalLM. We must copy them!
         decoder = AutoModelForCausalLM.from_pretrained(decoder_model_name, config=decoder_config)
+        
+        if "bart" in decoder_model_name.lower() or "t5" in decoder_model_name.lower():
+            try:
+                from transformers import AutoModelForSeq2SeqLM
+                print(f"Copying pretrained weights from Seq2Seq model for {decoder_model_name}...")
+                seq2seq_model = AutoModelForSeq2SeqLM.from_pretrained(decoder_model_name)
+                # Copy shared embeddings to decoder embed_tokens
+                if hasattr(decoder.model.decoder, "embed_tokens") and hasattr(seq2seq_model.model, "shared"):
+                    decoder.model.decoder.embed_tokens.weight.data.copy_(seq2seq_model.model.shared.weight.data)
+                # Copy lm_head
+                if hasattr(decoder, "lm_head") and hasattr(seq2seq_model, "lm_head"):
+                    decoder.lm_head.weight.data.copy_(seq2seq_model.lm_head.weight.data)
+                elif hasattr(decoder, "lm_head") and hasattr(seq2seq_model.model, "shared"):
+                    decoder.lm_head.weight.data.copy_(seq2seq_model.model.shared.weight.data)
+                del seq2seq_model
+            except Exception as e:
+                print(f"Warning: Could not copy Seq2Seq weights for {decoder_model_name}: {e}")
 
         # Surgical Freezing: Freeze everything, then unfreeze cross-attention + norms + head
         for param in decoder.parameters(): param.requires_grad = False
         # Keywords cover both GPT-2 and BART layer naming conventions:
-        #   GPT-2: crossattention, ln_1, ln_2, lm_head
-        #   BART:  encoder_attn, layer_norm, final_layer_norm, lm_head, output_projection
         keywords = [
             "crossattention", "encoder_attn",   # Cross-attention layers
             "ln_", "layer_norm", "final_layer_norm",  # Normalization layers
-            "lm_head", "output_projection"       # Output head
+            "lm_head", "output_projection",      # Output head
+            "embed_tokens", "wte", "wpe"         # Embeddings (essential for generation)
         ]
         for name, param in decoder.named_parameters():
             if any(k in name for k in keywords):
@@ -310,19 +371,19 @@ class MedicalVLM(nn.Module):
                 
                 logits = outputs.logits
                 
-                # Shift for loss computation
-                shift_logits = logits[..., :-1, :].contiguous()
-                shift_labels = flat_labels[..., 1:].contiguous()
+                # No need to shift logits and labels again! 
+                # decoder_input_ids is already shifted right by 1 relative to flat_labels.
+                # Therefore, logits[:, t] predicts flat_labels[:, t].
                 
                 # Per-token loss
                 loss_fct = torch.nn.CrossEntropyLoss(reduction='none', ignore_index=-100)
                 token_losses = loss_fct(
-                    shift_logits.view(-1, shift_logits.size(-1)),
-                    shift_labels.view(-1)
+                    logits.view(-1, logits.size(-1)),
+                    flat_labels.view(-1)
                 ).view(B * N_organs, -1)
                 
                 # Per-sample loss
-                non_pad_mask = (shift_labels != -100).float()
+                non_pad_mask = (flat_labels != -100).float()
                 sample_loss = (token_losses * non_pad_mask).sum(dim=1) / (non_pad_mask.sum(dim=1) + 1e-8)
                 
                 # Apply weights
