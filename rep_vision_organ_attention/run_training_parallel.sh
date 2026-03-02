@@ -38,7 +38,7 @@ run_pipeline() {
     export WANDB_NAME="$MODEL_NAME"
     CUDA_VISIBLE_DEVICES=$GPU_ID python train.py \
         --decoder_model "$DECODER_MODEL" \
-        --num_epochs 2 \
+        --num_epochs 1 \
         --batch_size 1 \
         --queries_per_organ 8 \
         --output_dir "$CKPT_DIR" \

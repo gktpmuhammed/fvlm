@@ -286,7 +286,7 @@ def main(args):
         save_strategy="steps",
         save_steps=200,
         save_total_limit=3,
-        load_best_model_at_end=True,
+        load_best_model_at_end=False,
         bf16=True,
         fp16=False,
         dataloader_num_workers=4,
@@ -319,7 +319,14 @@ def main(args):
     )
 
     trainer.train()
-    model.save_pretrained(f"{args.output_dir}/final_model")
+    
+    # Save final model
+    final_dir = f"{args.output_dir}/final_model"
+    os.makedirs(final_dir, exist_ok=True)
+    torch.save(model.state_dict(), os.path.join(final_dir, "pytorch_model.bin"))
+    model.tokenizer.save_pretrained(final_dir)
+    print(f"Final model saved to {final_dir}")
+    
     wandb.finish()
 
 if __name__ == '__main__':
