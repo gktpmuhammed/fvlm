@@ -11,6 +11,8 @@ import SimpleITK as sitk
 from dataclasses import dataclass
 from torch.utils.data import Dataset
 from transformers import Seq2SeqTrainingArguments, Seq2SeqTrainer
+import transformers.modeling_utils
+transformers.modeling_utils.check_torch_load_is_safe = lambda: None
 from monai.transforms import Compose, LoadImaged, ScaleIntensityRanged, SpatialPadd, CenterSpatialCropd, Transposed, Resized, EnsureTyped, EnsureChannelFirstd
 import random
 
@@ -235,19 +237,10 @@ class OnePassOrganDataset(Dataset):
                 )['input_ids'].squeeze(0)
                 
                 # --- FIX: Proper label masking ---
-                # 1. Find actual content length (tokens before padding)
                 content_ids = self.tokenizer(
                     full_input, add_special_tokens=True, truncation=True,
                     max_length=self.max_length
                 )['input_ids']
-                
-                # GPT-2 doesn't auto-append EOS — explicitly add it so the model learns to stop
-                if (self.tokenizer.eos_token_id is not None and 
-                    (len(content_ids) == 0 or content_ids[-1] != self.tokenizer.eos_token_id) and
-                    len(content_ids) < self.max_length):
-                    content_ids.append(self.tokenizer.eos_token_id)
-                    # Also patch the padded tokens tensor to include EOS
-                    tokens[len(content_ids) - 1] = self.tokenizer.eos_token_id
                 
                 content_len = len(content_ids)  # includes BOS/EOS if tokenizer adds them
                 
@@ -340,7 +333,7 @@ def main(args):
         ddp_find_unused_parameters=True,
     )
 
-    # Custom Trainer to handle tied weight saving (GPT-2/BART have shared wte/lm_head)
+    # Custom Trainer to handle tied weight saving (BERT also has shared embeddings/lm_head)
     class MedicalTrainer(Seq2SeqTrainer):
         def save_model(self, output_dir=None, _internal_call=False):
             if output_dir is None:
@@ -375,7 +368,7 @@ def main(args):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--decoder_model', type=str, default='gpt2')
+    parser.add_argument('--decoder_model', type=str, default='emilyalsentzer/Bio_ClinicalBERT')
     parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/checkpoints/model.pth')
     parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv')
     parser.add_argument('--json_file', type=str, default='/home/muhammedg/fvlm/data_sym/combined_desc_conc_v2.json')

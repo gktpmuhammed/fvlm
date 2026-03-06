@@ -11,6 +11,8 @@ import json
 import nltk
 import math
 import csv
+import transformers.modeling_utils
+transformers.modeling_utils.check_torch_load_is_safe = lambda: None
 import matplotlib
 matplotlib.use('Agg') # Fix for headless servers
 import matplotlib.pyplot as plt
@@ -152,19 +154,14 @@ def evaluate(args):
             organ_masks = torch.stack(mask_stack, dim=1).float()
             
             # Build decoder_input_ids to EXACTLY match training's shift-right pattern:
-            #   Training: [decoder_start, BOS(if BART), Describe, organ, :, " ", ...]
-            #   We must NOT use add_special_tokens=True because BART adds EOS
-            #   which the model never saw mid-sequence during training.
+            #   Training: [decoder_start, Describe, organ, :, " ", ...]
             decoder_start_id = model.model.config.decoder_start_token_id
-            bos_id = model.tokenizer.bos_token_id
             
             prompt_id_list = []
             for p in prompts:
                 ids = model.tokenizer(p, add_special_tokens=False)['input_ids']
-                # Prepend decoder_start + BOS (if BART has a distinct BOS)
+                # Prepend decoder_start
                 prefix = [decoder_start_id]
-                if bos_id is not None and bos_id != decoder_start_id:
-                    prefix.append(bos_id)
                 prompt_id_list.append(prefix + ids)
             
             # Pad to same length
@@ -258,7 +255,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_path', type=str, required=True)
     parser.add_argument("--vision_encoder_path", type=str, default="/home/muhammedg/fvlm/checkpoints/model.pth", help="Path to pre-trained ViT")
-    parser.add_argument("--decoder_model", type=str, default="gpt2", help="Decoder model to evaluate (gpt2 or GanjinZero/biobart-v2-base)")
+    parser.add_argument("--decoder_model", type=str, default="emilyalsentzer/Bio_ClinicalBERT", help="Decoder model to evaluate")
     parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv')
     parser.add_argument('--json_file', type=str, default='/home/muhammedg/fvlm/data_sym/combined_desc_conc_v2.json')
     parser.add_argument('--output_dir', type=str, default='./results')

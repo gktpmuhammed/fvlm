@@ -170,7 +170,7 @@ class MedicalVLM(nn.Module):
     def __init__(
         self,
         vision_encoder_path,
-        decoder_model_name="gpt2", 
+        decoder_model_name="emilyalsentzer/Bio_ClinicalBERT", 
         image_size=(112, 256, 352),
         patch_size=(16, 16, 32),
         queries_per_organ=8,
@@ -222,46 +222,42 @@ class MedicalVLM(nn.Module):
         )
         nn.init.normal_(wrapped_encoder.organ_queries, std=0.02)
 
-        # 3. SETUP DECODER (Supports GPT-2, BART, and similar models)
+        # 3. SETUP DECODER (Supports GPT-2, BART, BERT, and similar models)
         self.tokenizer = AutoTokenizer.from_pretrained(decoder_model_name)
+        
+        # Handle BERT-specific tokens (BERT lacks bos/eos, uses cls/sep)
+        if hasattr(self.tokenizer, 'cls_token_id') and self.tokenizer.cls_token_id is not None and self.tokenizer.bos_token_id is None:
+            self.tokenizer.bos_token = self.tokenizer.cls_token
+            self.tokenizer.bos_token_id = self.tokenizer.cls_token_id
+        if hasattr(self.tokenizer, 'sep_token_id') and self.tokenizer.sep_token_id is not None and self.tokenizer.eos_token_id is None:
+            self.tokenizer.eos_token = self.tokenizer.sep_token
+            self.tokenizer.eos_token_id = self.tokenizer.sep_token_id
+            
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
         decoder_config = AutoConfig.from_pretrained(decoder_model_name)
         decoder_config.is_decoder = True
-        # Only set add_cross_attention if the model needs it (GPT-2 does, BART already has it)
+        # Ensure cross_attention is initialized (BERT allows this)
         if not getattr(decoder_config, 'add_cross_attention', False):
-            decoder_config.add_cross_attention = True 
+            decoder_config.add_cross_attention = True
+            
+        # Fix missing generation tokens natively for BERT
+        decoder_config.bos_token_id = self.tokenizer.bos_token_id
+        decoder_config.eos_token_id = self.tokenizer.eos_token_id
+        decoder_config.pad_token_id = self.tokenizer.pad_token_id
         
-        # Load CausalLM. If it's a seq2seq model (like BART), its embeddings/lm_head 
-        # might be randomly initialized by AutoModelForCausalLM. We must copy them!
+        # Load CausalLM (for BERT, this utilizes BertLMHeadModel with cross_attention initialized)
         decoder = AutoModelForCausalLM.from_pretrained(decoder_model_name, config=decoder_config)
-        
-        if "bart" in decoder_model_name.lower() or "t5" in decoder_model_name.lower():
-            try:
-                from transformers import AutoModelForSeq2SeqLM
-                print(f"Copying pretrained weights from Seq2Seq model for {decoder_model_name}...")
-                seq2seq_model = AutoModelForSeq2SeqLM.from_pretrained(decoder_model_name)
-                # Copy shared embeddings to decoder embed_tokens
-                if hasattr(decoder.model.decoder, "embed_tokens") and hasattr(seq2seq_model.model, "shared"):
-                    decoder.model.decoder.embed_tokens.weight.data.copy_(seq2seq_model.model.shared.weight.data)
-                # Copy lm_head
-                if hasattr(decoder, "lm_head") and hasattr(seq2seq_model, "lm_head"):
-                    decoder.lm_head.weight.data.copy_(seq2seq_model.lm_head.weight.data)
-                elif hasattr(decoder, "lm_head") and hasattr(seq2seq_model.model, "shared"):
-                    decoder.lm_head.weight.data.copy_(seq2seq_model.model.shared.weight.data)
-                del seq2seq_model
-            except Exception as e:
-                print(f"Warning: Could not copy Seq2Seq weights for {decoder_model_name}: {e}")
 
         # Surgical Freezing: Freeze everything, then unfreeze cross-attention + norms + head
         for param in decoder.parameters(): param.requires_grad = False
-        # Keywords cover both GPT-2 and BART layer naming conventions:
+        # Keywords exclusively for BERT layer naming conventions:
         keywords = [
-            "crossattention", "encoder_attn",   # Cross-attention layers
-            "ln_", "layer_norm", "final_layer_norm",  # Normalization layers
-            "lm_head", "output_projection",      # Output head
-            "embed_tokens", "wte", "wpe"         # Embeddings (essential for generation)
+            "crossattention",     # Cross-attention layers
+            "LayerNorm",          # Normalization layers
+            "cls.predictions",    # Output head
+            "embeddings"          # Embeddings (essential for generation)
         ]
         for name, param in decoder.named_parameters():
             if any(k in name for k in keywords):
@@ -273,26 +269,23 @@ class MedicalVLM(nn.Module):
         self.model.encoder = wrapped_encoder
         self.model.decoder = decoder
         
-        self.model.config.decoder_start_token_id = self.tokenizer.bos_token_id or self.tokenizer.eos_token_id
-        self.model.config.eos_token_id = self.tokenizer.eos_token_id
+        self.model.config.decoder_start_token_id = self.tokenizer.bos_token_id or getattr(self.tokenizer, 'cls_token_id', None) or self.tokenizer.eos_token_id
+        self.model.config.eos_token_id = self.tokenizer.eos_token_id or getattr(self.tokenizer, 'sep_token_id', None)
         self.model.config.pad_token_id = self.tokenizer.pad_token_id
         self.model.config.vocab_size = self.tokenizer.vocab_size
 
         # Self-Alignment Projection: ViT (768) -> Decoder Hidden Size
-        # Auto-detect hidden size across architectures (GPT-2: n_embd, BART: d_model)
-        self.llm_hidden_size = getattr(decoder_config, 'n_embd', None) or \
-                               getattr(decoder_config, 'd_model', None) or \
-                               getattr(decoder_config, 'hidden_size', 768)
+        # Extract hidden size for BERT
+        self.llm_hidden_size = getattr(decoder_config, 'hidden_size', 768)
         self.visual_projection = nn.Linear(hidden_size, self.llm_hidden_size)
         
         print(f"Model Summary:")
         print(f"  Vision Encoder: Trainable (ROI Masked, {self.queries_per_organ} tokens/organ)")
-        print(f"  Decoder: {decoder_model_name} (Partially Frozen)")
+        print(f"  Decoder: {decoder_model_name} (Partially Frozen BERT CausalLM)")
     
-    # InfoNCE Alignment Loss (Same as MedGemma V3)
     def compute_alignment_loss(self, visual_embeds, input_ids, labels=None, temperature=0.07):
         """
-        Computes Image-Text Contrastive (ITC) Loss using GPT-2's own embeddings.
+        Computes Image-Text Contrastive (ITC) Loss using BERT's embeddings.
         visual_embeds: (B*12, Q, D) where Q = queries_per_organ
         """
         device = visual_embeds.device
@@ -380,9 +373,9 @@ class MedicalVLM(nn.Module):
             # - Positions with active labels (-100 mask removed) = content → attend
             # - Prompt positions (masked in labels but are real tokens) → attend
             # - Padding (masked in labels AND are pad_token_id) → don't attend
-            # Using flat_input_ids_all != pad works for BART (pad≠eos),
-            # but for GPT-2 (pad==eos) it would mask the real EOS.
-            # Solution: attend where labels != -100 OR input_ids != pad
+            # For BERT, pad_token is typically 0, so flat_input_ids_all != pad perfectly masks padding
+            # while keeping real EOS (SEP, 102).
+            # We attend where labels != -100 OR input_ids != pad.
             # Position 0 (decoder_start) always attends.
             label_active = (flat_labels != -100)  # content positions
             input_active = (flat_input_ids_all != self.tokenizer.pad_token_id)  # non-pad positions
