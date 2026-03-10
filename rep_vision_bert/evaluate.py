@@ -207,10 +207,28 @@ def evaluate(args):
                 
                 patient_pred_concat = ""
                 patient_ref_concat = ""
-                
-                for key, text, p_text in zip(ALL_TARGET_KEYS, decoded, prompts):
-                    # Clean Prediction (Remove Prompt)
-                    clean_pred = text.removeprefix(p_text).strip()
+                p_pred_dict = {} # Initialize dictionary for predictions
+                # Build mapping
+                for key, pred_text, p_text in zip(ALL_TARGET_KEYS, decoded, prompts):
+                    # Clean up the "Describe [organ]:" prefix
+                    prefix = f"describe {key.lower()}"
+                    lower_pred = pred_text.lower()
+                    
+                    if prefix in lower_pred:
+                        # Find where the prefix ends (including the colon if it exists)
+                        idx = lower_pred.find(prefix) + len(prefix)
+                        
+                        # See if there's a colon right after it
+                        if idx < len(pred_text):
+                            colon_idx = pred_text.find(":", idx)
+                            if colon_idx != -1 and colon_idx - idx < 5:  # Colon is nearby
+                                idx = colon_idx + 1
+                                
+                        clean_pred = pred_text[idx:].strip()
+                    else:
+                        clean_pred = pred_text.removeprefix(p_text).strip()
+                    
+                    p_pred_dict[key] = clean_pred
                     
                     # Get specific organ reference from JSON
                     ref_sent = p_ref_dict.get(key, "")

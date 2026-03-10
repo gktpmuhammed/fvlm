@@ -61,27 +61,27 @@ run_pipeline() {
     # ---------------------------------------------------------
     # 2. Evaluate (Env: fvlm_training_clean)
     # ---------------------------------------------------------
-    echo "[$(date '+%H:%M:%S')] [Env: fvlm_training_clean] Evaluating $MODEL_NAME..."
+    # echo "[$(date '+%H:%M:%S')] [Env: fvlm_training_clean] Evaluating $MODEL_NAME..."
     
-    CUDA_VISIBLE_DEVICES=$GPU_ID python evaluate.py \
-        --vision_encoder_path "/home/muhammedg/fvlm/checkpoints/model.pth" \
-        --decoder_model "$DECODER_MODEL" \
-        --queries_per_organ 8 \
-        --model_path "$CKPT_DIR/final_model" \
-        --output_dir "$RESULT_DIR" \
-        --csv_file "$DATA_CSV" \
-        --json_file "$DATA_JSON" \
-        > "$SCRIPT_DIR/${MODEL_NAME}_eval.log" 2>&1
+    # CUDA_VISIBLE_DEVICES=$GPU_ID python evaluate.py \
+    #     --vision_encoder_path "/home/muhammedg/fvlm/checkpoints/model.pth" \
+    #     --decoder_model "$DECODER_MODEL" \
+    #     --queries_per_organ 8 \
+    #     --model_path "$CKPT_DIR/final_model" \
+    #     --output_dir "$RESULT_DIR" \
+    #     --csv_file "$DATA_CSV" \
+    #     --json_file "$DATA_JSON" \
+    #     > "$SCRIPT_DIR/${MODEL_NAME}_eval.log" 2>&1
     
-    EVAL_EXIT=$?
-    if [ $EVAL_EXIT -ne 0 ]; then
-        echo "ERROR: Evaluation failed for $MODEL_NAME (exit code: $EVAL_EXIT)"
-        echo "Check log: $SCRIPT_DIR/${MODEL_NAME}_eval.log"
-        conda deactivate
-        return 1
-    fi
-    echo "[$(date '+%H:%M:%S')] Evaluation complete for $MODEL_NAME."
-    conda deactivate
+    # EVAL_EXIT=$?
+    # if [ $EVAL_EXIT -ne 0 ]; then
+    #     echo "ERROR: Evaluation failed for $MODEL_NAME (exit code: $EVAL_EXIT)"
+    #     echo "Check log: $SCRIPT_DIR/${MODEL_NAME}_eval.log"
+    #     conda deactivate
+    #     return 1
+    # fi
+    # echo "[$(date '+%H:%M:%S')] Evaluation complete for $MODEL_NAME."
+    # conda deactivate
 
     # ---------------------------------------------------------
     # 3. Metrics (Env: radevalmetrics)
