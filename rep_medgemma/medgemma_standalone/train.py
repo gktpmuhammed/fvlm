@@ -97,15 +97,13 @@ class OrganCollator:
         input_ids = torch.stack([f['input_ids'] for f in features])
         attention_mask = torch.stack([f['attention_mask'] for f in features])
         labels = torch.stack([f['labels'] for f in features])
-        sample_weights = torch.stack([f['sample_weights'] for f in features])
         
         return {
             'pixel_values': pixel_values, 
             'organ_masks': organ_masks,
             'input_ids': input_ids,
             'attention_mask': attention_mask,
-            'labels': labels,
-            'sample_weights': sample_weights
+            'labels': labels
         }
 
 class OnePassOrganDataset(Dataset):
@@ -117,17 +115,6 @@ class OnePassOrganDataset(Dataset):
         
         with open(json_file, 'r') as f: 
             self.reports_json = json.load(f)
-
-        # Load Sampling Probabilities (Only for training)
-        self.sampling_probs = None
-        if split == 'training':
-            probs_path = os.path.join(os.path.dirname(csv_file), 'organ_sampling_probs.json')
-            if os.path.exists(probs_path):
-                with open(probs_path, 'r') as f:
-                    self.sampling_probs = json.load(f)
-                print(f"Loaded organ sampling probabilities from {probs_path}")
-            else:
-                print("WARNING: No organ sampling probabilities found for training. Using keep_prob=1.0.")
 
         self.tokenizer = tokenizer
         # Enforce right padding for correct masking logic
@@ -184,7 +171,6 @@ class OnePassOrganDataset(Dataset):
             patient_data = self.reports_json.get(pid, {})
 
             mask_stack, input_ids_stack, att_stack, label_stack = [], [], [], []
-            weights_stack = []
 
             for key in self.target_keys:
                 # 1. Mask
@@ -195,8 +181,6 @@ class OnePassOrganDataset(Dataset):
                 
                 # 2. Text
                 text = patient_data.get(key, "").strip()
-                is_default = False
-                
                 if len(text) < 3: 
                     # If empty, teach model to say "No findings." or a synonym
                     if self.split == 'training':
@@ -206,20 +190,8 @@ class OnePassOrganDataset(Dataset):
                         # Use a consistent template for validation to avoid artificial loss spikes
                         # while still matching the training distribution format.
                         text = NO_FINDING_TEMPLATES[0].format(organ=key)
-                    is_default = True
+                    # is_default = True (implicit in this file version, no variable for it)
                 
-                # Balanced Masking Logic
-                weight = 1.0
-                if self.sampling_probs:
-                    # If Default, we might mask it out (weight=0)
-                    if is_default:
-                        prob = self.sampling_probs.get(key, 1.0)
-                        if random.random() > prob:
-                            weight = 0.0
-                    # Explicit findings always kept (weight=1.0)
-                
-                weights_stack.append(weight)
-
                 # 3. Tokenize with Chat Template
                 full_text, prompt_text = self.apply_chat_template(key, text)
                 
@@ -278,8 +250,7 @@ class OnePassOrganDataset(Dataset):
                 'organ_masks': torch.stack(mask_stack).float(),
                 'input_ids': torch.stack(input_ids_stack),
                 'attention_mask': torch.stack(att_stack),
-                'labels': torch.stack(label_stack),
-                'sample_weights': torch.tensor(weights_stack, dtype=torch.float32)
+                'labels': torch.stack(label_stack)
             }
 
         except Exception as e:
@@ -300,11 +271,28 @@ def main():
     parser.add_argument('--subset_size', type=int, default=None, help='Train on a small subset for debugging')
     parser.add_argument('--eval_steps', type=int, default=200)
     parser.add_argument('--logging_steps', type=int, default=10)
-    parser.add_argument('--queries_per_organ', type=int, default=8, help='Number of visual tokens per organ')
+    parser.add_argument('--save_steps', type=int, default=200)
+    parser.add_argument('--gradient_accumulation_steps', type=int, default=8)
+    parser.add_argument('--dataloader_num_workers', type=int, default=4)
+    parser.add_argument('--max_steps', type=int, default=-1, help='If >0, stop training after this many optimizer steps')
+    parser.add_argument('--disable_eval', action='store_true', help='Disable in-training eval to speed up training')
+    parser.add_argument('--organ_chunk_size', type=int, default=1, help='How many organ prompts to run per model forward chunk')
+    parser.add_argument('--use_4bit', action='store_true', help='Load MedGemma in 4-bit quantization')
+    parser.add_argument('--device_map', type=str, default=None, help='Optional HF device_map (e.g. auto)')
+    parser.add_argument('--local_files_only', action='store_true', help='Force use of local HF cache only')
+    parser.add_argument('--allow_online_model_fetch', action='store_true', help='Allow remote model download')
     args = parser.parse_args()
     
     # Init Model
-    model = MedicalVLM(args.vision_encoder_path, args.decoder_model, queries_per_organ=args.queries_per_organ)
+    model = MedicalVLM(
+        args.vision_encoder_path,
+        args.decoder_model,
+        organ_chunk_size=args.organ_chunk_size,
+        apply_lora=True,
+        use_4bit=args.use_4bit,
+        device_map=args.device_map,
+        local_files_only=(args.local_files_only or not args.allow_online_model_fetch),
+    )
 
     # Init Data
     transform = build_transforms()
@@ -314,23 +302,26 @@ def main():
     training_args = TrainingArguments(
         output_dir=args.output_dir,
         num_train_epochs=args.num_epochs,
+        max_steps=args.max_steps,
         per_device_train_batch_size=args.batch_size,
         per_device_eval_batch_size=args.batch_size, # Fix OOM: Match train batch size
-        gradient_accumulation_steps=8,
-        learning_rate=1e-4, # Higher LR for Vision+Projector since LLM is frozen
+        gradient_accumulation_steps=args.gradient_accumulation_steps,
+        learning_rate=1e-4,
         weight_decay=0.01,
         warmup_ratio=0.05,
         logging_steps=args.logging_steps,
         save_strategy="steps",
-        eval_strategy="steps",
-        save_steps=200,
+        eval_strategy=("no" if args.disable_eval else "steps"),
+        save_steps=args.save_steps,
         eval_steps=args.eval_steps,
         save_total_limit=3, # Keep only the last 3 checkpoints to save space
         eval_accumulation_steps=None, # Fix: Disable accumulation to ensure correct scalar loss reporting
-        gradient_checkpointing=True, # Fix OOM: Save memory during training
+        gradient_checkpointing=True,
+        gradient_checkpointing_kwargs={"use_reentrant": False},
         bf16=True, # Use BF16 for stability
         fp16=False,
-        dataloader_num_workers=4,
+        dataloader_num_workers=args.dataloader_num_workers,
+        ddp_find_unused_parameters=False,
         remove_unused_columns=False, # Essential for custom forward pass
         report_to="wandb"
     )
@@ -343,68 +334,10 @@ def main():
             """
             if output_dir is None:
                 output_dir = self.args.output_dir
-            
-            # Helper to unwrap model in DDP (Distributed Data Parallel)
             model_to_save = self.model
-            while hasattr(model_to_save, 'module'):
+            while hasattr(model_to_save, "module"):
                 model_to_save = model_to_save.module
-                
             model_to_save.save_pretrained(output_dir)
-
-        def _load_from_checkpoint(self, resume_from_checkpoint, fit_model=True):
-            """
-            Override to handle our custom checkpoint format.
-            """
-            if resume_from_checkpoint is None:
-                return
-
-            print(f"Loading custom checkpoint from {resume_from_checkpoint}")
-            
-            # 1. Load Vision Encoder
-            vision_path = os.path.join(resume_from_checkpoint, "vision_encoder.bin")
-            if os.path.exists(vision_path):
-                self.model.vision_encoder.load_state_dict(torch.load(vision_path, map_location="cpu"))
-                print("  - Vision Encoder loaded.")
-            
-            # 2. Load Projector
-            proj_path = os.path.join(resume_from_checkpoint, "projector.bin")
-            if os.path.exists(proj_path):
-                self.model.visual_projection.load_state_dict(torch.load(proj_path, map_location="cpu"))
-                print("  - Projector loaded.")
-                
-            # 3. Load Projector LayerNorm
-            ln_path = os.path.join(resume_from_checkpoint, "projector_layernorm.bin")
-            if os.path.exists(ln_path):
-                self.model.projector_layernorm.load_state_dict(torch.load(ln_path, map_location="cpu"))
-                print("  - Projector LayerNorm loaded.")
-
-            # 4. Load Visual Pos Embed
-            pos_path = os.path.join(resume_from_checkpoint, "visual_pos_embed.bin")
-            if os.path.exists(pos_path):
-                # It's saved as a tensor/param, so load it directly
-                # If it was saved as state_dict it would be different, but save_pretrained does torch.save(param)
-                # Let's check medical_vlm.py: 
-                # torch.save(self.visual_pos_embed, ...) -> saves the Tensor/Parameter object
-                self.model.visual_pos_embed.data = torch.load(pos_path, map_location="cpu").data
-                print("  - Visual Pos Embed loaded.")
-            
-            # 5. Load LoRA Adapters (Managed by PEFT/Transformers usually)
-            # The 'adapter_model.safetensors' is present, so we should load it.
-            # Using standard PEFT loader if possible, or manual load if we must.
-            # Since self.model.decoder is a PeftModel, we can use load_peft_weights
-            from peft import PeftModel
-            if isinstance(self.model.decoder, PeftModel):
-                self.model.decoder.load_adapter(resume_from_checkpoint, adapter_name="default")
-                print("  - LoRA Adapters loaded.")
-
-            # 6. Load Optimizer/Scheduler/Step (Handled by Trainer.train logic usually, but we need to ensure state is loaded)
-            # calling super()._load_from_checkpoint might fail because it tries to load model weights too.
-            # However, super() logic is complex. 
-            # Actually, standard Trainer._load_from_checkpoint primarily loads the model weights.
-            # The optimizer/scheduler loading happens in `train()` method logic explicitly via `_load_optimizer_and_scheduler`.
-            # So we just need to ensure the MODEL weights are correct here.
-            
-            return
 
     trainer = MedicalTrainer(
         model=model,

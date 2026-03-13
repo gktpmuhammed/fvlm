@@ -14,8 +14,10 @@ run_pipeline() {
     GPU_ID=$2
     QUERIES=$3
     
+    MODEL_OUT_DIR="${MODEL_DIR}_${QUERIES}tokens"
+    
     echo "=================================================="
-    echo "Starting pipeline for $MODEL_DIR on GPU $GPU_ID"
+    echo "Starting pipeline for $MODEL_DIR on GPU $GPU_ID with $QUERIES tokens"
     echo "=================================================="
     
     cd $MODEL_DIR || exit
@@ -26,20 +28,21 @@ run_pipeline() {
     conda activate fvlm_training_clean
     echo "[Env: fvlm_training_clean] Training $MODEL_DIR..."
     
-    export WANDB_NAME="$MODEL_DIR"
+    export WANDB_NAME="$MODEL_OUT_DIR"
     CUDA_VISIBLE_DEVICES=$GPU_ID python train.py \
+        --queries_per_organ $QUERIES \
         --num_epochs 1 \
         --batch_size 1 \
-        --output_dir "../checkpoints_retrain/$MODEL_DIR" \
-        > train.log 2>&1
+        --output_dir "../checkpoints_retrain/$MODEL_OUT_DIR" \
+        > train_${QUERIES}tokens.log 2>&1
     
     echo "[Env: fvlm_training_clean] Evaluating $MODEL_DIR..."
     CUDA_VISIBLE_DEVICES=$GPU_ID python evaluate.py \
         --queries_per_organ $QUERIES \
         --batch_size 1 \
-        --checkpoint_dir "../checkpoints_retrain/$MODEL_DIR/final" \
-        --output_dir "../results_retrain/$MODEL_DIR" \
-        > eval.log 2>&1
+        --checkpoint_dir "../checkpoints_retrain/$MODEL_OUT_DIR/final" \
+        --output_dir "../results_retrain/$MODEL_OUT_DIR" \
+        > eval_${QUERIES}tokens.log 2>&1
         
     conda deactivate
 
@@ -49,8 +52,8 @@ run_pipeline() {
     conda activate radevalmetrics
     echo "[Env: radevalmetrics] Calculating metrics for $MODEL_DIR..."
     
-    PRED_FILE="../results_retrain/$MODEL_DIR/generated_reports_gemma.csv"
-    OUTPUT_DIR="../results_retrain/$MODEL_DIR"
+    PRED_FILE="../results_retrain/$MODEL_OUT_DIR/generated_reports_gemma.csv"
+    OUTPUT_DIR="../results_retrain/$MODEL_OUT_DIR"
     GT_FILE="../data_sym/combined_desc_conc_v2.json"
     
     if [ -f "$PRED_FILE" ]; then
@@ -68,17 +71,17 @@ run_pipeline() {
     conda deactivate
     
     cd .. # Return to root for next loop
-    echo "Finished $MODEL_DIR"
+    echo "Finished $MODEL_DIR with $QUERIES tokens"
 }
 
 # GPU 0 List (1 Query Models + others)
 run_gpu0() {
     # # 1 Query Models
-    # run_pipeline "medgemma_lora_vis_token_pos_embed" 0 1
+    run_pipeline "medgemma_lora_vis_token_pos_embed" 0 1
     # run_pipeline "lora_with_vis_tokens_pos_embed_weight_loss" 0 1
     # run_pipeline "lora_with_vis_tokens_pos_embed_undersampling" 0 1
     # run_pipeline "curriculum_learning" 0 8
-    run_pipeline "hard_example_mining" 0 8
+    # run_pipeline "hard_example_mining" 0 8
 }
 
 # GPU 1 List (8 Query Models)
@@ -88,7 +91,8 @@ run_gpu1() {
     # run_pipeline "medgemma_architecture_v3" 1 8
     # run_pipeline "medical_vlm_8_tokens_full_maxpool" 1 8
     # run_pipeline "multiscale_vit_fpn" 1 8
-    run_pipeline "perceiver_resampler" 1 8
+    # run_pipeline "perceiver_resampler" 1 8
+    run_pipeline "medgemma_lora_vis_token_pos_embed" 1 8
 }
 
 # Start Parallel Execution

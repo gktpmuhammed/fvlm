@@ -54,7 +54,7 @@ def evaluate(args):
     print(f"Loading Model: {args.decoder_model}")
     # 1. Load Model (Architecture handles loading weights)
     # Note: We need to load the saved projector and encoder weights
-    model = MedicalVLM(args.vision_encoder_path, args.decoder_model)
+    model = MedicalVLM(args.vision_encoder_path, args.decoder_model, queries_per_organ=args.queries_per_organ)
     
     # Load trained weights
     print(f"Loading trained weights from {args.checkpoint_dir}...")
@@ -180,8 +180,9 @@ def evaluate(args):
                 input_ids=inputs.input_ids,
                 attention_mask=inputs.attention_mask,
                 max_new_tokens=100,
-                do_sample=False, 
-                num_beams=3,            # Standard for medical reports
+                do_sample=True,         # Enable Sampling
+                temperature=0.8,        # Control randomness (0.8 is balanced)
+                top_p=0.9,             # Nucleus sampling
                 repetition_penalty=1.2, # Penalize repetition
                 no_repeat_ngram_size=3  # Stop 3-gram loops
             )
