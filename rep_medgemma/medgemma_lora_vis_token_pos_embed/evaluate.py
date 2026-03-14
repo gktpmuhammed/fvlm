@@ -19,7 +19,7 @@ parent_dir = os.path.dirname(current_dir)
 if parent_dir in sys.path: sys.path.remove(parent_dir)
 if current_dir in sys.path: sys.path.remove(current_dir)
 
-sys.path.insert(0, os.path.join(parent_dir, "../")) # Prioritize local lavis
+sys.path.insert(0, os.path.join(parent_dir, "../"))
 sys.path.insert(0, current_dir)
 
 from medical_vlm import MedicalVLM
@@ -140,8 +140,13 @@ def evaluate(args):
     
     # 2. Data
     transform = build_transforms()
+    # Batch Size 2 to utilize GPU (approx 18GB usage)
+    # Batch Size 2 to utilize GPU (approx 18GB usage)
+    batch_size = args.batch_size
+    print(f"Eval Batch Size: {batch_size}")
+    
     ds = EvalDataset(args.csv_file, transform, args.subset_size)
-    dl = DataLoader(ds, batch_size=1, shuffle=False, num_workers=4)
+    dl = DataLoader(ds, batch_size=batch_size, shuffle=False, num_workers=4)
     
     results = []
     
@@ -152,33 +157,57 @@ def evaluate(args):
             
             pixel_values = batch['pixel_values'].cuda()
             full_mask = batch['full_mask'].cuda()
-            pid = batch['patient_id'][0]
+            pids = batch['patient_id'] # List of IDs
             
-            # Prepare Prompts for all organs
-            prompts = []
-            mask_stack = []
+            # Prepare Prompts for all organs across all patients in batch
+            # We need a flat list: [P1_Lung, P1_Heart, ..., P2_Lung, P2_Heart, ...]
+            all_prompts = []
             
+            for pid in pids:
+                for key in ALL_TARGET_KEYS:
+                    # Format: Chat Template (User turn only)
+                    p = f"<start_of_turn>user\nAnalyze the specific image feature. Describe the findings for the {key}.<end_of_turn>\n<start_of_turn>model\n"
+                    all_prompts.append(p)
+            
+            # Re-construct the 12-channel organ masks from the full segmentation mask
+            # full_mask: (B, 1, D, H, W) or (B, D, H, W)
+            mask_list_batch = []
             for key in ALL_TARGET_KEYS:
-                # Format: Chat Template (User turn only)
-                p = f"<start_of_turn>user\nAnalyze the specific image feature. Describe the findings for the {key}.<end_of_turn>\n<start_of_turn>model"
-                prompts.append(p)
+                tids = get_organ_ids_for_key(key) # [1, 2] etc
                 
-                # Mask
-                tids = get_organ_ids_for_key(key)
-                m = torch.zeros_like(full_mask)
-                for t in tids: m[full_mask == t] = 1.0
-                mask_stack.append(m)
+                # Create binary mask for this organ (across the whole batch)
+                # vectorized: mask is true if pixel value is any of the tids
+                # full_mask can be float, so use comparison directly
+                m = torch.zeros_like(full_mask, dtype=torch.bool) 
+                for t in tids:
+                    m = m | (full_mask == t)
+                
+                mask_list_batch.append(m.float())
             
-            organ_masks = torch.stack(mask_stack, dim=1).float()
+            # Stack: (B, 12, 1, D, H, W) -> Squeeze -> (B, 12, D, H, W)
+            organ_masks = torch.stack(mask_list_batch, dim=1)
+            if organ_masks.dim() == 6:
+                organ_masks = organ_masks.squeeze(2)
             
-            # Tokenize Prompts
-            # Tokenize Prompts
-            inputs = model.tokenizer(prompts, return_tensors="pt", padding=True).to('cuda')
+            inputs = model.tokenizer(
+                all_prompts,
+                padding=True,
+                return_tensors='pt'
+            ).to('cuda')
+            
+            # Reshape inputs: (B*N, S) -> (B, N, S)
+            B_curr = pixel_values.shape[0]
+            num_organs = len(ALL_TARGET_KEYS)
+            
+            input_ids_reshaped = inputs.input_ids.view(B_curr, num_organs, -1)
+            attention_mask_reshaped = inputs.attention_mask.view(B_curr, num_organs, -1)
+            
+            # Forward Pass (Generation)
             outputs = model.generate(
                 pixel_values=pixel_values,
-                organ_masks=organ_masks,
-                input_ids=inputs.input_ids,
-                attention_mask=inputs.attention_mask,
+                organ_masks=organ_masks,   # Pass the constructed 12-channel mask
+                input_ids=input_ids_reshaped,
+                attention_mask=attention_mask_reshaped,
                 max_new_tokens=100,
                 do_sample=True,         # Enable Sampling
                 temperature=0.8,        # Control randomness (0.8 is balanced)
@@ -189,20 +218,28 @@ def evaluate(args):
             
             decoded = model.tokenizer.batch_decode(outputs, skip_special_tokens=True)
             
-            # Parse results
-            report = ""
-            for key, text in zip(ALL_TARGET_KEYS, decoded):
-                # Clean up the prompt from the output if necessary
-                # Clean up the prompt from the output if necessary
-                # Gemma typically outputs the full string, so we split by 'model\n'
-                if "model\n" in text:
-                    clean_text = text.split("model\n")[-1].strip()
-                else:
-                    clean_text = text.strip()
-                    
-                report += f"{key.upper()}: {clean_text}\n"
+            # Parse results: Map flat decoded list back to patients
+            # decoded length = Batch_Size * 12
             
-            results.append({'patient_id': pid, 'prediction': report})
+            num_organs = len(ALL_TARGET_KEYS)
+            
+            for i, pid in enumerate(pids):
+                # Slice the 12 results for this patient
+                start_idx = i * num_organs
+                end_idx = (i + 1) * num_organs
+                patient_outputs = decoded[start_idx:end_idx]
+                
+                report = ""
+                for key, text in zip(ALL_TARGET_KEYS, patient_outputs):
+                    # Clean up the prompt from the output if necessary
+                    if "model\n" in text:
+                        clean_text = text.split("model\n")[-1].strip()
+                    else:
+                        clean_text = text.strip()
+                        
+                    report += f"{key.upper()}: {clean_text}\n"
+                
+                results.append({'patient_id': pid, 'prediction': report})
             
     # Save
     os.makedirs(args.output_dir, exist_ok=True)
@@ -220,4 +257,5 @@ if __name__ == "__main__":
     parser.add_argument('--queries_per_organ', type=int, default=8)
     parser.add_argument('--batch_size', type=int, default=2)
     args = parser.parse_args()
+    # os.environ['CUDA_VISIBLE_DEVICES'] = '0'
     evaluate(args)

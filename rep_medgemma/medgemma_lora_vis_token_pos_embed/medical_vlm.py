@@ -459,14 +459,15 @@ class MedicalVLM(nn.Module):
             text_std = self.decoder.get_input_embeddings().weight.std()
         visual_embeds = visual_embeds * (text_std / (visual_embeds.std() + 1e-6))
         
-        B, N, _ = visual_embeds.shape
-        visual_embeds = visual_embeds.view(B * N, 1, -1)
+        # 3. Reshape for Processing
+        B_batch = pixel_values.shape[0]
+        visual_embeds = visual_embeds.view(B_batch, self.num_organs, self.queries_per_organ, -1)
         
         # 2. Prepare Prompts
         if input_ids is not None:
             B, N, S = input_ids.shape
             
-            # Reshape Visuals (B, 12, Q, D) -> (B*12, Q, D)
+            # Flatten Visuals: (B*N, Q, D)
             visual_embeds = visual_embeds.view(B * N, self.queries_per_organ, -1)
             
             input_ids = input_ids.view(B * N, -1)
