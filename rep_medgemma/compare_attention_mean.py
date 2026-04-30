@@ -1,5 +1,11 @@
 """
-Attention Map Comparison: Base-8T vs Multiscale-ViT-FPN vs CNN-Stem-V3
+Attention Map Comparison (Head-Averaged / Mean approach)
+Base-8T vs Multiscale-ViT-FPN vs CNN-Stem-V3
+
+Uses standard head-averaged attention (default nn.MultiheadAttention behavior)
+and mean across query tokens per organ. This shows the "true" attention
+distribution as used by the model during inference.
+
 Generates publication-quality figures with quantitative metrics per panel:
   - attention-in-mask (%)
   - off-target attention (%)
@@ -144,9 +150,8 @@ def get_model_attention(name, checkpoint_path, pixel_values, organ_masks):
     """
     Instantiate model, load vision-only weights, extract cross-attention.
     
-    Returns:
-        attn_avg: (Q, 1232) head-averaged attention (valid probability dist for metrics)
-        attn_max: (Q, 1232) max-across-heads attention (spatially discriminative for vis)
+    Uses default head-averaged attention (average_attn_weights=True).
+    Returns: attn (Q, 1232) where Q = 96 (8 tokens * 12 organs)
     """
     kwargs = {
         "vision_encoder_path": "dummy",
@@ -181,9 +186,8 @@ def get_model_attention(name, checkpoint_path, pixel_values, organ_masks):
     model.eval()
     model.cuda()
     
-    # Get per-head attention weights
-    num_heads = model.vision_encoder.cross_attn.num_heads
-    model.vision_encoder.cross_attn.average_attn_weights = False
+    # Use default head-averaged attention (average_attn_weights=True is the default)
+    # This returns (B, Q, S) — the true attention distribution used by the model
     
     with torch.no_grad():
         # For V3: run CNN stem first, then vision encoder on stem features
@@ -193,14 +197,7 @@ def get_model_attention(name, checkpoint_path, pixel_values, organ_masks):
         else:
             visual_feats, attn_weights = model.vision_encoder(pixel_values, organ_masks)
         
-        # attn_weights shape: (B * num_heads, Q, S) = (8, 96, 1232)
-        attn_per_head = attn_weights.view(1, num_heads, -1, attn_weights.shape[-1])[0]  # (num_heads, Q, S)
-        
-        # Head-averaged: valid probability distribution (each head sums to 1, avg still sums to 1)
-        attn_avg = attn_per_head.mean(dim=0)  # (Q, S)
-        
-        # Max-across-heads: shows the most discriminative spatial pattern for visualization
-        attn_max = attn_per_head.max(dim=0).values  # (Q, S)
+        attn = attn_weights[0]  # (Q, S) — first sample in batch
         
     # Free memory
     del model
@@ -208,7 +205,7 @@ def get_model_attention(name, checkpoint_path, pixel_values, organ_masks):
     import gc
     gc.collect()
         
-    return attn_avg, attn_max
+    return attn
 
 
 # ---------------------------------------------------------------------------
@@ -254,23 +251,18 @@ def compare_attention(args):
     D_vit, H_vit, W_vit = 7, 16, 11
 
     # ---- Extract attention for all models ----
-    # Store both head-averaged (for metrics) and max-across-heads (for visualization)
-    model_maps_avg = []   # for metrics (valid probability distribution)
-    model_maps_max = []   # for visualization (spatially discriminative)
+    model_maps = []
     for name, cp in checkpoints:
         print(f"Evaluating {name}...")
-        attn_avg, attn_max = get_model_attention(name, cp, pixel_values, organ_masks)
-        Q = attn_avg.shape[0]
-        attn_avg = attn_avg.view(Q, D_vit, H_vit, W_vit)
-        attn_max = attn_max.view(Q, D_vit, H_vit, W_vit)
+        attn = get_model_attention(name, cp, pixel_values, organ_masks)
+        Q = attn.shape[0]
+        attn = attn.view(Q, D_vit, H_vit, W_vit)
         
-        if Q == 96:  # 8 tokens per organ
-            attn_avg = attn_avg.view(12, 8, D_vit, H_vit, W_vit).mean(dim=1)  # avg for metrics
-            attn_max = attn_max.view(12, 8, D_vit, H_vit, W_vit).max(dim=1).values  # max for vis
+        if Q == 96:  # 8 tokens per organ -> mean across tokens
+            attn = attn.view(12, 8, D_vit, H_vit, W_vit).mean(dim=1)  # (12, 7, 16, 11)
         elif Q != 12:
             print(f"Warning: Unexpected number of queries {Q}")
-        model_maps_avg.append((name, attn_avg))
-        model_maps_max.append((name, attn_max))
+        model_maps.append((name, attn))
 
     # ---- Plot per organ ----
     for organ in target_organs:
@@ -299,30 +291,15 @@ def compare_attention(args):
         # Collect metrics for the table
         all_metrics = []
         
-        for i, ((name, att_avg_grid), (_, att_max_grid)) in enumerate(zip(model_maps_avg, model_maps_max)):
-            # Head-averaged attention for metrics (valid probability distribution)
-            att_avg = att_avg_grid[organ_idx]
-            att_avg_up = F.interpolate(
-                att_avg.unsqueeze(0).unsqueeze(0), size=(D_ct, H_ct, W_ct),
+        for i, (name, att_grid) in enumerate(model_maps):
+            att = att_grid[organ_idx]
+            att_up = F.interpolate(
+                att.unsqueeze(0).unsqueeze(0), size=(D_ct, H_ct, W_ct),
                 mode='trilinear', align_corners=False
             ).squeeze().cpu().numpy()
             
-            # Max-across-heads attention for visualization (spatially discriminative)
-            att_max = att_max_grid[organ_idx]
-            att_max_up = F.interpolate(
-                att_max.unsqueeze(0).unsqueeze(0), size=(D_ct, H_ct, W_ct),
-                mode='trilinear', align_corners=False
-            ).squeeze().cpu().numpy()
-            
-            # Per-organ normalization for visualization colormap
-            att_min, att_maxval = att_max_up.min(), att_max_up.max()
-            if att_maxval - att_min > 1e-8:
-                att_vis = (att_max_up - att_min) / (att_maxval - att_min)
-            else:
-                att_vis = att_max_up
-            
-            # Compute quantitative metrics on head-averaged attention
-            metrics = compute_metrics(att_avg_up, gt_mask)
+            # Compute quantitative metrics
+            metrics = compute_metrics(att_up, gt_mask)
             all_metrics.append(metrics)
             
             # Print metrics
@@ -334,7 +311,7 @@ def compare_attention(args):
             # Attention map panel
             ax = fig.add_subplot(gs[0, i])
             ax.imshow(ct_vol[z, :, :], cmap='gray')
-            ax.imshow(att_vis[z, :, :], cmap='jet', alpha=0.5, vmin=0, vmax=1)
+            ax.imshow(att_up[z, :, :], cmap='jet', alpha=0.5)
             ax.set_title(f"{name}", fontsize=12, fontweight='bold')
             ax.axis('off')
             
@@ -366,9 +343,9 @@ def compare_attention(args):
                  bbox=dict(boxstyle='round,pad=0.3', facecolor='lightcyan', alpha=0.8),
                  transform=ax_m.transAxes)
         
-        fig.suptitle(f"Cross-Attention Maps (max-over-heads) — {organ}", fontsize=14, fontweight='bold', y=0.98)
+        fig.suptitle(f"Cross-Attention Maps (head-averaged) — {organ}", fontsize=14, fontweight='bold', y=0.98)
         
-        out_path = f"attention_2x2_{organ}_{pid}.png"
+        out_path = f"attention_mean_{organ}_{pid}.png"
         plt.savefig(out_path, dpi=150, bbox_inches='tight')
         print(f"\nSaved {out_path}")
         plt.close()
@@ -379,11 +356,10 @@ def compare_attention(args):
     print(f"{'='*60}")
     print(f"{'Organ':<12} {'Model':<22} {'In-Mask%':>10} {'Off-Target%':>12} {'Entropy':>10}")
     print("-" * 66)
-    # Re-run metrics collection (already printed above, just recap)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="2x2 Attention Map Comparison")
+    parser = argparse.ArgumentParser(description="Attention Map Comparison (Head-Averaged)")
     parser.add_argument('--patient_id', type=str, default=None,
                         help="Patient ID to visualize (default: first in validation)")
     parser.add_argument('--target_organs', type=str, nargs='+', default=None,
