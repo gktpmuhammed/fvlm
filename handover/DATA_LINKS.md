@@ -19,17 +19,27 @@ Recommended (single command):
 ```bash
 bash scripts/setup/recreate_data_symlinks.sh /path/to/CT_RATE/dataset
 ```
+This one command recreates all expected links:
+- `data_sym/train/images` + `data_sym/train/masks`
+- `data_sym/valid/images` + `data_sym/valid/masks`
+- `data_sym/metadata`
+- `data_sym/radiology_text_reports`
+- `data_sym/multi_abnormality_labels`
+
+The script auto-detects mask directories using either:
+- `train_TS` + `valid_TS` (your current CT-Rate layout), or
+- `train_mask_process` + `valid_mask_process`
 
 Manual example:
 ```bash
 python data/create_symlinks.py \
   --source_images /path/to/CT_RATE/train_process \
-  --source_masks /path/to/CT_RATE/train_mask_process \
+  --source_masks /path/to/CT_RATE/train_TS \
   --dest_root data_sym/train
 
 python data/create_symlinks.py \
   --source_images /path/to/CT_RATE/valid_process \
-  --source_masks /path/to/CT_RATE/valid_mask_process \
+  --source_masks /path/to/CT_RATE/valid_TS \
   --dest_root data_sym/valid
 ```
 

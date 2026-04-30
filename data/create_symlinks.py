@@ -33,8 +33,16 @@ def create_symlinks(source_dir, dest_dir, is_mask=False):
             Path(dest_path_dir).mkdir(parents=True, exist_ok=True)
             
             if os.path.lexists(dest_path):
-                # Using lexists to check for broken symlinks as well
-                continue
+                # If a stale symlink exists, replace it so links can be recreated
+                # after dataset root changes.
+                if os.path.islink(dest_path):
+                    old_target = os.readlink(dest_path)
+                    new_target = os.path.abspath(source_path)
+                    if old_target == new_target:
+                        continue
+                    os.remove(dest_path)
+                else:
+                    continue
 
             os.symlink(os.path.abspath(source_path), dest_path)
 

@@ -18,6 +18,6 @@ This repository is prepared for clean migration to a new userspace.
 ## Recommended Order
 1. `scripts/setup/create_env_fvlm_training_clean.sh`
 2. `scripts/setup/create_env_radevalmetrics.sh`
-3. `scripts/setup/create_env_decompose.sh`
+3. `scripts/setup/create_env_ct_rate.sh`
 4. Data link setup
 5. Smoke tests
