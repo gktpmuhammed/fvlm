@@ -2,7 +2,13 @@
 # run_retraining_parallel.sh
 
 # Initialize Conda
-source ~/miniconda3/etc/profile.d/conda.sh
+CONDA_BASE="${CONDA_BASE:-$HOME/miniconda3}"
+source "$CONDA_BASE/etc/profile.d/conda.sh"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+METRICS_SCRIPT="${METRICS_SCRIPT:-$SCRIPT_DIR/radeval_metrics.py}"
+DATA_SYM_ROOT="${DATA_SYM_ROOT:-$PROJECT_ROOT/data_sym}"
 
 # Global WandB Settings
 export WANDB_PROJECT="thesis_retrain_v3"
@@ -20,7 +26,7 @@ run_pipeline() {
     echo "Starting pipeline for $MODEL_DIR on GPU $GPU_ID with $QUERIES tokens"
     echo "=================================================="
     
-    cd $MODEL_DIR || exit
+    cd "$SCRIPT_DIR/$MODEL_DIR" || exit
     
     # ---------------------------------------------------------
     # 1. Train & Evaluate (Env: fvlm_training_clean)
@@ -54,23 +60,20 @@ run_pipeline() {
     
     PRED_FILE="../results_retrain/$MODEL_OUT_DIR/generated_reports_gemma.csv"
     OUTPUT_DIR="../results_retrain/$MODEL_OUT_DIR"
-    GT_FILE="../data_sym/combined_desc_conc_v2.json"
+    GT_FILE="$DATA_SYM_ROOT/combined_desc_conc_v2.json"
     
     if [ -f "$PRED_FILE" ]; then
-        cd .. # Go back to root to find radeval_metrics.py
-        CUDA_VISIBLE_DEVICES=$GPU_ID python radeval_metrics.py \
-            --input_csv "$MODEL_DIR/$PRED_FILE" \
-            --output_dir "$MODEL_DIR/$OUTPUT_DIR" \
+        CUDA_VISIBLE_DEVICES=$GPU_ID python "$METRICS_SCRIPT" \
+            --input_csv "$SCRIPT_DIR/$MODEL_DIR/$PRED_FILE" \
+            --output_dir "$SCRIPT_DIR/$MODEL_DIR/$OUTPUT_DIR" \
             --ground_truth_json "$GT_FILE" \
-            > "$MODEL_DIR/$OUTPUT_DIR/metrics.log" 2>&1
-        cd $MODEL_DIR # Return to model dir
+            > "$SCRIPT_DIR/$MODEL_DIR/$OUTPUT_DIR/metrics.log" 2>&1
     else
         echo "WARNING: Prediction file not found: $PRED_FILE"
     fi
     
     conda deactivate
     
-    cd .. # Return to root for next loop
     echo "Finished $MODEL_DIR with $QUERIES tokens"
 }
 

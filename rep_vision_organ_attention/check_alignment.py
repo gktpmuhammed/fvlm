@@ -1,9 +1,12 @@
 import os
+from pathlib import Path
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
 from transformers import AutoTokenizer
 from tqdm import tqdm
+
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
 
 # Import your actual classes to ensure we test the EXACT pipeline
 from train import build_transforms, OnePassOrganDataset
@@ -97,6 +100,6 @@ def visualize_alignment(csv_file, json_file, output_dir="alignment_checks"):
     print(f"Done! Check the folder: {output_dir}")
 
 if __name__ == "__main__":
-    CSV_FILE = '/home/muhammedg/fvlm/data/image_first_dataset.csv'
-    JSON_FILE = '/home/muhammedg/fvlm/data/combined_desc_conc.json'
+    CSV_FILE = str(PROJECT_ROOT / 'data/image_first_dataset.csv')
+    JSON_FILE = str(PROJECT_ROOT / 'data/combined_desc_conc.json')
     visualize_alignment(CSV_FILE, JSON_FILE)

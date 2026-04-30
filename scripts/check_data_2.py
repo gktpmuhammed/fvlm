@@ -1,8 +1,11 @@
 import SimpleITK as sitk
 import os
+from pathlib import Path
 
-image_path = '/home/muhammedg/fvlm/data/preprocessed_samples_transpose/images/train_1_a_1_image.nii.gz'
-mask_path = '/home/muhammedg/fvlm/data/preprocessed_samples_transpose/masks/train_1_a_1_mask.nii.gz'
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
+
+image_path = str(PROJECT_ROOT / 'data/preprocessed_samples_transpose/images/train_1_a_1_image.nii.gz')
+mask_path = str(PROJECT_ROOT / 'data/preprocessed_samples_transpose/masks/train_1_a_1_mask.nii.gz')
 
 if not os.path.exists(image_path):
     print(f"Image file not found: {image_path}")

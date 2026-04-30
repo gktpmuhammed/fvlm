@@ -1,5 +1,9 @@
+import os
+from pathlib import Path
 import pandas as pd
 import json
+
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
 
 def cross_check_retention(csv_path, findings_json, impressions_json, threshold=70):
     df = pd.read_csv(csv_path)
@@ -33,9 +37,9 @@ def cross_check_retention(csv_path, findings_json, impressions_json, threshold=7
     return result_df
 
 # Usage:
-find_path = "/home/muhammedg/fvlm/data/conc_info.json"
-imp_path = "/home/muhammedg/fvlm/data/desc_info.json"
-csv_file = "/home/muhammedg/fvlm/output/organ_voxel_pct_analysis_debug/per_scan_organ_voxel_percentages.csv"
+find_path = str(PROJECT_ROOT / 'data/conc_info.json')
+imp_path = str(PROJECT_ROOT / 'data/desc_info.json')
+csv_file = str(PROJECT_ROOT / 'output/organ_voxel_pct_analysis_debug/per_scan_organ_voxel_percentages.csv')
 findings = json.load(open(find_path))
 impressions = json.load(open(imp_path))
 cross_check_retention(csv_file, findings, impressions, threshold=90)

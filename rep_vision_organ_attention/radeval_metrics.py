@@ -12,6 +12,10 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from collections import defaultdict
 import json
+from pathlib import Path
+
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
+DEFAULT_GT_JSON = PROJECT_ROOT / "data_sym" / "combined_desc_conc_v2.json"
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 # NLTK Setup for fallback metrics
@@ -551,7 +555,7 @@ def save_results(results_dict, output_dir):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Medical Report Evaluation with RadEval Integration")
     parser.add_argument('--input_csv', type=str, required=True, help="Path to generated_reports.csv")
-    parser.add_argument('--ground_truth_json', type=str, default='/home/muhammedg/fvlm/data_sym/combined_desc_conc_v2.json', 
+    parser.add_argument('--ground_truth_json', type=str, default=str(DEFAULT_GT_JSON), 
                         help="Path to ground truth JSON file (default: combined_desc_conc.json)")
     parser.add_argument('--output_dir', type=str, default='./results_metrics', help="Folder to save results")
     parser.add_argument('--device', type=str, default='cuda', choices=['cuda', 'cpu'])

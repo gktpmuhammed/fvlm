@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 import os
+from pathlib import Path
 import numpy as np
 import torch
 from monai import transforms
+
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
+REFERENCE_FVLM_ROOT = Path(
+    os.getenv("REFERENCE_FVLM_ROOT", PROJECT_ROOT.parent / "test" / "fvlm")
+)
 
 # --- SHARED UTILITY FUNCTIONS ---
 
@@ -265,8 +271,8 @@ def get_limited_merged_labels(label):
 
 def main():
     # Paths for different stages
-    reference_base_path = "/home/muhammedg/test/fvlm/data"
-    user_base_path = "/home/muhammedg/fvlm/data"
+    reference_base_path = str(REFERENCE_FVLM_ROOT / "data")
+    user_base_path = str(PROJECT_ROOT / 'data')
     sample_id = "train_10/train_10_a/train_10_a_1.nii.gz"
     
     # User input paths (semi-preprocessed files)
@@ -283,8 +289,8 @@ def main():
     print("PREPROCESSING PIPELINE COMPARISON")
     print("="*60)
     print("Comparing user pipeline (starting from semi-preprocessed data) against reference data")
-    print("User input: Semi-preprocessed files from /home/muhammedg/fvlm/data")
-    print("Reference: Pre-processed results from /home/muhammedg/test/fvlm/data")
+    print(f"User input: Semi-preprocessed files from {PROJECT_ROOT / 'data'}")
+    print(f"Reference: Pre-processed results from {REFERENCE_FVLM_ROOT / 'data'}")
     
     try:
         # Initialize user stream with semi-preprocessed data

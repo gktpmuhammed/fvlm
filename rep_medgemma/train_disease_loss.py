@@ -3,6 +3,7 @@ import sys
 import os
 import logging
 import json
+from pathlib import Path
 import pandas as pd
 import torch
 from dataclasses import dataclass
@@ -27,6 +28,7 @@ from medical_vlm import MedicalVLM
 import wandb
 
 logger = logging.getLogger(__name__)
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
 
 ALL_TARGET_KEYS = [
     'lung', 'heart', 'esophagus', 
@@ -110,7 +112,7 @@ class OnePassOrganDataset(Dataset):
         
         # Load Disease Labels
         self.disease_lookup = {}
-        label_dir = "/home/muhammedg/fvlm/decomposed_data"
+        label_dir = str(PROJECT_ROOT / "decomposed_data")
         label_file = "train_disease_labels.csv" if split == 'training' else "val_disease_labels.csv"
         label_path = os.path.join(label_dir, label_file)
         
@@ -258,9 +260,9 @@ class OnePassOrganDataset(Dataset):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--decoder_model', type=str, default='google/medgemma-4b-it')
-    parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/mae_pretrain_vit_base.pth')
-    parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv')
-    parser.add_argument('--json_file', type=str, default='/home/muhammedg/fvlm/data_sym/combined_desc_conc.json')
+    parser.add_argument('--vision_encoder_path', type=str, default=str(PROJECT_ROOT / 'mae_pretrain_vit_base.pth'))
+    parser.add_argument('--csv_file', type=str, default=str(PROJECT_ROOT / 'data_sym' / 'image_first_dataset.csv'))
+    parser.add_argument('--json_file', type=str, default=str(PROJECT_ROOT / 'data_sym' / 'combined_desc_conc.json'))
     parser.add_argument('--output_dir', type=str, default='./checkpoints/medgemma_vlm')
     parser.add_argument('--batch_size', type=int, default=1) 
     parser.add_argument('--num_epochs', type=int, default=3)

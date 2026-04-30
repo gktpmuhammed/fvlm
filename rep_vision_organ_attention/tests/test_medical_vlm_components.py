@@ -3,14 +3,17 @@
 Diagnostic smoke tests for Medical VLM components (v2 - post-fix).
 Verifies both the old bugs AND the new fixes.
 
-Run: cd /home/muhammedg/fvlm/rep_vision_organ_attention && python /tmp/test_medical_vlm_components.py
+Run: cd <PROJECT_ROOT>/rep_vision_organ_attention && python /tmp/test_medical_vlm_components.py
 """
 import sys
 import os
+from pathlib import Path
 import torch
 
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[2]))
+
 # Add project dir for imports
-project_dir = "/home/muhammedg/fvlm/rep_vision_organ_attention"
+project_dir = str(PROJECT_ROOT / 'rep_vision_organ_attention')
 parent_dir = os.path.dirname(project_dir)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)

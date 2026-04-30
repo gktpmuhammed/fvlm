@@ -2,6 +2,7 @@
 import argparse
 import json
 import os
+from pathlib import Path
 
 import pandas as pd
 import torch
@@ -14,6 +15,8 @@ from monai.transforms import (
     SpatialPadd,
     Transposed,
 )
+
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[2]))
 
 
 ALL_TARGET_KEYS = [
@@ -145,12 +148,12 @@ def main():
     parser.add_argument(
         "--csv-file",
         type=str,
-        default="/home/muhammedg/fvlm/data_sym/image_first_dataset.csv",
+        default=str(PROJECT_ROOT / 'data_sym/image_first_dataset.csv'),
     )
     parser.add_argument(
         "--json-file",
         type=str,
-        default="/home/muhammedg/fvlm/data_sym/combined_desc_conc_v2.json",
+        default=str(PROJECT_ROOT / 'data_sym/combined_desc_conc_v2.json'),
     )
     parser.add_argument(
         "--splits",
@@ -161,7 +164,7 @@ def main():
     parser.add_argument(
         "--output-dir",
         type=str,
-        default="/home/muhammedg/fvlm/rep_medgemma/medgemma_lora_vis_token_pos_embed/analysis_outputs/patient_organ_presence",
+        default=str(PROJECT_ROOT / 'rep_medgemma/medgemma_lora_vis_token_pos_embed/analysis_outputs/patient_organ_presence'),
     )
     parser.add_argument(
         "--progress-every",

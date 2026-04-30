@@ -3,6 +3,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import os
+from pathlib import Path
+
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[2]))
 
 def create_grouped_bar_chart(csv_path, output_path):
     # Overall Visibility vs. Reporting Percentage
@@ -106,10 +109,10 @@ def create_stacked_bar_chart(csv_path, output_path):
     plt.close()
 
 if __name__ == '__main__':
-    counts_csv = '/home/muhammedg/fvlm/rep_medgemma/medgemma_lora_vis_token_pos_embed/analysis_outputs/organ_coverage_both_20260311_065235/organ_coverage_counts.csv'
-    wide_csv = '/home/muhammedg/fvlm/rep_medgemma/medgemma_lora_vis_token_pos_embed/analysis_outputs/patient_organ_presence_20260311_070119/patient_organ_presence_wide.csv'
+    counts_csv = str(PROJECT_ROOT / 'rep_medgemma/medgemma_lora_vis_token_pos_embed/analysis_outputs/organ_coverage_both_20260311_065235/organ_coverage_counts.csv')
+    wide_csv = str(PROJECT_ROOT / 'rep_medgemma/medgemma_lora_vis_token_pos_embed/analysis_outputs/patient_organ_presence_20260311_070119/patient_organ_presence_wide.csv')
     
-    out_dir = '/home/muhammedg/fvlm/rep_medgemma/medgemma_lora_vis_token_pos_embed/analysis_outputs/thesis_figures'
+    out_dir = str(PROJECT_ROOT / 'rep_medgemma/medgemma_lora_vis_token_pos_embed/analysis_outputs/thesis_figures')
     os.makedirs(out_dir, exist_ok=True)
     
     create_grouped_bar_chart(counts_csv, os.path.join(out_dir, 'grouped_bar_presence.png'))

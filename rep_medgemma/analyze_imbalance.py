@@ -1,11 +1,14 @@
 import json
 import os
+from pathlib import Path
 import pandas as pd
 from collections import defaultdict
 
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
+
 # Path to ground truth JSON
-JSON_FILE = '/home/muhammedg/fvlm/data_sym/combined_desc_conc.json'
-CSV_FILE = '/home/muhammedg/fvlm/data_sym/image_first_dataset.csv'
+JSON_FILE = str(PROJECT_ROOT / 'data_sym/combined_desc_conc.json')
+CSV_FILE = str(PROJECT_ROOT / 'data_sym/image_first_dataset.csv')
 
 ALL_TARGET_KEYS = [
     'lung', 'heart', 'esophagus', 

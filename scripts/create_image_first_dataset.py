@@ -11,15 +11,18 @@ import json
 from pathlib import Path
 from collections import defaultdict
 
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
+DATA_SYM_ROOT = Path(os.getenv("DATA_SYM_ROOT", PROJECT_ROOT / "data_sym"))
+
 def create_image_first_dataset():
     print("CREATING IMAGE-FIRST DATASET MAPPING")
     print("=" * 60)
     
     # Paths
-    val_csv_path = "/home/muhammedg/fvlm/data_sym/radiology_text_reports/validation_reports.csv"
-    train_csv_path = "/home/muhammedg/fvlm/data_sym/radiology_text_reports/train_reports.csv"
-    val_img_dir = "/home/muhammedg/fvlm/data_sym/valid/images/valid"
-    train_img_dir = "/home/muhammedg/fvlm/data_sym/train/images/train"
+    val_csv_path = str(DATA_SYM_ROOT / "radiology_text_reports" / "validation_reports.csv")
+    train_csv_path = str(DATA_SYM_ROOT / "radiology_text_reports" / "train_reports.csv")
+    val_img_dir = str(DATA_SYM_ROOT / "valid" / "images" / "valid")
+    train_img_dir = str(DATA_SYM_ROOT / "train" / "images" / "train")
     
     # Load CSV files
     print("Loading CSV files...")
@@ -170,14 +173,14 @@ def create_image_first_dataset():
             print(f"      {pid}: {len(scans)} scans ({', '.join(scans)})")
     
     # Save the mapped dataset
-    output_file = "/home/muhammedg/fvlm/data_sym/image_first_dataset.json"
+    output_file = str(DATA_SYM_ROOT / "image_first_dataset.json")
     print(f"\nSaving image-first dataset to: {output_file}")
     
     with open(output_file, 'w') as f:
         json.dump(all_mapped_data, f, indent=2)
     
     # Create CSV version for easy viewing
-    csv_output_file = "/home/muhammedg/fvlm/data_sym/image_first_dataset.csv"
+    csv_output_file = str(DATA_SYM_ROOT / "image_first_dataset.csv")
     df_output = pd.DataFrame(all_mapped_data)
     df_output.to_csv(csv_output_file, index=False)
     
@@ -224,7 +227,7 @@ def create_image_first_dataset():
         print(f"   New validation set: {len(new_val_data)} images from {len(val_patients)} patients")
         
         # Save the new splits
-        with open("/home/muhammedg/fvlm/data_sym/image_first_dataset_split.json", 'w') as f:
+        with open(str(DATA_SYM_ROOT / "image_first_dataset_split.json"), 'w') as f:
             json.dump({
                 'train': new_train_data,
                 'validation': new_val_data,
@@ -324,12 +327,12 @@ class ImageFirstMedicalDataset(Dataset):
 if __name__ == "__main__":
     # Create datasets
     train_dataset = ImageFirstMedicalDataset(
-        json_path="/home/muhammedg/fvlm/image_first_dataset_split.json",
+        json_path=str(DATA_SYM_ROOT / "image_first_dataset_split.json"),
         split='train'
     )
     
     val_dataset = ImageFirstMedicalDataset(
-        json_path="/home/muhammedg/fvlm/image_first_dataset_split.json", 
+        json_path=str(DATA_SYM_ROOT / "image_first_dataset_split.json"), 
         split='validation'
     )
     
@@ -342,7 +345,7 @@ if __name__ == "__main__":
     print(f"Sample text: {sample['text'][:100]}...")
 '''
     
-    with open("/home/muhammedg/fvlm/data_sym/image_first_dataset_class.py", 'w') as f:
+    with open(str(DATA_SYM_ROOT / "image_first_dataset_class.py"), 'w') as f:
         f.write(dataset_code)
     
     print(f"Created example dataset class: image_first_dataset_class.py")

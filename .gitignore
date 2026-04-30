@@ -44,3 +44,16 @@ rep_vision_organ_attention/biogpt_mae_vit_sementic_loss/
 
 data_new/
 data_sym/
+
+# Handover cleanup: generated artifacts
+**/results/
+**/results_retrain/
+**/logs/
+**/generated_reports*.csv
+**/metrics_final.csv
+**/metrics_summary.csv
+**/metrics_breakdown.csv
+**/metrics_table.png
+**/global_model_comparison*.csv
+**/global_model_comparison*.png
+rep_medgemma/attention_*.png

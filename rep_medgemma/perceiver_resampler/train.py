@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import os
+from pathlib import Path
 import logging
 import json
 import pandas as pd
@@ -13,6 +14,8 @@ from transformers import Trainer, TrainingArguments, EarlyStoppingCallback
 from monai.transforms import Compose, LoadImaged, ScaleIntensityRanged, SpatialPadd, CenterSpatialCropd, Transposed, Resized, EnsureTyped, EnsureChannelFirstd
 import traceback
 
+
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[2]))
 
 NO_FINDING_TEMPLATES = [
     "No significant findings in the {organ}.",
@@ -284,8 +287,8 @@ def main():
     # os.environ["CUDA_VISIBLE_DEVICES"] = "0,1" # Allow shell override
     parser = argparse.ArgumentParser()
     parser.add_argument('--decoder_model', type=str, default='google/medgemma-4b-it')
-    parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/checkpoints/model.pth')
-    parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv')
+    parser.add_argument('--vision_encoder_path', type=str, default=str(PROJECT_ROOT / 'checkpoints' / 'model.pth'))
+    parser.add_argument('--csv_file', type=str, default=str(PROJECT_ROOT / 'data_sym' / 'image_first_dataset.csv'))
     parser.add_argument('--json_file', type=str, default='../../data_sym/combined_desc_conc_v2.json')
     parser.add_argument('--output_dir', type=str, default='./checkpoints/retrain_v2')
     parser.add_argument('--batch_size', type=int, default=1) 

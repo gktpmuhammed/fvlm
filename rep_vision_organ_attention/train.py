@@ -21,6 +21,7 @@ if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
 
 from medical_vlm import MedicalVLM
+from paths import checkpoints_root, data_sym_root
 import wandb
 
 logger = logging.getLogger(__name__)
@@ -374,11 +375,15 @@ def main(args):
     wandb.finish()
 
 if __name__ == '__main__':
+    ckpt_default = checkpoints_root() / "model.pth"
+    csv_default = data_sym_root() / "image_first_dataset.csv"
+    json_default = data_sym_root() / "combined_desc_conc_v2.json"
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--decoder_model', type=str, default='gpt2')
-    parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/checkpoints/model.pth')
-    parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv')
-    parser.add_argument('--json_file', type=str, default='/home/muhammedg/fvlm/data_sym/combined_desc_conc_v2.json')
+    parser.add_argument('--vision_encoder_path', type=str, default=str(ckpt_default))
+    parser.add_argument('--csv_file', type=str, default=str(csv_default))
+    parser.add_argument('--json_file', type=str, default=str(json_default))
     parser.add_argument('--output_dir', type=str, default='./checkpoints/medical_vlm')
     parser.add_argument('--max_length', type=int, default=150)
     parser.add_argument('--batch_size', type=int, default=1) 

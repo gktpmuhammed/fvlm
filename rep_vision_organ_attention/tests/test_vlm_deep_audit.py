@@ -3,16 +3,19 @@
 Deep audit tests for Medical VLM pipeline.
 Checks subtle issues that could surface during actual training/eval.
 
-Run: cd /home/muhammedg/fvlm/rep_vision_organ_attention && python /tmp/test_vlm_deep_audit.py
+Run: cd <PROJECT_ROOT>/rep_vision_organ_attention && python /tmp/test_vlm_deep_audit.py
 """
 import sys
 import os
+from pathlib import Path
 import torch
 import torch.nn as nn
 import inspect
 import random
 
-project_dir = "/home/muhammedg/fvlm/rep_vision_organ_attention"
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[2]))
+
+project_dir = str(PROJECT_ROOT / 'rep_vision_organ_attention')
 parent_dir = os.path.dirname(project_dir)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)

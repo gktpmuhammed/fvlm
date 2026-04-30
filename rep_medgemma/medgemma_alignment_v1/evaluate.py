@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import sys
 import os
+from pathlib import Path
 import torch
 from torch.utils.data import DataLoader, Dataset
 import pandas as pd
@@ -8,6 +9,8 @@ import json
 from tqdm import tqdm
 import argparse
 from monai.transforms import Compose, LoadImaged, ScaleIntensityRanged, SpatialPadd, CenterSpatialCropd, Transposed, EnsureChannelFirstd
+
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[2]))
 
 # Add parent directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -251,9 +254,9 @@ def evaluate(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--checkpoint_dir', type=str, required=True)
-    parser.add_argument('--vision_encoder_path', type=str, default='/home/muhammedg/fvlm/checkpoints/model.pth')
+    parser.add_argument('--vision_encoder_path', type=str, default=str(PROJECT_ROOT / 'checkpoints' / 'model.pth'))
     parser.add_argument('--decoder_model', type=str, default='google/medgemma-4b-it')
-    parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv')
+    parser.add_argument('--csv_file', type=str, default=str(PROJECT_ROOT / 'data_sym' / 'image_first_dataset.csv'))
     parser.add_argument('--output_dir', type=str, default='./results/retrain_v2')
     parser.add_argument('--subset_size', type=int, default=None)
     parser.add_argument('--queries_per_organ', type=int, default=8)

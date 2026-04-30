@@ -1,4 +1,6 @@
 import json
+import os
+from pathlib import Path
 import csv
 import os
 
@@ -33,7 +35,10 @@ def combine_desc_conc(desc_file, conc_file, output_file):
 
 # example usage
 if __name__ == "__main__":
-    desc_file = '/home/muhammedg/fvlm/data/val_train_combined_desc.json'
-    conc_file = '/home/muhammedg/fvlm/data/val_train_combined_conc.json'
-    output_file = '/home/muhammedg/fvlm/data/combined_desc_conc.json'
+    project_root = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
+    data_root = Path(os.getenv("DATA_ROOT", project_root / "data"))
+
+    desc_file = str(data_root / "val_train_combined_desc.json")
+    conc_file = str(data_root / "val_train_combined_conc.json")
+    output_file = str(data_root / "combined_desc_conc.json")
     combine_desc_conc(desc_file, conc_file, output_file)

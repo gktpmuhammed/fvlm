@@ -8,6 +8,7 @@ Generates ONE figure with:
 Each cell shows the attention overlay on the best axial slice for that organ.
 """
 import os
+from pathlib import Path
 import sys
 import torch
 import torch.nn.functional as F
@@ -16,7 +17,9 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import argparse
 
-sys.path.insert(1, "/home/muhammedg/fvlm")
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
+
+sys.path.insert(1, str(PROJECT_ROOT))
 
 import medical_vlm_base8t
 import medical_vlm_multiscale
@@ -59,8 +62,8 @@ def load_dataset():
     tokenizer.add_special_tokens(special_tokens_dict)
     transform = train.build_transforms()
     val_ds = train.OnePassOrganDataset(
-        csv_file='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv',
-        json_file='/home/muhammedg/fvlm/data_sym/combined_desc_conc.json',
+        csv_file=str(PROJECT_ROOT / 'data_sym/image_first_dataset.csv'),
+        json_file=str(PROJECT_ROOT / 'data_sym/combined_desc_conc.json'),
         tokenizer=tokenizer, transform=transform, split='validation', subset_size=None
     )
     return val_ds
@@ -170,11 +173,11 @@ def find_best_slice(gt_mask_3d):
 def compare_all_organs(args):
     checkpoints = [
         ("Base-8T",
-         "/home/muhammedg/fvlm/rep_medgemma/checkpoints_retrain/medical_vlm_8_tokens_full/final"),
+         str(PROJECT_ROOT / 'rep_medgemma/checkpoints_retrain/medical_vlm_8_tokens_full/final')),
         ("Multiscale-ViT-FPN",
-         "/home/muhammedg/fvlm/rep_medgemma/checkpoints_retrain/multiscale_vit_fpn/final"),
+         str(PROJECT_ROOT / 'rep_medgemma/checkpoints_retrain/multiscale_vit_fpn/final')),
         ("CNN-Stem-V3",
-         "/home/muhammedg/fvlm/rep_medgemma/checkpoints_retrain/medgemma_architecture_v3/final"),
+         str(PROJECT_ROOT / 'rep_medgemma/checkpoints_retrain/medgemma_architecture_v3/final')),
     ]
 
     val_ds = load_dataset()

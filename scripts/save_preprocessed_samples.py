@@ -7,6 +7,8 @@ import torch
 from monai import transforms
 from pathlib import Path
 
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
+
 def merge_labels(label):
     """Same label merging function from FVLMImageTrainProcessor"""
     class_map = {
@@ -277,7 +279,7 @@ def convert_to_regular_tensor(data):
 
 def main():
     # Set up paths
-    data_dir = "/home/muhammedg/fvlm/data"
+    data_dir = str(PROJECT_ROOT / 'data')
     image_dir = os.path.join(data_dir, "images", "train")
     mask_dir = os.path.join(data_dir, "masks", "train")
     output_dir = os.path.join(data_dir, "preprocessed_samples_transpose")

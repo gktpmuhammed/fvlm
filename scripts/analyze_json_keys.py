@@ -1,11 +1,15 @@
+import os
+from pathlib import Path
 import json
 import pandas as pd
 import matplotlib.pyplot as plt
 
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
+
 # ---------------------------------------------------------
 # STEP 1: Load the Data
 # ---------------------------------------------------------
-input_filename = '/home/muhammedg/fvlm/data/combined_desc_conc.json'
+input_filename = str(PROJECT_ROOT / 'data/combined_desc_conc.json')
 
 try:
     with open(input_filename, 'r') as f:

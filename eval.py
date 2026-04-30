@@ -1,5 +1,6 @@
 import os
 import argparse
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import torch
@@ -13,6 +14,8 @@ from typing import Any, Callable, List, Sequence, Tuple, Union
 from lavis.common.config import Config
 from lavis.common.registry import registry
 from lavis.common.dist_utils import get_rank, init_distributed_mode
+
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parent))
 
 
 def masks_to_boxes_3d(masks):
@@ -461,7 +464,12 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Training")
     parser.add_argument('--csv_file', type=str, help='The path to the CSV file for processing.')
     parser.add_argument('--vis_root', type=str, default='data/processed_valid_images', help='The path to the visual root directory.')
-    parser.add_argument('--ckpt_path', type=str, default='/home/muhammedg/fvlm/checkpoints/model.pth', help='The path to the checkpoint file.')
+    parser.add_argument(
+        '--ckpt_path',
+        type=str,
+        default=str(PROJECT_ROOT / 'checkpoints' / 'model.pth'),
+        help='The path to the checkpoint file.',
+    )
     parser.add_argument('--all_organs', action='store_true', help='If set, use all available organs. Otherwise, use default four organs (lung, heart, esophagus, aorta).')
 
     parser.add_argument("--cfg-path", required=False, default='lavis/projects/blip/train/pretrain_ct.yaml', help="path to configuration file.")

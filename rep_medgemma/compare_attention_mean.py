@@ -12,6 +12,7 @@ Generates publication-quality figures with quantitative metrics per panel:
   - attention entropy (normalized)
 """
 import os
+from pathlib import Path
 import sys
 import torch
 import torch.nn.functional as F
@@ -21,8 +22,10 @@ import matplotlib.gridspec as gridspec
 import argparse
 from scipy import ndimage
 
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
+
 # Set priority so they can find lavis locally without shadowing local `train.py`
-sys.path.insert(1, "/home/muhammedg/fvlm")
+sys.path.insert(1, str(PROJECT_ROOT))
 
 # Architecture-specific module copies (each returns attn_weights)
 import medical_vlm_base8t
@@ -94,8 +97,8 @@ def load_dataset():
 
     transform = train.build_transforms()
     val_ds = train.OnePassOrganDataset(
-        csv_file='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv',
-        json_file='/home/muhammedg/fvlm/data_sym/combined_desc_conc.json',
+        csv_file=str(PROJECT_ROOT / 'data_sym/image_first_dataset.csv'),
+        json_file=str(PROJECT_ROOT / 'data_sym/combined_desc_conc.json'),
         tokenizer=tokenizer,
         transform=transform,
         split='validation',
@@ -224,11 +227,11 @@ def compare_attention(args):
     # ---- Model configs ----
     checkpoints = [
         ("Base-8T",
-         "/home/muhammedg/fvlm/rep_medgemma/checkpoints_retrain/medical_vlm_8_tokens_full/final"),
+         str(PROJECT_ROOT / 'rep_medgemma/checkpoints_retrain/medical_vlm_8_tokens_full/final')),
         ("Multiscale-ViT-FPN",
-         "/home/muhammedg/fvlm/rep_medgemma/checkpoints_retrain/multiscale_vit_fpn/final"),
+         str(PROJECT_ROOT / 'rep_medgemma/checkpoints_retrain/multiscale_vit_fpn/final')),
         ("CNN-Stem-V3",
-         "/home/muhammedg/fvlm/rep_medgemma/checkpoints_retrain/medgemma_architecture_v3/final"),
+         str(PROJECT_ROOT / 'rep_medgemma/checkpoints_retrain/medgemma_architecture_v3/final')),
     ]
 
     # ---- Load data ----

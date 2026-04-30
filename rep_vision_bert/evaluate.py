@@ -37,6 +37,7 @@ if parent_dir not in sys.path:
 
 from medical_vlm import MedicalVLM
 from train import get_organ_ids_for_key, ALL_TARGET_KEYS, build_transforms
+from paths import checkpoints_root, data_sym_root
 
 # --- DATASET ---
 
@@ -270,12 +271,16 @@ def evaluate(args):
     print("-"*50)
 
 if __name__ == "__main__":
+    ckpt_default = checkpoints_root() / "model.pth"
+    csv_default = data_sym_root() / "image_first_dataset.csv"
+    json_default = data_sym_root() / "combined_desc_conc_v2.json"
+
     parser = argparse.ArgumentParser()
     parser.add_argument('--model_path', type=str, required=True)
-    parser.add_argument("--vision_encoder_path", type=str, default="/home/muhammedg/fvlm/checkpoints/model.pth", help="Path to pre-trained ViT")
+    parser.add_argument("--vision_encoder_path", type=str, default=str(ckpt_default), help="Path to pre-trained ViT")
     parser.add_argument("--decoder_model", type=str, default="emilyalsentzer/Bio_ClinicalBERT", help="Decoder model to evaluate")
-    parser.add_argument('--csv_file', type=str, default='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv')
-    parser.add_argument('--json_file', type=str, default='/home/muhammedg/fvlm/data_sym/combined_desc_conc_v2.json')
+    parser.add_argument('--csv_file', type=str, default=str(csv_default))
+    parser.add_argument('--json_file', type=str, default=str(json_default))
     parser.add_argument('--output_dir', type=str, default='./results')
     parser.add_argument('--subset_size', type=int, default=None)
     parser.add_argument('--queries_per_organ', type=int, default=8)

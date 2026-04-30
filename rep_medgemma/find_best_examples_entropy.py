@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import sys
 import torch
 import torch.nn.functional as F
@@ -6,8 +7,10 @@ import numpy as np
 import argparse
 from tqdm import tqdm
 
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
+
 # Set priority so they can find lavis locally
-sys.path.insert(0, "/home/muhammedg/fvlm/rep_medgemma") 
+sys.path.insert(0, str(PROJECT_ROOT / 'rep_medgemma')) 
 parent_dir = os.path.dirname(os.path.abspath(__file__))
 
 import medical_vlm_baseline
@@ -30,8 +33,8 @@ def load_dataset():
 
     transform = train.build_transforms()
     val_ds = train.OnePassOrganDataset(
-        csv_file='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv',
-        json_file='/home/muhammedg/fvlm/data_sym/combined_desc_conc.json',
+        csv_file=str(PROJECT_ROOT / 'data_sym/image_first_dataset.csv'),
+        json_file=str(PROJECT_ROOT / 'data_sym/combined_desc_conc.json'),
         tokenizer=tokenizer,
         transform=transform,
         split='validation',
@@ -92,14 +95,14 @@ def evaluate_models_entropy(args):
     
     if args.case == "A" or args.case == "B":
         checkpoints = [
-            ("Baseline-8T", "/home/muhammedg/fvlm/rep_medgemma/checkpoints_retrain/medical_vlm_8_tokens_full", False, False),
-            ("Prefix-Stable-8T", "/home/muhammedg/fvlm/rep_medgemma/checkpoints_retrain/medgemma_lora_vis_token_pos_embed", False, False)
+            ("Baseline-8T", str(PROJECT_ROOT / 'rep_medgemma/checkpoints_retrain/medical_vlm_8_tokens_full'), False, False),
+            ("Prefix-Stable-8T", str(PROJECT_ROOT / 'rep_medgemma/checkpoints_retrain/medgemma_lora_vis_token_pos_embed'), False, False)
         ]
     elif args.case == "C":
          checkpoints = [
-            ("Baseline-8T", "/home/muhammedg/fvlm/rep_medgemma/checkpoints_retrain/medical_vlm_8_tokens_full", False, False),
-            ("Perceiver", "/home/muhammedg/fvlm/rep_medgemma/checkpoints_retrain/perceiver_resampler", True, False),
-            ("Multiscale", "/home/muhammedg/fvlm/rep_medgemma/checkpoints_retrain/multiscale_vit_fpn", False, True)
+            ("Baseline-8T", str(PROJECT_ROOT / 'rep_medgemma/checkpoints_retrain/medical_vlm_8_tokens_full'), False, False),
+            ("Perceiver", str(PROJECT_ROOT / 'rep_medgemma/checkpoints_retrain/perceiver_resampler'), True, False),
+            ("Multiscale", str(PROJECT_ROOT / 'rep_medgemma/checkpoints_retrain/multiscale_vit_fpn'), False, True)
         ]
         
     print(f"Finding best examples for Case {args.case} target: {target_organ} using Entropy")

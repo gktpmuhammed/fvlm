@@ -7,6 +7,11 @@ from monai import transforms
 from pathlib import Path
 import nibabel as nib
 
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
+REFERENCE_FVLM_ROOT = Path(
+    os.getenv("REFERENCE_FVLM_ROOT", PROJECT_ROOT.parent / "test" / "fvlm")
+)
+
 class SpacingNormalization:
     """Custom transform to normalize spacing to reference spacing"""
     def __init__(self, ref_spacing=(1.0, 1.0, 3.0), debug=False):
@@ -234,9 +239,9 @@ def compare_results(original_result, user_result):
 
 def main():
     # Define paths
-    original_resized_path = "/home/muhammedg/test/fvlm/data/resized_train_images/train_1/train_1_a/train_1_a_1.nii.gz"
-    raw_image_path = "/home/muhammedg/test/fvlm/data/train_fixed/train_1/train_1_a/train_1_a_1.nii.gz"
-    raw_mask_path = "/home/muhammedg/test/fvlm/data/train_mask/train_1/train_1_a/train_1_a_1.nii.gz"
+    original_resized_path = str(REFERENCE_FVLM_ROOT / "data/resized_train_images/train_1/train_1_a/train_1_a_1.nii.gz")
+    raw_image_path = str(REFERENCE_FVLM_ROOT / "data/train_fixed/train_1/train_1_a/train_1_a_1.nii.gz")
+    raw_mask_path = str(REFERENCE_FVLM_ROOT / "data/train_mask/train_1/train_1_a/train_1_a_1.nii.gz")
     
     print("Comparing Transpose + Intensity Scaling Steps")
     print("="*60)

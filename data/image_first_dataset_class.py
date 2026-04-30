@@ -9,6 +9,10 @@ import json
 import pandas as pd
 from monai import transforms
 import os
+from pathlib import Path
+
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
+DATA_SYM_ROOT = Path(os.getenv("DATA_SYM_ROOT", PROJECT_ROOT / "data_sym"))
 
 class ImageFirstMedicalDataset(Dataset):
     def __init__(self, json_path, split='train', transform=None):
@@ -79,12 +83,12 @@ class ImageFirstMedicalDataset(Dataset):
 if __name__ == "__main__":
     # Create datasets
     train_dataset = ImageFirstMedicalDataset(
-        json_path="/home/muhammedg/fvlm/image_first_dataset_split.json",
+        json_path=str(DATA_SYM_ROOT / "image_first_dataset_split.json"),
         split='train'
     )
     
     val_dataset = ImageFirstMedicalDataset(
-        json_path="/home/muhammedg/fvlm/image_first_dataset_split.json", 
+        json_path=str(DATA_SYM_ROOT / "image_first_dataset_split.json"), 
         split='validation'
     )
     

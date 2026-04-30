@@ -5,7 +5,9 @@ set -euo pipefail
 # CONFIG (override via env)
 #############################
 
-BASE_DIR="/home/muhammedg/fvlm/rep_medgemma"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+BASE_DIR="${BASE_DIR:-$PROJECT_ROOT/rep_medgemma}"
 MODEL_DIR="$BASE_DIR/medgemma_standalone"
 
 EXP_NAME="${EXP_NAME:-medgemma_standalone_full}"
@@ -24,8 +26,8 @@ SAVE_STEPS="${SAVE_STEPS:-1000}"
 GRAD_ACCUM_STEPS="${GRAD_ACCUM_STEPS:-8}"
 DATALOADER_WORKERS="${DATALOADER_WORKERS:-8}"
 
-MEDGEMMA_MODEL="${MEDGEMMA_MODEL:-/home/muhammedg/.cache/huggingface/hub/models--google--medgemma-4b-it/snapshots/290cda5eeccbee130f987c4ad74a59ae6f196408}"
-GROUND_TRUTH_JSON="${GROUND_TRUTH_JSON:-/home/muhammedg/fvlm/data_sym/combined_desc_conc_v2.json}"
+MEDGEMMA_MODEL="${MEDGEMMA_MODEL:-$HOME/.cache/huggingface/hub/models--google--medgemma-4b-it/snapshots/290cda5eeccbee130f987c4ad74a59ae6f196408}"
+GROUND_TRUTH_JSON="${GROUND_TRUTH_JSON:-$PROJECT_ROOT/data_sym/combined_desc_conc_v2.json}"
 
 LOG_ROOT="$BASE_DIR/logs"
 TIMESTAMP="$(date +"%Y%m%d_%H%M%S")"
@@ -37,7 +39,8 @@ RESULT_DIR="$BASE_DIR/results/$EXP_NAME"
 # SETUP
 #############################
 
-source "/home/muhammedg/miniconda3/etc/profile.d/conda.sh"
+CONDA_BASE="${CONDA_BASE:-$HOME/miniconda3}"
+source "$CONDA_BASE/etc/profile.d/conda.sh"
 
 mkdir -p "$RUN_DIR" "$CHECKPOINT_DIR" "$RESULT_DIR"
 LOGFILE="$RUN_DIR/run.log"

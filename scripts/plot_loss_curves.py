@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+import os
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
+
 """
 Script to parse FVLM training logs and plot loss curves for all organs across epochs.
 """
@@ -202,8 +205,8 @@ def save_data_summary(overall_avg, organ_avg, epochs, active_organs, output_dir)
 
 def main():
     # File paths
-    log_file = "/home/muhammedg/fvlm/training_without_augmentation_113_overfit_4_samples.log"
-    output_dir = "/home/muhammedg/fvlm/training_without_augmentation_113_overfit_4_samples"
+    log_file = str(PROJECT_ROOT / 'training_without_augmentation_113_overfit_4_samples.log')
+    output_dir = str(PROJECT_ROOT / 'training_without_augmentation_113_overfit_4_samples')
     
     # Parse the log file
     epoch_data, overall_loss_data, organs = parse_training_log(log_file)

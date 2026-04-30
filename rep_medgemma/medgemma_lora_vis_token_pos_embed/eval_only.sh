@@ -1,8 +1,13 @@
 #!/bin/bash
-source ~/miniconda3/etc/profile.d/conda.sh
+CONDA_BASE="${CONDA_BASE:-$HOME/miniconda3}"
+source "$CONDA_BASE/etc/profile.d/conda.sh"
 conda activate fvlm_training_clean
 
-cd /home/muhammedg/fvlm/rep_medgemma/medgemma_lora_vis_token_pos_embed
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/../.." && pwd)}"
+DATA_SYM_ROOT="${DATA_SYM_ROOT:-$PROJECT_ROOT/data_sym}"
+
+cd "$SCRIPT_DIR"
 
 # # 1-token eval on GPU 0
 # echo "Evaluating 1-token model on GPU 0..."
@@ -32,13 +37,13 @@ cd /home/muhammedg/fvlm/rep_medgemma/medgemma_lora_vis_token_pos_embed
 
 # Metrics
 conda activate radevalmetrics
-cd /home/muhammedg/fvlm/rep_medgemma
+cd "$PROJECT_ROOT/rep_medgemma"
 
 echo "Calculating metrics for 1-token..."
 CUDA_VISIBLE_DEVICES=0 python radeval_metrics.py \
     --input_csv "results_retrain/medgemma_lora_vis_token_pos_embed_1tokens/generated_reports_gemma.csv" \
     --output_dir "results_retrain/medgemma_lora_vis_token_pos_embed_1tokens" \
-    --ground_truth_json "/home/muhammedg/fvlm/data_sym/combined_desc_conc_v2.json" \
+    --ground_truth_json "$DATA_SYM_ROOT/combined_desc_conc_v2.json" \
     > "results_retrain/medgemma_lora_vis_token_pos_embed_1tokens/metrics.log" 2>&1 &
 PID3=$!
 
@@ -46,7 +51,7 @@ echo "Calculating metrics for 8-token..."
 CUDA_VISIBLE_DEVICES=1 python radeval_metrics.py \
     --input_csv "results_retrain/medgemma_lora_vis_token_pos_embed_8tokens/generated_reports_gemma.csv" \
     --output_dir "results_retrain/medgemma_lora_vis_token_pos_embed_8tokens" \
-    --ground_truth_json "/home/muhammedg/fvlm/data_sym/combined_desc_conc_v2.json" \
+    --ground_truth_json "$DATA_SYM_ROOT/combined_desc_conc_v2.json" \
     > "results_retrain/medgemma_lora_vis_token_pos_embed_8tokens/metrics.log" 2>&1 &
 PID4=$!
 

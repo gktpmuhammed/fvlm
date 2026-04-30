@@ -27,9 +27,9 @@ datasets:
         val:
           storage: annotations.json
       images:
-        storage: /home/muhammedg/fvlm/data/train/images/train
+        storage: data/train/images/train
       val_images:
-        storage: /home/muhammedg/fvlm/data/valid/images/valid
+        storage: data/valid/images/valid
     vis_processor:
         train:
           name: "fvlm_image_train"
@@ -62,7 +62,7 @@ run:
   log_freq: 1
 
   seed: 42
-  output_dir: "/home/muhammedg/checkpoints/pretrain_ckpts"  # Absolute path inside container to ensure persistence
+  output_dir: "checkpoints/pretrain_ckpts"
 
   amp: False
   resume_ckpt_path:

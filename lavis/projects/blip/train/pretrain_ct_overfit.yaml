@@ -27,9 +27,9 @@ datasets:
         val:
           storage: annotations.json
       images:
-        storage: /home/muhammedg/fvlm/data/test_overfit/images
+        storage: data/test_overfit/images
       val_images:
-        storage: /home/muhammedg/fvlm/data/test_overfit/images
+        storage: data/test_overfit/images
     vis_processor:
         train:
           name: "fvlm_image_train"

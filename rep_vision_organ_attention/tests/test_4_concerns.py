@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
+import os
+from pathlib import Path
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[2]))
+
 """
 Targeted tests for 4 user-raised hardening concerns.
-Run: cd /home/muhammedg/fvlm/rep_vision_organ_attention && python /tmp/test_4_concerns.py
+Run: cd <PROJECT_ROOT>/rep_vision_organ_attention && python /tmp/test_4_concerns.py
 """
 import sys, os, torch
-project_dir = "/home/muhammedg/fvlm/rep_vision_organ_attention"
+project_dir = str(PROJECT_ROOT / 'rep_vision_organ_attention')
 parent_dir = os.path.dirname(project_dir)
 for p in [parent_dir, project_dir]:
     if p not in sys.path: sys.path.insert(0, p)

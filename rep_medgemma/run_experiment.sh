@@ -7,7 +7,9 @@ set -o pipefail
 #############################
 
 EXP_NAME="medgemma_architecture_v3_resized_synonyms_new_dataset"
-BASE_DIR="/home/muhammedg/fvlm/rep_medgemma"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+BASE_DIR="${BASE_DIR:-$SCRIPT_DIR}"
 LOG_ROOT="$BASE_DIR/logs"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 RUN_DIR="$LOG_ROOT/${EXP_NAME}_${TIMESTAMP}"
@@ -19,7 +21,8 @@ RESULT_DIR="$BASE_DIR/results/$EXP_NAME"
 # SETUP
 #############################
 
-source "/home/muhammedg/miniconda3/etc/profile.d/conda.sh"
+CONDA_BASE="${CONDA_BASE:-$HOME/miniconda3}"
+source "$CONDA_BASE/etc/profile.d/conda.sh"
 
 mkdir -p "$RUN_DIR"
 mkdir -p "$CHECKPOINT_DIR"

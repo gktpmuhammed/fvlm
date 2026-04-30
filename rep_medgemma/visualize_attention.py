@@ -1,5 +1,6 @@
 
 import os
+from pathlib import Path
 import torch
 import torch.nn.functional as F
 import numpy as np
@@ -8,6 +9,8 @@ import argparse
 from medical_vlm import MedicalVLM
 from train import build_transforms, OnePassOrganDataset
 from tqdm import tqdm
+
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
 
 def visualize_attention(args):
     # 1. Load Model
@@ -51,8 +54,8 @@ def visualize_attention(args):
     # 2. Load Data
     transform = build_transforms()
     val_ds = OnePassOrganDataset(
-        csv_file='/home/muhammedg/fvlm/data_sym/image_first_dataset.csv',
-        json_file='/home/muhammedg/fvlm/data_sym/combined_desc_conc.json',
+        csv_file=str(PROJECT_ROOT / 'data_sym/image_first_dataset.csv'),
+        json_file=str(PROJECT_ROOT / 'data_sym/combined_desc_conc.json'),
         tokenizer=model.tokenizer,
         transform=transform,
         split='validation',

@@ -26,10 +26,13 @@ from lavis.models.med import XBertEncoder, XBertLMHeadDecoder
 from torch import nn
 import random
 import os
+from pathlib import Path
 import json
 import numpy as np
 import torch.nn.functional as F
 import csv
+
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[3]))
 
 @torch.no_grad()
 def all_gather(data):
@@ -134,7 +137,7 @@ class BlipPretrain(BlipBase, SharedQueueMixin, MomentumDistilationMixin):
         # Load per-scan organ voxel retention percentages (optional)
         # CSV expected columns: patient_id, <organ>_retained_pct (matching self.organs order/names)
         csv_path = os.environ.get(
-            'ORGAN_VOXEL_CSV', '/home/muhammedg/fvlm/data/cleaned_per_scan_organ_voxel_percentages.csv'
+            'ORGAN_VOXEL_CSV', str(PROJECT_ROOT / 'data/cleaned_per_scan_organ_voxel_percentages.csv')
         )
         self.organ_pct_threshold = float(os.environ.get('ORGAN_PCT_THRESHOLD', 0.7))
         self.organ_voxel_pct = {}

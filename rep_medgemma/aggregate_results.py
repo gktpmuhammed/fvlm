@@ -1,10 +1,13 @@
 import os
+from pathlib import Path
 import pandas as pd
 import glob
 
 import matplotlib.pyplot as plt
 
-RESULTS_DIR = '/home/muhammedg/fvlm/rep_medgemma/results_retrain'
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
+
+RESULTS_DIR = str(PROJECT_ROOT / 'rep_medgemma/results_retrain')
 OUTPUT_FILE = os.path.join(RESULTS_DIR, 'global_model_comparison.csv')
 TABLE_IMAGE_FILE = os.path.join(RESULTS_DIR, 'global_model_comparison_table.png')
 

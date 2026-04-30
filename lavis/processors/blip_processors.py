@@ -1,3 +1,7 @@
+import os
+from pathlib import Path
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[2]))
+
 """
  Copyright (c) 2022, salesforce.com, inc.
  All rights reserved.
@@ -179,7 +183,7 @@ class FVLMImageTrainProcessor(BlipImageBaseProcessor):
     ):
         super().__init__(mean=mean, std=std)
         
-        # NOTE: Using semi-preprocessed files from /home/muhammedg/fvlm/data
+        # NOTE: Using semi-preprocessed files from PROJECT_ROOT/data
         # These files have undergone some preprocessing but need additional steps
         # to match the reference preprocessing pipeline validated in detailed_comparison.py
         

@@ -6,6 +6,7 @@ Optimization: Dynamic Batching (Filters empty organs to speed up training)
 import sys
 import os
 import copy
+from pathlib import Path
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -32,6 +33,8 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 if parent_dir not in sys.path:
     sys.path.insert(0, parent_dir)
+
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
 
 # ### FIX: BioGPT Wrapper for Visual Prefix Injection ###
 if HAS_BIOGPT:
@@ -204,7 +207,7 @@ class MedicalVLM(nn.Module):
         decoder_model_name="gpt2", 
         image_size=(112, 256, 352),
         patch_size=(16, 16, 32),
-        bert_model_path="/home/muhammedg/fvlm/BiomedVLP-CXR-BERT-specialized", 
+        bert_model_path=str(PROJECT_ROOT / "BiomedVLP-CXR-BERT-specialized"), 
         **kwargs 
     ):
         super().__init__()

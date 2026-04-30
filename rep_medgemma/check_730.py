@@ -1,7 +1,11 @@
+import os
+from pathlib import Path
 import nibabel as nib
 import numpy as np
 
-path = "/home/muhammedg/fvlm/data_sym/valid/masks/valid/valid_730/valid_730_a/valid_730_a_1.nii.gz"
+PROJECT_ROOT = Path(os.getenv("PROJECT_ROOT", Path(__file__).resolve().parents[1]))
+
+path = str(PROJECT_ROOT / 'data_sym/valid/masks/valid/valid_730/valid_730_a/valid_730_a_1.nii.gz')
 img = nib.load(path)
 data = img.get_fdata() # (H, W, D) usually (e.g. 512, 512, 300)
 

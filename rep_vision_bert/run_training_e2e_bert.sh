@@ -4,13 +4,17 @@
 # Runs Bio_ClinicalBERT
 
 # Initialize Conda
-source ~/miniconda3/etc/profile.d/conda.sh
+CONDA_BASE="${CONDA_BASE:-$HOME/miniconda3}"
+source "$CONDA_BASE/etc/profile.d/conda.sh"
 
 # Global Settings
 export WANDB_PROJECT="thesis_retrain_v3"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DATA_CSV="/home/muhammedg/fvlm/data_sym/image_first_dataset.csv"
-DATA_JSON="/home/muhammedg/fvlm/data_sym/combined_desc_conc_v2.json"
+PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+DATA_SYM_ROOT="${DATA_SYM_ROOT:-$PROJECT_ROOT/data_sym}"
+VISION_ENCODER_PATH="${VISION_ENCODER_PATH:-$PROJECT_ROOT/checkpoints/model.pth}"
+DATA_CSV="$DATA_SYM_ROOT/image_first_dataset.csv"
+DATA_JSON="$DATA_SYM_ROOT/combined_desc_conc_v2.json"
 CHECKPOINTS_ROOT="$SCRIPT_DIR/checkpoints"
 RESULTS_ROOT="$SCRIPT_DIR/results"
 
@@ -37,7 +41,7 @@ run_pipeline() {
     
     # export WANDB_NAME="$MODEL_NAME"
     # CUDA_VISIBLE_DEVICES=$GPU_ID python train.py \
-    #     --vision_encoder_path "/home/muhammedg/fvlm/checkpoints/model.pth" \
+    #     --vision_encoder_path "$VISION_ENCODER_PATH" \
     #     --decoder_model "$DECODER_MODEL" \
     #     --num_epochs 1 \
     #     --batch_size 1 \
@@ -64,7 +68,7 @@ run_pipeline() {
     # echo "[$(date '+%H:%M:%S')] [Env: fvlm_training_clean] Evaluating $MODEL_NAME..."
     
     # CUDA_VISIBLE_DEVICES=$GPU_ID python evaluate.py \
-    #     --vision_encoder_path "/home/muhammedg/fvlm/checkpoints/model.pth" \
+    #     --vision_encoder_path "$VISION_ENCODER_PATH" \
     #     --decoder_model "$DECODER_MODEL" \
     #     --queries_per_organ 8 \
     #     --model_path "$CKPT_DIR/final_model" \
