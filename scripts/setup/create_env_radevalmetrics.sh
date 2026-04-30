@@ -4,10 +4,12 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 CONDA_CMD=()
+CONDA_BASE_PATH=""
 
 setup_conda() {
   if command -v conda >/dev/null 2>&1 && conda --version >/dev/null 2>&1; then
     CONDA_CMD=(conda)
+    CONDA_BASE_PATH="$(conda info --base 2>/dev/null || true)"
     return 0
   fi
 
@@ -27,6 +29,7 @@ setup_conda() {
     [[ -z "$base" ]] && continue
     if [[ -x "$base/bin/python" ]] && "$base/bin/python" -m conda --version >/dev/null 2>&1; then
       CONDA_CMD=("$base/bin/python" -m conda)
+      CONDA_BASE_PATH="$base"
       return 0
     fi
   done
@@ -40,6 +43,14 @@ conda_cmd() {
 }
 
 setup_conda
+if [[ -z "$CONDA_BASE_PATH" ]]; then
+  CONDA_BASE_PATH="$(conda_cmd info --base | tail -n1)"
+fi
 conda_cmd create -n radevalmetrics -y python=3.10
 conda_cmd install -n radevalmetrics -y --file envs/radevalmetrics.explicit.txt || true
-conda_cmd run -n radevalmetrics pip install -r envs/radevalmetrics.pip.txt || true
+ENV_PYTHON="$CONDA_BASE_PATH/envs/radevalmetrics/bin/python"
+if [[ -x "$ENV_PYTHON" ]]; then
+  "$ENV_PYTHON" -m pip install -r envs/radevalmetrics.pip.txt || true
+else
+  conda_cmd run -n radevalmetrics python -m pip install -r envs/radevalmetrics.pip.txt || true
+fi

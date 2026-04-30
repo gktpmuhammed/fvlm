@@ -9,9 +9,11 @@ This repository is prepared for clean migration to a new userspace.
 
 ## Quick Start
 1. Install Miniconda in the new userspace.
-2. Create conda envs using scripts in `scripts/setup/`.
-3. Rebuild symlinks and metadata links (see `handover/DATA_LINKS.md`).
-4. Run smoke tests (see `handover/SMOKE_TESTS.md`).
+2. Run one-shot bootstrap:
+   - `bash scripts/setup/bootstrap_new_workspace.sh --conda-base /path/to/miniconda3 --dataset-root /path/to/CT_RATE`
+3. Or create conda envs using scripts in `scripts/setup/`.
+4. Rebuild symlinks and metadata links (see `handover/DATA_LINKS.md`).
+5. Run smoke tests (see `handover/SMOKE_TESTS.md`).
 
 ## Recommended Order
 1. `scripts/setup/create_env_fvlm_training_clean.sh`
