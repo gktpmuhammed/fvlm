@@ -73,6 +73,6 @@ if [[ -z "$CONDA_BASE_PATH" ]]; then
 fi
 run_freeze "fvlm_training_clean" "fvlm_training_clean"
 run_freeze "radevalmetrics" "radevalmetrics"
-run_freeze "ct-rate" "ct-rate"
 
 echo "Wrote lock files under envs/."
+echo "The decompose environment is maintained with envs/decompose.requirements.txt."

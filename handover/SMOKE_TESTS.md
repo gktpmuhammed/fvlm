@@ -8,8 +8,8 @@ python -c "import torch, transformers"
 conda activate radevalmetrics
 python -c "from RadEval import RadEval"
 
-conda activate ct-rate
-python -c "from vllm import LLM"
+conda activate decompose
+python -c "import pandas, pydantic; from vllm import LLM"
 ```
 
 ## Data link checks
@@ -26,6 +26,6 @@ PY
 
 ## Functional smoke
 ```bash
-python ../src/ct_rate/report_decomposition_vllm.py --train_csv /path/to/train_reports.csv --val_csv /path/to/validation_reports.csv --output_dir decomposed_data --sample 2
+conda run -n decompose python ../report_decomposition/src/ct_rate/report_decomposition_vllm.py --train_csv /path/to/train_reports.csv --val_csv /path/to/validation_reports.csv --output_dir decomposed_data --sample 2
 python decomposed_data/combine_data.py
 ```

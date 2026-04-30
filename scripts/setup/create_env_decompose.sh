@@ -46,11 +46,11 @@ setup_conda
 if [[ -z "$CONDA_BASE_PATH" ]]; then
   CONDA_BASE_PATH="$(conda_cmd info --base | tail -n1)"
 fi
-conda_cmd create -n ct-rate -y python=3.10
-conda_cmd install -n ct-rate -y --file envs/ct-rate.explicit.txt || true
-ENV_PYTHON="$CONDA_BASE_PATH/envs/ct-rate/bin/python"
+
+conda_cmd create -n decompose -y python=3.12 pip
+ENV_PYTHON="$CONDA_BASE_PATH/envs/decompose/bin/python"
 if [[ -x "$ENV_PYTHON" ]]; then
-  "$ENV_PYTHON" -m pip install -r envs/ct-rate.pip.txt || true
+  "$ENV_PYTHON" -m pip install -r envs/decompose.requirements.txt
 else
-  conda_cmd run -n ct-rate python -m pip install -r envs/ct-rate.pip.txt || true
+  conda_cmd run -n decompose python -m pip install -r envs/decompose.requirements.txt
 fi

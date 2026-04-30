@@ -46,11 +46,12 @@ setup_conda
 if [[ -z "$CONDA_BASE_PATH" ]]; then
   CONDA_BASE_PATH="$(conda_cmd info --base | tail -n1)"
 fi
-conda_cmd create -n radevalmetrics -y python=3.10
+conda_cmd create -n radevalmetrics -y python=3.10 pip
 conda_cmd install -n radevalmetrics -y --file envs/radevalmetrics.explicit.txt || true
+conda_cmd install -n radevalmetrics -y pip
 ENV_PYTHON="$CONDA_BASE_PATH/envs/radevalmetrics/bin/python"
 if [[ -x "$ENV_PYTHON" ]]; then
-  "$ENV_PYTHON" -m pip install -r envs/radevalmetrics.pip.txt || true
+  "$ENV_PYTHON" -m pip install --no-deps -r envs/radevalmetrics.pip.txt || true
 else
-  conda_cmd run -n radevalmetrics python -m pip install -r envs/radevalmetrics.pip.txt || true
+  conda_cmd run -n radevalmetrics python -m pip install --no-deps -r envs/radevalmetrics.pip.txt || true
 fi

@@ -9,6 +9,7 @@
 - Download ImageNet pre-trained ViT weights from [link](https://dl.fbaipublicfiles.com/mae/pretrain/mae_pretrain_vit_base.pth), and BiomedVLP-CXR-BERT-specialized text encoder from [link](https://huggingface.co/microsoft/BiomedVLP-CXR-BERT-specialized), as used by CT-CLIP.
 
 - Download the decomposed anatomy-wise descriptions from our provided supplementary materials [link](https://drive.google.com/drive/folders/10bz2UFxqxDPzl2P9NohESSNyBuld_Iek?usp=drive_link), and process the CT volume with the following commands.
+  To regenerate the report decompositions locally, create the lightweight vLLM environment with `bash scripts/setup/create_env_decompose.sh` and run `report_decomposition/src/ct_rate/report_decomposition_vllm.py` from the companion report decomposition repo.
 
   ```bash
   cd data

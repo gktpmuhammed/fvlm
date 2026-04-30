@@ -104,7 +104,7 @@ conda_cmd() {
 echo "[1/4] Creating environments from lock files..."
 bash scripts/setup/create_env_fvlm_training_clean.sh
 bash scripts/setup/create_env_radevalmetrics.sh
-bash scripts/setup/create_env_ct_rate.sh
+bash scripts/setup/create_env_decompose.sh
 
 echo "[2/4] Recreating dataset symlinks (if dataset root provided)..."
 if [[ -n "$DATASET_ROOT" ]]; then
@@ -117,13 +117,13 @@ echo "[3/4] Running environment import checks..."
 setup_conda
 conda_cmd run -n fvlm_training_clean python -c "import torch, transformers; print('fvlm_training_clean OK')"
 conda_cmd run -n radevalmetrics python -c "from RadEval import RadEval; print('radevalmetrics OK')"
-conda_cmd run -n ct-rate python -c "from vllm import LLM; print('ct-rate OK')"
+conda_cmd run -n decompose python -c "import pandas, pydantic; from vllm import LLM; print('decompose OK')"
 
 if [[ "$RUN_SMOKE" -eq 1 ]]; then
   echo "[4/4] Running lightweight code smoke checks..."
   conda_cmd run -n fvlm_training_clean python "$PROJECT_ROOT/decomposed_data/combine_data.py" --help >/dev/null
   if [[ -n "$REPORT_REPO_ROOT" ]] && [[ -f "$REPORT_REPO_ROOT/src/ct_rate/report_decomposition_vllm.py" ]]; then
-    conda_cmd run -n ct-rate python "$REPORT_REPO_ROOT/src/ct_rate/report_decomposition_vllm.py" --help >/dev/null
+    conda_cmd run -n decompose python "$REPORT_REPO_ROOT/src/ct_rate/report_decomposition_vllm.py" --help >/dev/null
   fi
   echo "Smoke checks completed."
 else

@@ -46,11 +46,12 @@ setup_conda
 if [[ -z "$CONDA_BASE_PATH" ]]; then
   CONDA_BASE_PATH="$(conda_cmd info --base | tail -n1)"
 fi
-conda_cmd create -n fvlm_training_clean -y python=3.10
+conda_cmd create -n fvlm_training_clean -y python=3.10 pip
 conda_cmd install -n fvlm_training_clean -y --file envs/fvlm_training_clean.explicit.txt || true
+conda_cmd install -n fvlm_training_clean -y pip
 ENV_PYTHON="$CONDA_BASE_PATH/envs/fvlm_training_clean/bin/python"
 if [[ -x "$ENV_PYTHON" ]]; then
-  "$ENV_PYTHON" -m pip install -r envs/fvlm_training_clean.pip.txt || true
+  "$ENV_PYTHON" -m pip install --no-deps -r envs/fvlm_training_clean.pip.txt || true
 else
-  conda_cmd run -n fvlm_training_clean python -m pip install -r envs/fvlm_training_clean.pip.txt || true
+  conda_cmd run -n fvlm_training_clean python -m pip install --no-deps -r envs/fvlm_training_clean.pip.txt || true
 fi

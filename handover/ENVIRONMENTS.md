@@ -3,7 +3,7 @@
 This repo expects three logical environments:
 - `fvlm_training_clean`: model training/evaluation
 - `radevalmetrics`: report metric evaluation
-- `ct-rate`: report decomposition with vLLM
+- `decompose`: report decomposition with vLLM
 
 ## Lock Files
 Place generated lock files under `envs/`:
@@ -11,8 +11,10 @@ Place generated lock files under `envs/`:
 - `fvlm_training_clean.pip.txt`
 - `radevalmetrics.explicit.txt`
 - `radevalmetrics.pip.txt`
-- `ct-rate.explicit.txt`
-- `ct-rate.pip.txt`
+- `decompose.requirements.txt`
+
+The `decompose` environment is intentionally lightweight and is built from a
+small requirements file instead of the old full `ct-rate` lock.
 
 ## Freeze on source machine
 Run:
@@ -25,7 +27,7 @@ Run:
 ```bash
 bash scripts/setup/create_env_fvlm_training_clean.sh
 bash scripts/setup/create_env_radevalmetrics.sh
-bash scripts/setup/create_env_ct_rate.sh
+bash scripts/setup/create_env_decompose.sh
 ```
 
 ## Notes
