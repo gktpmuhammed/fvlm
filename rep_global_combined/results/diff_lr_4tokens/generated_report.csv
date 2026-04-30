@@ -1,3 +1,0 @@
-patient_id,pred,ref
-valid_730_a,LUNG: infiltration observed. HEART: normal size.,LUNG: infiltration observed in right lobe. HEART: normal.
-valid_731_b,LUNG: clear. HEART: cardiomegaly.,LUNG: no opacity. HEART: severe cardiomegaly.
