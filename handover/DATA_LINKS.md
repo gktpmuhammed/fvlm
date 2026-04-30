@@ -17,6 +17,12 @@ This project expects symlinked CT volumes and local metadata files.
 ## Recreate symlinks for data_sym
 Recommended (single command):
 ```bash
+bash scripts/setup/recreate_data_symlinks.sh
+```
+Default dataset root in script: `/mnt/nas/Data_WholeBody/CT-Rate/dataset`
+
+Optional override:
+```bash
 bash scripts/setup/recreate_data_symlinks.sh /path/to/CT_RATE/dataset
 ```
 This one command recreates all expected links:

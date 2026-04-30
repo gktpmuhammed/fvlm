@@ -2,15 +2,17 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-DATASET_ROOT="${1:-}"
+DEFAULT_DATASET_ROOT="/mnt/nas/Data_WholeBody/CT-Rate/dataset"
+DATASET_ROOT="${1:-$DEFAULT_DATASET_ROOT}"
 
-if [[ -z "$DATASET_ROOT" ]]; then
-  echo "Usage: $0 <CT_RATE_DATASET_ROOT>"
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  echo "Usage: $0 [CT_RATE_DATASET_ROOT]"
+  echo "If omitted, defaults to: $DEFAULT_DATASET_ROOT"
   echo "Expected subfolders:"
   echo "  train_process, valid_process,"
   echo "  either train_TS+valid_TS OR train_mask_process+valid_mask_process,"
   echo "  metadata, radiology_text_reports, multi_abnormality_labels"
-  exit 1
+  exit 0
 fi
 
 if command -v python >/dev/null 2>&1; then
