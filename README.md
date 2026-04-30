@@ -1,6 +1,8 @@
 # Fine-grained Vision-language Pre-training for Enhanced CT Image Understanding 
 [Paper](https://openreview.net/pdf?id=nYpPAT4L3D) (ICLR 2025 Spotlight)
 
+Local handover notes: see [`handover/FOLDER_GUIDE.md`](handover/FOLDER_GUIDE.md) for what each folder contains, which experiment branch to use first, and smoke commands for MedGemma, organ-attention, BERT, evaluation, and metrics.
+
 
 ## Data processing
 
