@@ -27,22 +27,26 @@ Useful entry points:
 
 | Path | Purpose |
 | --- | --- |
-| `rep_medgemma/medgemma_standalone/` | Standalone MedGemma VLM training and evaluation pipeline |
+| [`handover/clean-migration`](https://github.com/gktpmuhammed/fvlm/tree/handover/clean-migration) | Clean migration branch with setup notes, environment files, smoke tests, and code-only handover structure |
+| `rep_medgemma/perceiver_resampler/` | Smoke-tested MedGemma path in the clean migration branch |
 | `rep_medgemma/medgemma_lora_vis_token_pos_embed/` | LoRA + visual-token + positional embedding experiments |
-| `rep_medgemma/medgemma_architecture_v3_resized_synonyms_new_dataset/` | Later architecture/data variant experiments |
-| `rep_medgemma/results/` | Aggregated comparison outputs |
+| `rep_medgemma/medical_vlm_8_tokens_full/` | 8 visual tokens per organ variant |
+| `rep_medgemma/multiscale_vit_fpn/` | Multi-scale ViT/FPN experiment branch |
 | `rep_medgemma/visualize_attention.py` | Attention visualization helper |
 | `rep_vision_organ_attention/` | Organ-aware vision-language experiments |
+| `rep_vision_bert/` | BERT-decoder comparison branch |
 
-Example aggregated retraining results from `rep_medgemma/results_retrain/global_model_comparison.csv`:
+Thesis-final result tables and figures are summarized in the project page:
 
-| Model | N | GREEN | BLEU-4 | METEOR | ROUGE-L | BERTScore | RadGraph |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `medgemma_lora_vis_token_pos_embed` | 1563 | 0.348 | 0.105 | 0.344 | 0.379 | 0.596 | 0.268 |
-| `multiscale_vit_fpn` | 1563 | 0.327 | 0.086 | 0.322 | 0.337 | 0.566 | 0.242 |
-| `medical_vlm_8_tokens_full` | 1563 | 0.323 | 0.092 | 0.328 | 0.341 | 0.567 | 0.243 |
+- [medical-vlm-radiology-report-generation](https://github.com/gktpmuhammed/medical-vlm-radiology-report-generation)
 
-This fork is currently a research workspace. For a cleaner portfolio presentation, the next step is to extract the thesis work into a standalone showcase repository with a concise architecture diagram, metric table, sample generated reports, and contribution summary.
+High-level thesis findings:
+
+- Within MedGemma ablations, Base-8T improves over Base-1T on GREEN, RadGraph, and most lexical-semantic metrics.
+- In cross-decoder comparison, the fVLM-aligned BERT-base baseline is strongest on GREEN, RadGraph, ROUGE-L, and BERTScore.
+- MedGemma shows substantially lower template reuse and higher output diversity than the other decoder families.
+
+This fork remains the implementation workspace; the separate project page is the concise portfolio view.
 
 
 ## Data processing
