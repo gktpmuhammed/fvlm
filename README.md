@@ -1,5 +1,48 @@
-# Fine-grained Vision-language Pre-training for Enhanced CT Image Understanding 
+# Fine-grained Vision-language Pre-training for Enhanced CT Image Understanding
 [Paper](https://openreview.net/pdf?id=nYpPAT4L3D) (ICLR 2025 Spotlight)
+
+## Fork Note: Medical VLM Thesis Experiments
+
+This fork contains my thesis-related experiments on 3D CT report generation and medical vision-language modeling. The original repository implements Fine-grained Vision-language Pre-training for CT understanding. My additions build on that codebase to explore MedGemma-based report generation, organ-aware visual tokens, LoRA variants, training strategies, evaluation scripts, and attention visualization.
+
+The main experimental code is under:
+
+```text
+rep_medgemma/
+rep_vision_organ_attention/
+rep_vision_bert/
+```
+
+Key additions include:
+
+- MedGemma-based 3D CT report generation experiments.
+- Custom `medical_vlm.py` model variants for visual-token and organ-aware conditioning.
+- LoRA-based fine-tuning setups.
+- Positional embedding and visual-token ablation experiments.
+- Curriculum learning and hard-example mining variants.
+- Organ-level attention visualization scripts and generated examples.
+- Report-generation evaluation utilities, including language metrics and model comparison tables.
+
+Useful entry points:
+
+| Path | Purpose |
+| --- | --- |
+| `rep_medgemma/medgemma_standalone/` | Standalone MedGemma VLM training and evaluation pipeline |
+| `rep_medgemma/medgemma_lora_vis_token_pos_embed/` | LoRA + visual-token + positional embedding experiments |
+| `rep_medgemma/medgemma_architecture_v3_resized_synonyms_new_dataset/` | Later architecture/data variant experiments |
+| `rep_medgemma/results/` | Aggregated comparison outputs |
+| `rep_medgemma/visualize_attention.py` | Attention visualization helper |
+| `rep_vision_organ_attention/` | Organ-aware vision-language experiments |
+
+Example aggregated retraining results from `rep_medgemma/results_retrain/global_model_comparison.csv`:
+
+| Model | N | GREEN | BLEU-4 | METEOR | ROUGE-L | BERTScore | RadGraph |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `medgemma_lora_vis_token_pos_embed` | 1563 | 0.348 | 0.105 | 0.344 | 0.379 | 0.596 | 0.268 |
+| `multiscale_vit_fpn` | 1563 | 0.327 | 0.086 | 0.322 | 0.337 | 0.566 | 0.242 |
+| `medical_vlm_8_tokens_full` | 1563 | 0.323 | 0.092 | 0.328 | 0.341 | 0.567 | 0.243 |
+
+This fork is currently a research workspace. For a cleaner portfolio presentation, the next step is to extract the thesis work into a standalone showcase repository with a concise architecture diagram, metric table, sample generated reports, and contribution summary.
 
 
 ## Data processing
